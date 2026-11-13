@@ -24,6 +24,50 @@ class HomeScreen extends ConsumerStatefulWidget {
 class _HomeScreenState extends ConsumerState<HomeScreen> {
   ChallengeModel? _todaysChallenge;
   List<HistoryItem> _recentCreations = [];
+  int _sparkIndex = 0;
+
+  static const List<Map<String, String>> _viralSparks = [
+    {
+      'title': '“Replying to ‘k’ after 6 hours of silence”',
+      'subtitle': 'Generate savage, flirty, or diplomatic comeback options in 1 tap.',
+      'prompt': "Replying to 'k' after 6 hours of silence",
+      'buttonText': 'Spark Savage Comeback',
+      'option': 'Savage',
+      'contextTag': '⏳ 6h delay • Dry text',
+    },
+    {
+      'title': '“When they text ‘wyd’ at 1:47 AM”',
+      'subtitle': 'Hit them with effortless high-charm banter or an unbothered boundary.',
+      'prompt': "Replying to 'wyd' at 1:47 AM",
+      'buttonText': 'Spark Magnetic Rizz',
+      'option': 'Rizz',
+      'contextTag': '🌙 Late night • 1:47 AM',
+    },
+    {
+      'title': '“They replied ‘we need to talk’ out of nowhere”',
+      'subtitle': 'Keep composure with calm, confident, and direct executive energy.',
+      'prompt': "Responding calmly to 'we need to talk'",
+      'buttonText': 'Stay Calm & Direct',
+      'option': 'Confident',
+      'contextTag': '⚠️ High stakes • Serious',
+    },
+    {
+      'title': '“Sorry forgot to reply! (Sent 4 days later)”',
+      'subtitle': 'Match their slow energy or turn it into playful banter in seconds.',
+      'prompt': "Replying to someone who apologized 4 days late",
+      'buttonText': 'Match Their Energy',
+      'option': 'Witty',
+      'contextTag': '📅 4 days later • Ghoster',
+    },
+    {
+      'title': '“Need an excuse to cancel tonight without guilt”',
+      'subtitle': 'Gracious, polite boundary that saves your social battery completely.',
+      'prompt': "Polite excuse to cancel plans tonight because social battery is zero",
+      'buttonText': 'Craft Diplomatic Exit',
+      'option': 'Polite',
+      'contextTag': '🔋 0% battery • Cancel plans',
+    },
+  ];
 
   @override
   void initState() {
@@ -305,162 +349,309 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 const SizedBox(height: 18),
 
                 // 1. Hero Daily Vibe Spark Interactive Banner
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(18),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(22),
-                    border: Border.all(
-                      color: isDark
-                          ? AppColors.accent.withOpacity(0.35)
-                          : AppColors.accent.withOpacity(0.25),
-                      width: 1.3,
-                    ),
-                    gradient: LinearGradient(
-                      colors: isDark
-                          ? [
-                              const Color(0xFF382315),
-                              const Color(0xFF1E140E),
-                            ]
-                          : [
-                              const Color(0xFFFBF5ED),
-                              const Color(0xFFF3ECE2),
-                            ],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                            decoration: BoxDecoration(
-                              gradient: AppColors.accentGradient,
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: const Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(Icons.bolt_rounded, size: 13, color: Colors.white),
-                                SizedBox(width: 4),
-                                Text(
-                                  'DAILY VIBE SPARK',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w900,
-                                    letterSpacing: 0.5,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          InkWell(
-                            onTap: () => context.push('/studio'),
-                            borderRadius: BorderRadius.circular(8),
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                              child: Text(
-                                'Explore all',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w700,
-                                  color: isDark ? AppColors.accentWarm : AppColors.primary,
-                                ),
-                              ),
-                            ),
+                Builder(
+                  builder: (context) {
+                    final currentSpark = _viralSparks[_sparkIndex % _viralSparks.length];
+                    return Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(18),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(24),
+                        border: Border.all(
+                          color: isDark
+                              ? const Color(0xFFE27B32).withOpacity(0.4)
+                              : const Color(0xFFE5CEBD),
+                          width: 1.5,
+                        ),
+                        gradient: LinearGradient(
+                          colors: isDark
+                              ? [const Color(0xFF2C190F), const Color(0xFF170E08)]
+                              : [const Color(0xFFFFFDF9), const Color(0xFFF7EFE4)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: isDark
+                                ? Colors.black.withOpacity(0.4)
+                                : const Color(0xFF7D4E2D).withOpacity(0.06),
+                            blurRadius: 18,
+                            offset: const Offset(0, 6),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 12),
-                      Text(
-                        '“Replying to ‘k’ after 6 hours of silence”',
-                        style: GoogleFonts.outfit(
-                          fontSize: 17,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: -0.3,
-                          color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
-                        ),
-                      ),
-                      const SizedBox(height: 5),
-                      Text(
-                        'Generate savage, flirty, or diplomatic comeback options in 1 tap.',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
-                          height: 1.3,
-                        ),
-                      ),
-                      const SizedBox(height: 14),
-                      Row(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Expanded(
-                            child: InkWell(
-                              onTap: () {
-                                HapticFeedback.mediumImpact();
-                                context.push(
-                                  '/studio?tab=reply&prompt=${Uri.encodeComponent("Replying to 'k' after 6 hours of silence")}&option=Savage',
-                                );
-                              },
-                              borderRadius: BorderRadius.circular(16),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(vertical: 11),
+                          // Top bar: Badge, Shuffle & Explore
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                                 decoration: BoxDecoration(
-                                  gradient: AppColors.primaryGradient,
-                                  borderRadius: BorderRadius.circular(16),
+                                  gradient: const LinearGradient(
+                                    colors: [Color(0xFFFF7A2F), Color(0xFFD64D12)],
+                                  ),
+                                  borderRadius: BorderRadius.circular(999),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: const Color(0xFFE05315).withOpacity(0.3),
+                                      blurRadius: 8,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ],
                                 ),
                                 child: const Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    Icon(Icons.local_fire_department_rounded, size: 16, color: Colors.white),
-                                    SizedBox(width: 6),
+                                    Icon(Icons.local_fire_department_rounded, size: 13, color: Colors.white),
+                                    SizedBox(width: 4),
                                     Text(
-                                      'Spark Savage Comeback',
+                                      'DAILY VIBE SPARK',
                                       style: TextStyle(
                                         color: Colors.white,
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.bold,
-                                        letterSpacing: 0.1,
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w900,
+                                        letterSpacing: 0.8,
                                       ),
                                     ),
                                   ],
                                 ),
                               ),
+                              Row(
+                                children: [
+                                  // Shuffle Button
+                                  InkWell(
+                                    onTap: () {
+                                      HapticFeedback.selectionClick();
+                                      setState(() {
+                                        _sparkIndex = (_sparkIndex + 1) % _viralSparks.length;
+                                      });
+                                    },
+                                    borderRadius: BorderRadius.circular(10),
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                      decoration: BoxDecoration(
+                                        color: isDark ? AppColors.surfaceElevatedDark : AppColors.surfaceElevatedLight,
+                                        borderRadius: BorderRadius.circular(10),
+                                        border: Border.all(
+                                          color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                                        ),
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(
+                                            Icons.shuffle_rounded,
+                                            size: 13,
+                                            color: isDark ? AppColors.accentWarm : AppColors.primary,
+                                          ),
+                                          const SizedBox(width: 4),
+                                          Text(
+                                            'Shuffle',
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.bold,
+                                              color: isDark ? AppColors.accentWarm : AppColors.primary,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  InkWell(
+                                    onTap: () => context.push('/challenge'),
+                                    borderRadius: BorderRadius.circular(8),
+                                    child: Padding(
+                                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Text(
+                                            'Explore all',
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w700,
+                                              color: isDark ? AppColors.accentWarm : AppColors.primary,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 2),
+                                          Icon(
+                                            Icons.arrow_forward_ios_rounded,
+                                            size: 10,
+                                            color: isDark ? AppColors.accentWarm : AppColors.primary,
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+
+                          // Text Dilemma Card Bubble
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                            decoration: BoxDecoration(
+                              color: isDark ? const Color(0xFF1E130B) : Colors.white,
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(
+                                color: isDark ? const Color(0xFF382315) : const Color(0xFFECE2D5),
+                              ),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                // Context Tag
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: (isDark ? AppColors.primary : const Color(0xFFD64D12)).withOpacity(0.12),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Text(
+                                    currentSpark['contextTag']!,
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w700,
+                                      color: isDark ? AppColors.accentWarm : const Color(0xFFB53D0A),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(height: 6),
+                                Text(
+                                  currentSpark['title']!,
+                                  style: GoogleFonts.outfit(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w800,
+                                    letterSpacing: -0.2,
+                                    color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  currentSpark['subtitle']!,
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                                    height: 1.35,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
-                          const SizedBox(width: 10),
-                          InkWell(
-                            onTap: () {
-                              HapticFeedback.lightImpact();
-                              context.push(
-                                '/studio?tab=vibe_check&prompt=${Uri.encodeComponent("k")}&option=roast',
-                              );
-                            },
-                            borderRadius: BorderRadius.circular(16),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                              decoration: BoxDecoration(
-                                color: isDark ? AppColors.surfaceElevatedDark : AppColors.surfaceElevatedLight,
-                                borderRadius: BorderRadius.circular(16),
-                                border: Border.all(
-                                  color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                          const SizedBox(height: 14),
+
+                          // Buttons Row
+                          Row(
+                            children: [
+                              Expanded(
+                                child: InkWell(
+                                  onTap: () {
+                                    HapticFeedback.mediumImpact();
+                                    context.push(
+                                      '/studio?tab=reply&prompt=${Uri.encodeComponent(currentSpark['prompt']!)}&option=${currentSpark['option']!}',
+                                    );
+                                  },
+                                  borderRadius: BorderRadius.circular(16),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(vertical: 12),
+                                    decoration: BoxDecoration(
+                                      gradient: LinearGradient(
+                                        colors: isDark
+                                            ? [const Color(0xFFE27429), const Color(0xFF9E4211)]
+                                            : [const Color(0xFF6B3615), const Color(0xFF3B1C0A)],
+                                        begin: Alignment.topLeft,
+                                        end: Alignment.bottomRight,
+                                      ),
+                                      borderRadius: BorderRadius.circular(16),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: isDark
+                                              ? const Color(0xFFE27429).withOpacity(0.3)
+                                              : const Color(0xFF6B3615).withOpacity(0.25),
+                                          blurRadius: 10,
+                                          offset: const Offset(0, 3),
+                                        ),
+                                      ],
+                                    ),
+                                    child: Row(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        const Icon(
+                                          Icons.bolt_rounded,
+                                          size: 17,
+                                          color: Color(0xFFFFD199),
+                                        ),
+                                        const SizedBox(width: 6),
+                                        Text(
+                                          currentSpark['buttonText']!,
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.bold,
+                                            letterSpacing: 0.1,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
                                 ),
                               ),
-                              child: const Icon(
-                                Icons.radar_rounded,
-                                size: 19,
-                                color: AppColors.accent,
+                              const SizedBox(width: 10),
+                              InkWell(
+                                onTap: () {
+                                  HapticFeedback.lightImpact();
+                                  context.push(
+                                    '/studio?tab=vibe_check&prompt=${Uri.encodeComponent(currentSpark['prompt']!)}&option=roast',
+                                  );
+                                },
+                                borderRadius: BorderRadius.circular(16),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+                                  decoration: BoxDecoration(
+                                    color: isDark ? AppColors.surfaceElevatedDark : Colors.white,
+                                    borderRadius: BorderRadius.circular(16),
+                                    border: Border.all(
+                                      color: isDark ? AppColors.borderDark : const Color(0xFFE5D5C5),
+                                      width: 1.2,
+                                    ),
+                                  ),
+                                  child: Tooltip(
+                                    message: 'Roast & Vibe Check this dilemma',
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        const Icon(
+                                          Icons.local_fire_department_outlined,
+                                          size: 18,
+                                          color: AppColors.accent,
+                                        ),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          'Roast',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.bold,
+                                            color: isDark ? AppColors.accentWarm : AppColors.primary,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
                               ),
-                            ),
+                            ],
                           ),
                         ],
                       ),
-                    ],
-                  ),
+                    );
+                  },
                 ),
 
                 const SizedBox(height: 22),

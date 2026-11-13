@@ -127,3 +127,4 @@ High-fidelity reference captures to upload directly into Google Stitch canvas:
 5. **Meme & Quote Card Maker:** `store_assets/screenshot_05_card_maker.png`
 6. **Vibe Streaks & Gamification:** `store_assets/screenshot_06_streaks_rewards.png`
 7. **VIP Paywall Screen:** `store_assets/screenshot_07_pro_paywall.png`
+

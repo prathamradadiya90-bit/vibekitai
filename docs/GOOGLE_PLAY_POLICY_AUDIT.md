@@ -170,3 +170,4 @@ When submitting your app in the Google Play Console, navigate to **Policy and pr
 | **Missing Web Deletion URL** | Backend serves `/delete-account` with an automated deletion portal and email support options. |
 | **Ad Intrusiveness Violations** | Ads are frequency-capped (max 2 rewarded/day, 180s gap between interstitials) and never displayed during typing or card editing. |
 | **Unused Risky Permissions** | Storage, camera, and contact permissions are absent from `AndroidManifest.xml`. |
+
