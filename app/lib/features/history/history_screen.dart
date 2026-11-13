@@ -125,6 +125,8 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('History & Favorites'),
@@ -178,14 +180,20 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                         setState(() => _selectedFilter = tab['id']!);
                         _loadItems();
                       },
-                      selectedColor: AppColors.primary,
+                      selectedColor: isDark ? AppColors.accent : AppColors.primary,
+                      backgroundColor: isDark ? AppColors.surfaceElevatedDark : AppColors.surfaceElevatedLight,
                       labelStyle: TextStyle(
                         color: isSelected
                             ? Colors.white
-                            : AppColors.textPrimaryDark,
+                            : (isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight),
                         fontWeight:
-                            isSelected ? FontWeight.bold : FontWeight.normal,
+                            isSelected ? FontWeight.bold : FontWeight.w500,
                         fontSize: 12,
+                      ),
+                      side: BorderSide(
+                        color: isSelected
+                            ? Colors.transparent
+                            : (isDark ? AppColors.borderDark : AppColors.borderLight),
                       ),
                     ),
                   );
@@ -200,7 +208,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
               child: _isLoading
                   ? const Center(child: CircularProgressIndicator())
                   : _items.isEmpty
-                      ? _buildEmptyState()
+                      ? _buildEmptyState(isDark)
                       : ListView.separated(
                           padding: const EdgeInsets.symmetric(
                               horizontal: 20, vertical: 12),
@@ -221,7 +229,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                                         : Icons.brush_outlined;
 
                             final typeColor = item.type == 'reply'
-                                ? AppColors.primary
+                                ? (isDark ? AppColors.accentWarm : AppColors.primary)
                                 : item.type == 'caption'
                                     ? AppColors.accent
                                     : item.type == 'bio'
@@ -231,9 +239,11 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                             return Container(
                               padding: const EdgeInsets.all(16),
                               decoration: BoxDecoration(
-                                color: AppColors.surfaceCardDark,
+                                color: isDark ? AppColors.surfaceCardDark : AppColors.surfaceCardLight,
                                 borderRadius: BorderRadius.circular(16),
-                                border: Border.all(color: AppColors.borderDark),
+                                border: Border.all(
+                                  color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                                ),
                               ),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -258,9 +268,10 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                                           const SizedBox(width: 8),
                                           Text(
                                             '• $formattedDate',
-                                            style: const TextStyle(
-                                                fontSize: 11,
-                                                color: AppColors.textMutedDark),
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              color: isDark ? AppColors.textMutedDark : AppColors.textSecondaryLight,
+                                            ),
                                           ),
                                         ],
                                       ),
@@ -274,7 +285,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                                                       .favorite_border_rounded,
                                               color: item.isFavorite
                                                   ? AppColors.accentPink
-                                                  : null,
+                                                  : (isDark ? Colors.white38 : AppColors.textSecondaryLight),
                                               size: 18,
                                             ),
                                             tooltip: 'Favorite',
@@ -282,17 +293,19 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                                                 _toggleFavorite(item),
                                           ),
                                           IconButton(
-                                            icon: const Icon(Icons.copy_rounded,
-                                                size: 18),
+                                            icon: Icon(Icons.copy_rounded,
+                                                size: 18,
+                                                color: isDark ? Colors.white70 : AppColors.textSecondaryLight),
                                             tooltip: 'Copy',
                                             onPressed: () =>
                                                 ShareService.copyToClipboard(
                                                     context, item.content),
                                           ),
                                           IconButton(
-                                            icon: const Icon(
+                                            icon: Icon(
                                                 Icons.share_rounded,
-                                                size: 18),
+                                                size: 18,
+                                                color: isDark ? Colors.white70 : AppColors.textSecondaryLight),
                                             tooltip: 'Share',
                                             onPressed: () {
                                               if (item.type == 'card' &&
@@ -322,8 +335,11 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                                   const SizedBox(height: 8),
                                   Text(
                                     item.content,
-                                    style: const TextStyle(
-                                        fontSize: 14, height: 1.4),
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      height: 1.4,
+                                      color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                                    ),
                                   ),
                                 ],
                               ),
@@ -337,7 +353,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
     );
   }
 
-  Widget _buildEmptyState() {
+  Widget _buildEmptyState(bool isDark) {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),
@@ -347,23 +363,29 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: AppColors.primary.withOpacity(0.12),
+                color: (isDark ? AppColors.accent : AppColors.primary).withOpacity(0.12),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(Icons.inbox_rounded,
-                  size: 40, color: AppColors.primaryLight),
+              child: Icon(Icons.inbox_rounded,
+                  size: 40, color: isDark ? AppColors.accentWarm : AppColors.primary),
             ),
             const SizedBox(height: 16),
-            const Text(
+            Text(
               'No creations found',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+              ),
             ),
             const SizedBox(height: 6),
-            const Text(
+            Text(
               'Your generated replies, captions, and created cards will appear here.',
               textAlign: TextAlign.center,
-              style:
-                  TextStyle(fontSize: 13, color: AppColors.textSecondaryDark),
+              style: TextStyle(
+                fontSize: 13,
+                color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+              ),
             ),
           ],
         ),

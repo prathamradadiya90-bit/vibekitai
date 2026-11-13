@@ -1203,10 +1203,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       final c = _todaysChallenge!;
                       if (c.targetFeature == 'reply') {
                         context.push(
-                            '/reply-studio?initialPrompt=${Uri.encodeComponent(c.prompt)}&initialTone=${c.tone}');
+                            '/studio?tab=reply&prompt=${Uri.encodeComponent(c.prompt)}&option=${c.tone}');
                       } else if (c.targetFeature == 'caption') {
                         context.push(
-                            '/caption-lab?initialPrompt=${Uri.encodeComponent(c.prompt)}&initialTone=${c.tone}');
+                            '/studio?tab=caption&prompt=${Uri.encodeComponent(c.prompt)}&option=${c.tone}');
                       } else {
                         context.push(
                             '/card-maker?initialPrompt=${Uri.encodeComponent(c.prompt)}');

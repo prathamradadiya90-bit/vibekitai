@@ -51,11 +51,11 @@ class _ChallengeScreenState extends ConsumerState<ChallengeScreen> {
     if (!mounted) return;
     if (challenge.targetFeature == 'reply') {
       context.push(
-        '/reply-studio?initialPrompt=${Uri.encodeComponent(challenge.prompt)}&initialTone=${challenge.tone}',
+        '/studio?tab=reply&prompt=${Uri.encodeComponent(challenge.prompt)}&option=${challenge.tone}',
       );
     } else if (challenge.targetFeature == 'caption') {
       context.push(
-        '/caption-lab?initialPrompt=${Uri.encodeComponent(challenge.prompt)}&initialTone=${challenge.tone}',
+        '/studio?tab=caption&prompt=${Uri.encodeComponent(challenge.prompt)}&option=${challenge.tone}',
       );
     } else {
       context.push(
