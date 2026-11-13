@@ -1,0 +1,22 @@
+name = "vibekit-ai-backend"
+main = "src/index.ts"
+compatibility_date = "2024-11-01"
+compatibility_flags = ["nodejs_compat"]
+
+[vars]
+ENVIRONMENT = "development"
+GEMINI_MODEL = "gemini-1.5-flash"
+MAX_DAILY_FREE_CREDITS = "3"
+REWARD_CREDITS_PER_AD = "3"
+MAX_DAILY_REWARDS = "2"
+MONTHLY_PRO_CREDITS = "200"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "vibekit-prod"
+database_id = "vibekit-d1-placeholder-id"
+migrations_dir = "migrations"
+
+[triggers]
+crons = ["0 1 * * *"]
+

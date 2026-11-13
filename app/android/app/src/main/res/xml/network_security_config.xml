@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <!-- Strictly disallow all cleartext HTTP traffic across entire app -->
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <!-- Trust only genuine system-installed root CAs in production -->
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>

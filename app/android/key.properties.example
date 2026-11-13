@@ -1,0 +1,8 @@
+# Example key.properties file for VibeKit AI production release signing
+# Copy this file to: app/android/key.properties
+# DO NOT commit real key.properties or .jks files to GitHub (already ignored in .gitignore)
+
+storePassword=YOUR_KEYSTORE_PASSWORD
+keyPassword=YOUR_KEY_PASSWORD
+keyAlias=upload
+storeFile=upload-keystore.jks

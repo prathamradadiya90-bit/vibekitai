@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      width: 1024px;
+      height: 500px;
+      overflow: hidden;
+      background: #140E0A;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    }
+    .banner {
+      width: 1024px;
+      height: 500px;
+      background: radial-gradient(circle at 75% 40%, #382013 0%, #1A0F08 55%, #0F0804 100%);
+      position: relative;
+      display: flex;
+      padding: 50px 60px;
+      align-items: center;
+      justify-content: space-between;
+      overflow: hidden;
+    }
+    /* Subtle background grid pattern */
+    .bg-grid {
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background-image: linear-gradient(rgba(240, 200, 160, 0.03) 1px, transparent 1px),
+                        linear-gradient(90deg, rgba(240, 200, 160, 0.03) 1px, transparent 1px);
+      background-size: 32px 32px;
+      pointer-events: none;
+    }
+    .left-col {
+      max-width: 520px;
+      z-index: 2;
+    }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(226, 135, 67, 0.15);
+      border: 1px solid rgba(226, 135, 67, 0.35);
+      color: #FFC58D;
+      padding: 6px 14px;
+      border-radius: 999px;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      margin-bottom: 16px;
+    }
+    h1 {
+      font-size: 52px;
+      font-weight: 850;
+      line-height: 1.08;
+      letter-spacing: -1px;
+      background: linear-gradient(135deg, #FFFFFF 0%, #F5DEC7 60%, #E2AB7E 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 14px;
+    }
+    p.tagline {
+      font-size: 19px;
+      color: #D6BCAB;
+      line-height: 1.45;
+      margin-bottom: 24px;
+      font-weight: 450;
+    }
+    .feature-pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .pill {
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 12px;
+      padding: 8px 14px;
+      font-size: 13px;
+      color: #FAF2EC;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .right-col {
+      z-index: 2;
+      position: relative;
+      display: flex;
+      gap: 16px;
+      transform: rotate(-3deg) translateY(6px);
+    }
+    .preview-card {
+      width: 190px;
+      background: #23150D;
+      border: 1.5px solid rgba(226, 135, 67, 0.3);
+      border-radius: 18px;
+      padding: 16px;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+    }
+    .preview-card.accent {
+      background: linear-gradient(160deg, #321B0F 0%, #1F1008 100%);
+      border-color: rgba(240, 180, 120, 0.4);
+      transform: translateY(-16px);
+    }
+    .card-title {
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #E28743;
+      margin-bottom: 8px;
+    }
+    .card-body {
+      font-size: 13px;
+      line-height: 1.4;
+      color: #FFF3E8;
+      font-weight: 500;
+    }
+    .card-action {
+      margin-top: 14px;
+      background: #E28743;
+      color: #100804;
+      font-size: 11px;
+      font-weight: 800;
+      text-align: center;
+      padding: 6px;
+      border-radius: 8px;
+    }
+  </style>
+</head>
+<body>
+  <div class="banner">
+    <div class="bg-grid"></div>
+    <div class="left-col">
+      <div class="badge">🔥 Powered by Google Gemini AI</div>
+      <h1>Savage Comebacks & Aesthetic Cards</h1>
+      <p class="tagline">The all-in-one vibe assistant for smart texting, viral captions, profile bios & quote maker.</p>
+      <div class="feature-pills">
+        <div class="pill">💬 Smart Reply Studio</div>
+        <div class="pill">🔥 Vibe Check & Roast</div>
+        <div class="pill">✨ Viral Captions</div>
+        <div class="pill">🎨 100% Offline Cards</div>
+      </div>
+    </div>
+    <div class="right-col">
+      <div class="preview-card">
+        <div class="card-title">💬 Comeback</div>
+        <div class="card-body">“Replying to 'k' after 6 hours: 'Did your fingers get tired from all that typing?'”</div>
+        <div class="card-action">Copy • Send</div>
+      </div>
+      <div class="preview-card accent">
+        <div class="card-title">✨ Aesthetic Quote</div>
+        <div class="card-body">“Late night coffee & big dreams over daytime drama.”</div>
+        <div class="card-action">Save High-Res</div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

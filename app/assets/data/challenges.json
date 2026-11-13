@@ -1,0 +1,42 @@
+[
+  {
+    "id": "challenge_1",
+    "title": "The Witty Comeback",
+    "prompt": "Someone texts you: 'You disappeared! Did you win the lottery without me?'",
+    "targetFeature": "reply",
+    "tone": "Witty",
+    "tag": "Daily Challenge"
+  },
+  {
+    "id": "challenge_2",
+    "title": "Weekend Coffee Reel Hook",
+    "prompt": "Create an irresistible Reel hook for an artisan iced coffee on a Sunday morning.",
+    "targetFeature": "caption",
+    "tone": "Confident",
+    "tag": "Creator Challenge"
+  },
+  {
+    "id": "challenge_3",
+    "title": "Midnight Thoughts Quote Card",
+    "prompt": "Quiet consistency beats loud motivation every single day.",
+    "targetFeature": "card",
+    "tone": "Inspirational",
+    "tag": "Design Challenge"
+  },
+  {
+    "id": "challenge_4",
+    "title": "Flirty Rain Text",
+    "prompt": "Reply to someone texting: 'It is pouring outside and the power just went off...'",
+    "targetFeature": "reply",
+    "tone": "Flirty",
+    "tag": "Daily Challenge"
+  },
+  {
+    "id": "challenge_5",
+    "title": "Chai & Conversations",
+    "prompt": "A warm Hinglish caption for evening tea with childhood friends.",
+    "targetFeature": "caption",
+    "tone": "Aesthetic",
+    "tag": "Vibe Challenge"
+  }
+]

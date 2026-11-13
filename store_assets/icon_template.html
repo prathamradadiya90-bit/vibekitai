@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      width: 512px;
+      height: 512px;
+      overflow: hidden;
+      background: #140E0A;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    }
+    .icon-container {
+      width: 512px;
+      height: 512px;
+      background: radial-gradient(circle at 35% 30%, #3D2214 0%, #1A0E07 70%, #100804 100%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+    /* Subtle inner glow ring */
+    .glow-ring {
+      position: absolute;
+      width: 440px;
+      height: 440px;
+      border-radius: 96px;
+      border: 2px solid rgba(235, 175, 110, 0.15);
+      box-shadow: inset 0 0 40px rgba(200, 109, 60, 0.12);
+    }
+    .spark-glyph {
+      width: 220px;
+      height: 220px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+    svg {
+      width: 220px;
+      height: 220px;
+      filter: drop-shadow(0 12px 28px rgba(217, 119, 45, 0.35));
+    }
+    .brand-name {
+      margin-top: 14px;
+      font-size: 40px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      background: linear-gradient(135deg, #FFF6EC 0%, #E6C29E 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      text-transform: none;
+    }
+    .brand-sub {
+      font-size: 15px;
+      font-weight: 600;
+      letter-spacing: 2px;
+      color: #C89569;
+      text-transform: uppercase;
+      margin-top: 4px;
+    }
+  </style>
+</head>
+<body>
+  <div class="icon-container">
+    <div class="glow-ring"></div>
+    <div class="spark-glyph">
+      <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="coffeeFlame" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#FFD494" />
+            <stop offset="50%" stop-color="#E28743" />
+            <stop offset="100%" stop-color="#9E4718" />
+          </linearGradient>
+          <linearGradient id="cupAccent" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#FFF3E0" />
+            <stop offset="100%" stop-color="#DEB088" />
+          </linearGradient>
+        </defs>
+        <!-- Speech Bubble Base + Coffee Heart / Flame -->
+        <path d="M 20 28 C 20 18, 30 14, 50 14 C 70 14, 80 18, 80 28 C 80 44, 70 54, 54 55 L 48 64 L 42 55 C 28 54, 20 44, 20 28 Z" fill="url(#cupAccent)" opacity="0.95"/>
+        <!-- Inner V Flame Spark -->
+        <path d="M 36 28 Q 50 20 50 36 Q 50 22 64 28 Q 58 46 50 50 Q 42 46 36 28 Z" fill="url(#coffeeFlame)"/>
+        <!-- Floating Sparkles -->
+        <circle cx="28" cy="18" r="3.5" fill="#FFE3BD" />
+        <circle cx="72" cy="18" r="4.5" fill="#FFE3BD" />
+        <circle cx="50" cy="74" r="5" fill="#E28743" />
+      </svg>
+    </div>
+    <div class="brand-name">VibeKit AI</div>
+    <div class="brand-sub">Smart Replies & Cards</div>
+  </div>
+</body>
+</html>
