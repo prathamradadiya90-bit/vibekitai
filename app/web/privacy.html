@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Privacy Policy — VibeKit AI</title>
+  <style>
+    :root {
+      --bg: #140E0A;
+      --card-bg: #211611;
+      --border: #4A3426;
+      --accent: #E8985E;
+      --accent-warm: #F5D3B3;
+      --text-primary: #FFFBF7;
+      --text-secondary: #D6C1B1;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background-color: var(--bg);
+      color: var(--text-primary);
+      margin: 0;
+      padding: 40px 20px;
+      line-height: 1.6;
+    }
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      background-color: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 40px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    }
+    h1 {
+      color: var(--accent);
+      font-size: 2rem;
+      margin-top: 0;
+      border-bottom: 2px solid var(--border);
+      padding-bottom: 16px;
+    }
+    h2 {
+      color: var(--accent-warm);
+      font-size: 1.3rem;
+      margin-top: 32px;
+      margin-bottom: 12px;
+    }
+    p, li {
+      color: var(--text-secondary);
+      font-size: 1rem;
+    }
+    ul {
+      padding-left: 24px;
+    }
+    .badge {
+      display: inline-block;
+      background: rgba(232, 152, 94, 0.15);
+      border: 1px solid var(--accent);
+      color: var(--accent);
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      margin-bottom: 20px;
+    }
+    .highlight-box {
+      background: rgba(46, 125, 50, 0.12);
+      border: 1px solid #2E7D32;
+      border-radius: 10px;
+      padding: 16px;
+      margin: 20px 0;
+    }
+    a {
+      color: var(--accent);
+      text-decoration: underline;
+    }
+    footer {
+      text-align: center;
+      margin-top: 40px;
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="badge">Google Play Data Safety Compliant</div>
+    <h1>Privacy Policy for VibeKit AI</h1>
+    <p><strong>Effective Date:</strong> November 15, 2026</p>
+    <p><strong>App Name:</strong> VibeKit AI ("we", "us", or "our")</p>
+    <p><strong>Developer Contact:</strong> <a href="mailto:support@vibekit.ai">support@vibekit.ai</a></p>
+
+    <div class="highlight-box">
+      <strong style="color: #66BB6A;">🛡️ Our Zero-Retention Privacy Promise:</strong>
+      <p style="margin: 6px 0 0 0;">
+        VibeKit AI processes your conversation context, reply drafts, and caption prompts <strong>ephemerally in volatile memory</strong> solely to produce the requested AI suggestions. We <strong>NEVER permanently store, log, or train on your personal text or prompt content</strong> in any database.
+      </p>
+    </div>
+
+    <h2>1. Information We Collect and Why</h2>
+    <p>We believe in minimal, privacy-preserving data practices:</p>
+    <ul>
+      <li><strong>Pseudonymous Installation Identifier:</strong> A randomly generated UUID created upon first app launch. Used exclusively to track daily free credits, anti-abuse quotas, and streak milestones. It contains zero personal identifiable information (PII).</li>
+      <li><strong>Local Generation History & Saved Cards:</strong> Your generated replies, favorited captions, and created quote cards are stored <strong>100% locally on your device</strong> using on-device SQLite storage. This data never leaves your device unless you choose to share it.</li>
+      <li><strong>Purchase Tokens & Subscription Entitlements:</strong> Processed directly by Google Play Billing when purchasing VibeKit Pro or consumable credit packs. We only receive pseudonymous confirmation tokens to activate your Pro benefits. We never collect or handle your payment card details.</li>
+      <li><strong>Advertising Identifier (AdMob):</strong> If you use the free tier, Google Mobile Ads may use your device's Google Advertising ID (GAID) to deliver ads and verify rewarded ad credits, subject to your consent via Google UMP. Pro subscribers enjoy an entirely ad-free experience with zero ad tracking.</li>
+    </ul>
+
+    <h2>2. Third-Party Service Providers</h2>
+    <p>To deliver fast, secure edge processing, we partner with industry-leading infrastructure:</p>
+    <ul>
+      <li><strong>Google Cloud & Gemini API:</strong> Powers real-time generative AI inference with strict enterprise data confidentiality agreements.</li>
+      <li><strong>Cloudflare Edge Workers & D1:</strong> Provides DDoS protection, rate limiting, and anonymous credit balance tracking over encrypted TLS 1.3.</li>
+      <li><strong>Google Play Billing & AdMob:</strong> Manages subscription entitlements and privacy-compliant advertising.</li>
+    </ul>
+
+    <h2>3. Data Security & Encryption</h2>
+    <p>All network communications between the VibeKit AI application and our backend edge APIs are strictly encrypted in transit using Transport Layer Security (TLS 1.3 / HTTPS). Backups and sensitive tokens are kept strictly isolated.</p>
+
+    <h2>4. User Rights & Data Deletion</h2>
+    <p>You have complete control over your data:</p>
+    <ul>
+      <li><strong>In-App Deletion:</strong> Go to <em>Settings &gt; Delete All My Data</em> to immediately wipe all local SQLite generation history, favorites, cached preferences, and dispatch an automated server-side request to erase your installation record.</li>
+      <li><strong>Web Deletion Request:</strong> If you have uninstalled the app or wish to request manual deletion, email our Data Protection team at <a href="mailto:support@vibekit.ai?subject=Data%20Deletion%20Request">support@vibekit.ai</a> with your Installation ID or subject line "Data Deletion Request". Requests are processed within 48 hours.</li>
+    </ul>
+
+    <h2>5. Children’s Privacy</h2>
+    <p>VibeKit AI is designed for general audiences aged 13 and older. We do not knowingly collect personal information from children under the age of 13. If you believe a child has provided us with personal information, please contact us immediately for prompt deletion.</p>
+
+    <h2>6. Changes to This Policy</h2>
+    <p>We may update this Privacy Policy from time to time. Any changes will be posted to this page with an updated effective date.</p>
+
+    <h2>7. Contact Us</h2>
+    <p>If you have any questions or feedback regarding our privacy practices, please contact us at:</p>
+    <p>Email: <a href="mailto:support@vibekit.ai">support@vibekit.ai</a><br>
+    Website: <a href="https://vibekit.ai">https://vibekit.ai</a></p>
+  </div>
+  <footer>
+    &copy; 2026 VibeKit AI. All rights reserved.
+  </footer>
+</body>
+</html>
