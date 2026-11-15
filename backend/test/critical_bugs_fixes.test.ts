@@ -1,10 +1,13 @@
 import { describe, it, expect, beforeEach } from 'vitest';
+import { Hono } from 'hono';
 import { AdsRepository } from '../src/db/ads.repo';
 import { PurchasesRepository } from '../src/db/purchases.repo';
 import { ReferralsRepository } from '../src/db/referrals.repo';
 import { StreaksRepository } from '../src/db/streaks.repo';
 import { QuotaManager } from '../src/quota/quota_manager';
 import { validateOutboundUrl } from '../src/security/safe_fetch';
+import { installationMiddleware } from '../src/middleware/installation';
+import { bodyLimitMiddleware } from '../src/middleware/body_limit';
 
 // Mock in-memory SQLite D1Database for isolated unit testing
 class MockD1Statement {
@@ -199,5 +202,53 @@ describe('Critical Bug Fixes & Regression Test Suite', () => {
 
     // Untrusted host must throw SSRF violation
     expect(() => validateOutboundUrl('https://evil-untrusted-server.com/api')).toThrow('SSRF Violation');
+  });
+
+  it('Bug #7: installationMiddleware sanitizes special characters and clamps length to 64', async () => {
+    const app = new Hono<any>();
+    app.use('*', installationMiddleware());
+    app.get('/test-inst', (c) => {
+      return c.json({ installationId: c.get('installationId'), requestId: c.get('requestId') });
+    });
+
+    // Test sanitization of malicious characters and long string
+    const maliciousHeader = 'malicious_user!@#$%^&*()_+=12345678901234567890123456789012345678901234567890EXTRA';
+    const res = await app.request('/test-inst', {
+      headers: {
+        'X-App-Instance-Id': maliciousHeader,
+      },
+    });
+
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data.installationId.length).toBeLessThanOrEqual(64);
+    expect(data.installationId).not.toContain('!');
+    expect(data.installationId).not.toContain('@');
+    expect(data.installationId).not.toContain('$');
+    expect(data.installationId).toMatch(/^[a-zA-Z0-9_\-\.]+$/);
+  });
+
+  it('Bug #8: bodyLimitMiddleware rejects oversized chunked payload even without Content-Length header', async () => {
+    const app = new Hono<any>();
+    app.use('*', bodyLimitMiddleware(100)); // Limit to 100 bytes
+    app.post('/test-body', async (c) => {
+      const body = await c.req.json();
+      return c.json({ ok: true, body });
+    });
+
+    const largePayload = JSON.stringify({ data: 'a'.repeat(200) });
+    // Strip Content-Length header to simulate chunked/streaming transmission
+    const req = new Request('http://localhost/test-body', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: largePayload,
+    });
+
+    try {
+      const res = await app.fetch(req);
+      expect(res.status).toBeGreaterThanOrEqual(400);
+    } catch (err: any) {
+      expect(err.name).toBe('ValidationError');
+    }
   });
 });

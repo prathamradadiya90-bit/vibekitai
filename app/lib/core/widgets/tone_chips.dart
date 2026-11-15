@@ -17,6 +17,11 @@ class ToneChips extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final unselectedBg = isDark ? AppColors.surfaceCardDark : AppColors.surfaceCardLight;
+    final unselectedBorder = isDark ? AppColors.borderDark : AppColors.borderLight;
+    final unselectedText = isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight;
+
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       physics: const BouncingScrollPhysics(),
@@ -30,14 +35,14 @@ class ToneChips extends StatelessWidget {
               selected: isSelected,
               onSelected: (_) => onSelected(tone),
               labelStyle: TextStyle(
-                color: isSelected ? Colors.white : AppColors.textSecondaryDark,
+                color: isSelected ? Colors.white : unselectedText,
                 fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
                 fontSize: 13,
               ),
               selectedColor: AppColors.primary,
-              backgroundColor: AppColors.surfaceCardDark,
+              backgroundColor: unselectedBg,
               side: BorderSide(
-                color: isSelected ? AppColors.primary : AppColors.borderDark,
+                color: isSelected ? AppColors.primary : unselectedBorder,
                 width: 1,
               ),
               shape: const RoundedRectangleBorder(

@@ -45,6 +45,10 @@ class _LoadingShimmerState extends State<LoadingShimmer>
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final baseColor = isDark ? AppColors.surfaceCardDark : const Color(0xFFEFE8DE);
+    final highlightColor = isDark ? AppColors.surfaceElevatedDark : const Color(0xFFDFD5C7);
+
     return AnimatedBuilder(
       animation: _animation,
       builder: (context, child) {
@@ -56,10 +60,10 @@ class _LoadingShimmerState extends State<LoadingShimmer>
             gradient: LinearGradient(
               begin: Alignment(_animation.value - 1, 0),
               end: Alignment(_animation.value, 0),
-              colors: const [
-                AppColors.surfaceCardDark,
-                AppColors.surfaceElevatedDark,
-                AppColors.surfaceCardDark,
+              colors: [
+                baseColor,
+                highlightColor,
+                baseColor,
               ],
             ),
           ),

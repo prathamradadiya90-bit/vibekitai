@@ -15,6 +15,9 @@ class ErrorView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textCol = isDark ? Colors.white : AppColors.textPrimaryLight;
+
     return Container(
       width: double.infinity,
       padding: AppSpacing.paddingMd,
@@ -34,8 +37,8 @@ class ErrorView extends StatelessWidget {
               children: [
                 Text(
                   message,
-                  style: const TextStyle(
-                    color: Colors.white,
+                  style: TextStyle(
+                    color: textCol,
                     fontSize: 14,
                     height: 1.4,
                   ),

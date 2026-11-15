@@ -17,26 +17,33 @@ class LanguagePicker extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bgColor = isDark ? AppColors.surfaceCardDark : AppColors.surfaceCardLight;
+    final borderCol = isDark ? AppColors.borderDark : AppColors.borderLight;
+    final textCol = isDark ? Colors.white : AppColors.textPrimaryLight;
+    final iconCol = isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight;
+    final dropdownBg = isDark ? AppColors.surfaceElevatedDark : AppColors.surfaceCardLight;
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: 2),
       decoration: BoxDecoration(
-        color: AppColors.surfaceCardDark,
+        color: bgColor,
         borderRadius: AppSpacing.roundedMd,
-        border: Border.all(color: AppColors.borderDark),
+        border: Border.all(color: borderCol),
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
           value: selectedLanguage,
           isExpanded: true,
-          dropdownColor: AppColors.surfaceElevatedDark,
-          icon: const Icon(Icons.arrow_drop_down, color: AppColors.textSecondaryDark),
+          dropdownColor: dropdownBg,
+          icon: Icon(Icons.arrow_drop_down, color: iconCol),
           items: languages.map((lang) {
             return DropdownMenuItem<String>(
               value: lang,
               child: Text(
                 lang,
-                style: const TextStyle(
-                  color: Colors.white,
+                style: TextStyle(
+                  color: textCol,
                   fontSize: 14,
                 ),
               ),

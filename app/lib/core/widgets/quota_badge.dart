@@ -41,6 +41,7 @@ class QuotaBadge extends ConsumerWidget {
     }
 
     final hasCredits = totalCredits > 0;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return InkWell(
       onTap: () => context.push('/paywall'),
@@ -48,9 +49,13 @@ class QuotaBadge extends ConsumerWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
         decoration: BoxDecoration(
-          color: hasCredits ? AppColors.surfaceCardDark : AppColors.error.withAlpha(30),
+          color: hasCredits
+              ? (isDark ? AppColors.surfaceCardDark : AppColors.surfaceCardLight)
+              : AppColors.error.withAlpha(30),
           border: Border.all(
-            color: hasCredits ? AppColors.borderDark : AppColors.error,
+            color: hasCredits
+                ? (isDark ? AppColors.borderDark : AppColors.borderLight)
+                : AppColors.error,
             width: 1,
           ),
           borderRadius: AppSpacing.roundedFull,
@@ -67,7 +72,9 @@ class QuotaBadge extends ConsumerWidget {
             Text(
               '$totalCredits Left',
               style: TextStyle(
-                color: hasCredits ? Colors.white : AppColors.error,
+                color: hasCredits
+                    ? (isDark ? Colors.white : AppColors.textPrimaryLight)
+                    : AppColors.error,
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
               ),

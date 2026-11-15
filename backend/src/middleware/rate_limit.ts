@@ -22,6 +22,17 @@ export function rateLimiterMiddleware(options?: {
 
     const nowSec = Math.floor(Date.now() / 1000);
     const windowStart = nowSec - (nowSec % windowSeconds);
+
+    // Prune stale in-memory counters to prevent memory leaks in long-running isolates
+    if (memoryCounts.size > 500) {
+      const cutoff = nowSec - windowSeconds * 2;
+      for (const [k, v] of memoryCounts.entries()) {
+        if (v.windowStart < cutoff) {
+          memoryCounts.delete(k);
+        }
+      }
+    }
+
     const firstIp = (clientIp.split(',')[0] ?? clientIp).trim();
     const key = `${installId}_${firstIp}_${isGeneration ? 'gen' : 'all'}_${windowStart}`;
 

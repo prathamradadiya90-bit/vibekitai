@@ -75,12 +75,14 @@ class _AdaptiveBannerWidgetState extends ConsumerState<AdaptiveBannerWidget> {
         mainAxisSize: MainAxisSize.min,
         children: [
           // Policy requirement: Ad label must be clearly visible
-          const Padding(
-            padding: EdgeInsets.only(bottom: 2),
+          Padding(
+            padding: const EdgeInsets.only(bottom: 2),
             child: Text(
               'ADVERTISEMENT',
               style: TextStyle(
-                color: AppColors.textMutedDark,
+                color: Theme.of(context).brightness == Brightness.dark
+                    ? AppColors.textMutedDark
+                    : AppColors.textMutedLight,
                 fontSize: 10,
                 letterSpacing: 1.0,
                 fontWeight: FontWeight.w600,

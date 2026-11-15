@@ -42,14 +42,37 @@ class _AchievementsScreenState extends ConsumerState<AchievementsScreen> {
     final currentXpInLevel = streak.totalXp % 100;
     final progressToNextLevel = (currentXpInLevel / 100.0).clamp(0.0, 1.0);
 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final scaffoldBg = isDark ? AppColors.backgroundDark : AppColors.backgroundLight;
+    final textCol = isDark ? Colors.white : AppColors.textPrimaryLight;
+    final subtitleCol = isDark ? Colors.white70 : AppColors.textSecondaryLight;
+    final descCol = isDark ? Colors.white.withOpacity(0.65) : AppColors.textSecondaryLight;
+    final cardBgUnlocked = isDark ? AppColors.surfaceElevatedDark : AppColors.surfaceCardLight;
+    final cardBgLocked = isDark ? AppColors.surfaceDark : const Color(0xFFF3ECE1);
+    final borderLocked = isDark ? Colors.white.withOpacity(0.06) : AppColors.borderLight;
+    final iconCircleLocked = isDark ? Colors.white.withOpacity(0.04) : const Color(0xFFE8DFD3);
+    final iconBorderLocked = isDark ? Colors.white.withOpacity(0.1) : AppColors.borderLight;
+
     return Scaffold(
-      backgroundColor: AppColors.backgroundDark,
+      backgroundColor: scaffoldBg,
       appBar: AppBar(
-        title: const Text(
+        title: Text(
           'Achievements & Badges',
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 18,
+            color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+          ),
         ),
         centerTitle: true,
+        leading: IconButton(
+          icon: Icon(
+            Icons.arrow_back_ios_new,
+            size: 20,
+            color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+          ),
+          onPressed: () => context.pop(),
+        ),
       ),
       body: SingleChildScrollView(
         physics: const BouncingScrollPhysics(),
@@ -178,11 +201,11 @@ class _AchievementsScreenState extends ConsumerState<AchievementsScreen> {
             // 2. Filter Pills
             Row(
               children: [
-                _buildFilterChip('All ($totalCount)', 'all'),
+                _buildFilterChip('All ($totalCount)', 'all', isDark),
                 const SizedBox(width: 8),
-                _buildFilterChip('Unlocked ($unlockedCount)', 'unlocked'),
+                _buildFilterChip('Unlocked ($unlockedCount)', 'unlocked', isDark),
                 const SizedBox(width: 8),
-                _buildFilterChip('In Progress (${totalCount - unlockedCount})', 'in_progress'),
+                _buildFilterChip('In Progress (${totalCount - unlockedCount})', 'in_progress', isDark),
               ],
             ),
 
@@ -194,14 +217,12 @@ class _AchievementsScreenState extends ConsumerState<AchievementsScreen> {
                 margin: const EdgeInsets.only(bottom: 12),
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: ach.isUnlocked
-                      ? AppColors.surfaceElevatedDark
-                      : AppColors.surfaceDark,
+                  color: ach.isUnlocked ? cardBgUnlocked : cardBgLocked,
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(
                     color: ach.isUnlocked
                         ? AppColors.primary.withOpacity(0.5)
-                        : Colors.white.withOpacity(0.06),
+                        : borderLocked,
                     width: ach.isUnlocked ? 1.5 : 1.0,
                   ),
                   boxShadow: (ach.isUnlocked && !kIsWeb)
@@ -223,12 +244,12 @@ class _AchievementsScreenState extends ConsumerState<AchievementsScreen> {
                       decoration: BoxDecoration(
                         color: ach.isUnlocked
                             ? AppColors.primary.withOpacity(0.2)
-                            : Colors.white.withOpacity(0.04),
+                            : iconCircleLocked,
                         shape: BoxShape.circle,
                         border: Border.all(
                           color: ach.isUnlocked
                               ? AppColors.primaryLight
-                              : Colors.white.withOpacity(0.1),
+                              : iconBorderLocked,
                         ),
                       ),
                       child: Center(
@@ -254,7 +275,7 @@ class _AchievementsScreenState extends ConsumerState<AchievementsScreen> {
                                 style: TextStyle(
                                   fontWeight: FontWeight.bold,
                                   fontSize: 15,
-                                  color: ach.isUnlocked ? Colors.white : Colors.white70,
+                                  color: ach.isUnlocked ? textCol : subtitleCol,
                                 ),
                               ),
                               if (ach.isUnlocked)
@@ -280,7 +301,7 @@ class _AchievementsScreenState extends ConsumerState<AchievementsScreen> {
                             ach.description,
                             style: TextStyle(
                               fontSize: 12,
-                              color: Colors.white.withOpacity(0.65),
+                              color: descCol,
                               height: 1.3,
                             ),
                           ),
@@ -325,7 +346,7 @@ class _AchievementsScreenState extends ConsumerState<AchievementsScreen> {
                                 ach.progressText,
                                 style: TextStyle(
                                   fontSize: 11,
-                                  color: ach.isUnlocked ? Colors.greenAccent : Colors.white54,
+                                  color: ach.isUnlocked ? Colors.greenAccent : (isDark ? Colors.white54 : AppColors.textMutedLight),
                                   fontWeight: FontWeight.w600,
                                 ),
                               ),
@@ -338,7 +359,7 @@ class _AchievementsScreenState extends ConsumerState<AchievementsScreen> {
                               child: LinearProgressIndicator(
                                 value: ach.progress,
                                 minHeight: 5,
-                                backgroundColor: Colors.white.withOpacity(0.08),
+                                backgroundColor: isDark ? Colors.white.withOpacity(0.08) : const Color(0xFFDDD2C4),
                                 valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primary),
                               ),
                             ),
@@ -356,18 +377,21 @@ class _AchievementsScreenState extends ConsumerState<AchievementsScreen> {
             // Share Showcase Card Button
             ElevatedButton.icon(
               style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.surfaceElevatedDark,
-                foregroundColor: Colors.white,
+                backgroundColor: isDark ? AppColors.surfaceElevatedDark : AppColors.surfaceCardLight,
+                foregroundColor: isDark ? Colors.white : AppColors.textPrimaryLight,
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16),
-                  side: const BorderSide(color: AppColors.borderDark),
+                  side: BorderSide(color: isDark ? AppColors.borderDark : AppColors.borderLight),
                 ),
               ),
-              icon: const Icon(Icons.share_rounded, size: 18),
-              label: const Text(
+              icon: Icon(Icons.share_rounded, size: 18, color: isDark ? Colors.white : AppColors.textPrimaryLight),
+              label: Text(
                 'Share Creator Achievements Card 📸',
-                style: TextStyle(fontWeight: FontWeight.bold),
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: isDark ? Colors.white : AppColors.textPrimaryLight,
+                ),
               ),
               onPressed: () {
                 final text =
@@ -382,8 +406,11 @@ class _AchievementsScreenState extends ConsumerState<AchievementsScreen> {
     );
   }
 
-  Widget _buildFilterChip(String label, String filterKey) {
+  Widget _buildFilterChip(String label, String filterKey, bool isDark) {
     final isSelected = _selectedFilter == filterKey;
+    final unselectedBg = isDark ? AppColors.surfaceDark : AppColors.surfaceCardLight;
+    final unselectedBorder = isDark ? Colors.white.withOpacity(0.08) : AppColors.borderLight;
+    final unselectedText = isDark ? Colors.white70 : AppColors.textSecondaryLight;
     return Expanded(
       child: InkWell(
         onTap: () => setState(() => _selectedFilter = filterKey),
@@ -391,10 +418,10 @@ class _AchievementsScreenState extends ConsumerState<AchievementsScreen> {
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 8),
           decoration: BoxDecoration(
-            color: isSelected ? AppColors.primary : AppColors.surfaceDark,
+            color: isSelected ? AppColors.primary : unselectedBg,
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
-              color: isSelected ? AppColors.primaryLight : Colors.white.withOpacity(0.08),
+              color: isSelected ? AppColors.primaryLight : unselectedBorder,
             ),
           ),
           child: Center(
@@ -403,7 +430,7 @@ class _AchievementsScreenState extends ConsumerState<AchievementsScreen> {
               style: TextStyle(
                 fontSize: 11,
                 fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                color: isSelected ? Colors.white : Colors.white70,
+                color: isSelected ? Colors.white : unselectedText,
               ),
             ),
           ),

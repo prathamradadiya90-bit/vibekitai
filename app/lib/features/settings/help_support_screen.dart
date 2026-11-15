@@ -183,14 +183,34 @@ class _HelpSupportScreenState extends ConsumerState<HelpSupportScreen> {
                 f['category']!.toLowerCase().contains(query);
           }).toList();
 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final scaffoldBg = isDark ? AppColors.backgroundDark : AppColors.backgroundLight;
+    final textCol = isDark ? Colors.white : AppColors.textPrimaryLight;
+    final textMutedCol = isDark ? Colors.white60 : AppColors.textSecondaryLight;
+    final cardBg = isDark ? AppColors.surfaceDark : AppColors.surfaceCardLight;
+    final faqCardBg = isDark ? AppColors.surfaceCardDark : AppColors.surfaceCardLight;
+    final borderCol = isDark ? AppColors.borderDark : AppColors.borderLight;
+
     return Scaffold(
-      backgroundColor: AppColors.backgroundDark,
+      backgroundColor: scaffoldBg,
       appBar: AppBar(
-        title: const Text(
+        title: Text(
           'Help & Support',
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 18,
+            color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+          ),
         ),
         centerTitle: true,
+        leading: IconButton(
+          icon: Icon(
+            Icons.arrow_back_ios_new,
+            size: 20,
+            color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+          ),
+          onPressed: () => context.pop(),
+        ),
       ),
       body: SingleChildScrollView(
         physics: const BouncingScrollPhysics(),
@@ -223,7 +243,7 @@ class _HelpSupportScreenState extends ConsumerState<HelpSupportScreen> {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: AppColors.surfaceDark,
+                color: cardBg,
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(color: AppColors.primary.withOpacity(0.3)),
               ),
@@ -241,16 +261,20 @@ class _HelpSupportScreenState extends ConsumerState<HelpSupportScreen> {
                             color: AppColors.primaryLight, size: 22),
                       ),
                       const SizedBox(width: 12),
-                      const Column(
+                      Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
                             'Need Direct Help?',
-                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 15,
+                              color: textCol,
+                            ),
                           ),
                           Text(
                             'Our support team is ready to assist you.',
-                            style: TextStyle(fontSize: 12, color: Colors.white60),
+                            style: TextStyle(fontSize: 12, color: textMutedCol),
                           ),
                         ],
                       ),
@@ -262,8 +286,8 @@ class _HelpSupportScreenState extends ConsumerState<HelpSupportScreen> {
                       Expanded(
                         child: OutlinedButton.icon(
                           style: OutlinedButton.styleFrom(
-                            foregroundColor: Colors.white,
-                            side: const BorderSide(color: AppColors.borderDark),
+                            foregroundColor: textCol,
+                            side: BorderSide(color: borderCol),
                             padding: const EdgeInsets.symmetric(vertical: 10),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12),
@@ -278,7 +302,7 @@ class _HelpSupportScreenState extends ConsumerState<HelpSupportScreen> {
                       Expanded(
                         child: OutlinedButton.icon(
                           style: OutlinedButton.styleFrom(
-                            foregroundColor: AppColors.primaryLight,
+                            foregroundColor: AppColors.primary,
                             side: const BorderSide(color: AppColors.primary),
                             padding: const EdgeInsets.symmetric(vertical: 10),
                             shape: RoundedRectangleBorder(
@@ -302,13 +326,20 @@ class _HelpSupportScreenState extends ConsumerState<HelpSupportScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text(
+                Text(
                   'Frequently Asked Questions',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: textCol,
+                  ),
                 ),
                 Text(
                   '${filteredFaqs.length} topics',
-                  style: const TextStyle(fontSize: 12, color: Colors.white54),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: isDark ? Colors.white54 : AppColors.textMutedLight,
+                  ),
                 ),
               ],
             ),
@@ -320,10 +351,10 @@ class _HelpSupportScreenState extends ConsumerState<HelpSupportScreen> {
                 child: Center(
                   child: Column(
                     children: [
-                      const Icon(Icons.search_off_rounded, size: 48, color: Colors.white30),
+                      Icon(Icons.search_off_rounded, size: 48, color: textMutedCol),
                       const SizedBox(height: 10),
                       Text('No matching questions found for "$_searchQuery"',
-                          style: const TextStyle(color: Colors.white60, fontSize: 13)),
+                          style: TextStyle(color: textMutedCol, fontSize: 13)),
                     ],
                   ),
                 ),
@@ -333,9 +364,9 @@ class _HelpSupportScreenState extends ConsumerState<HelpSupportScreen> {
                 return Container(
                   margin: const EdgeInsets.only(bottom: 10),
                   decoration: BoxDecoration(
-                    color: AppColors.surfaceCardDark,
+                    color: faqCardBg,
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: AppColors.borderDark),
+                    border: Border.all(color: borderCol),
                   ),
                   child: Theme(
                     data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
@@ -343,10 +374,10 @@ class _HelpSupportScreenState extends ConsumerState<HelpSupportScreen> {
                       tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                       title: Text(
                         faq['question']!,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
-                          color: Colors.white,
+                          color: textCol,
                         ),
                       ),
                       subtitle: Text(
@@ -363,7 +394,7 @@ class _HelpSupportScreenState extends ConsumerState<HelpSupportScreen> {
                             faq['answer']!,
                             style: TextStyle(
                               fontSize: 13,
-                              color: Colors.white.withOpacity(0.8),
+                              color: isDark ? Colors.white.withOpacity(0.8) : AppColors.textPrimaryLight,
                               height: 1.45,
                             ),
                           ),
@@ -380,16 +411,16 @@ class _HelpSupportScreenState extends ConsumerState<HelpSupportScreen> {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: AppColors.surfaceDark,
+                color: cardBg,
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: AppColors.borderDark),
+                border: Border.all(color: borderCol),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
+                  Text(
                     'Policies & Declarations',
-                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.white70),
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: textMutedCol),
                   ),
                   const SizedBox(height: 10),
                   ListTile(
@@ -400,7 +431,7 @@ class _HelpSupportScreenState extends ConsumerState<HelpSupportScreen> {
                     trailing: const Icon(Icons.chevron_right_rounded, size: 20),
                     onTap: () => context.push('/privacy-policy'),
                   ),
-                  const Divider(height: 1, color: AppColors.borderDark),
+                  Divider(height: 1, color: borderCol),
                   ListTile(
                     contentPadding: EdgeInsets.zero,
                     dense: true,
@@ -409,7 +440,7 @@ class _HelpSupportScreenState extends ConsumerState<HelpSupportScreen> {
                     trailing: const Icon(Icons.chevron_right_rounded, size: 20),
                     onTap: () => context.push('/terms-of-service'),
                   ),
-                  const Divider(height: 1, color: AppColors.borderDark),
+                  Divider(height: 1, color: borderCol),
                   ListTile(
                     contentPadding: EdgeInsets.zero,
                     dense: true,

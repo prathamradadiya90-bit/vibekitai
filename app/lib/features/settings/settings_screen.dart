@@ -162,6 +162,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final quota = ref.watch(quotaProvider);
     final themeMode = ref.watch(themeModeProvider);
     final selectedLanguage = ref.watch(languageProvider);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final borderCol = isDark ? AppColors.borderDark : AppColors.borderLight;
+    final mutedTextCol = isDark ? AppColors.textMutedDark : AppColors.textMutedLight;
 
     return Scaffold(
       appBar: AppBar(
@@ -179,7 +182,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     ? AppColors.accentGradient
                     : AppColors.cardGlowGradient,
                 borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: AppColors.borderDark),
+                border: Border.all(color: borderCol),
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -246,7 +249,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             const SizedBox(height: 20),
 
             // Preferences Section
-            _buildSectionHeader('Preferences'),
+            _buildSectionHeader('Preferences', isDark),
             ListTile(
               contentPadding: EdgeInsets.zero,
               leading: const Icon(Icons.language_rounded,
@@ -296,10 +299,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               ),
             ),
 
-            const Divider(height: 32, color: AppColors.borderDark),
+            Divider(height: 32, color: borderCol),
 
             // Legal & Transparency
-            _buildSectionHeader('Legal & Transparency'),
+            _buildSectionHeader('Legal & Transparency', isDark),
             ListTile(
               contentPadding: EdgeInsets.zero,
               leading: const Icon(Icons.shield_outlined,
@@ -350,10 +353,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               },
             ),
 
-            const Divider(height: 32, color: AppColors.borderDark),
+            Divider(height: 32, color: borderCol),
 
             // Support & Danger Zone
-            _buildSectionHeader('Support & Data Controls'),
+            _buildSectionHeader('Support & Data Controls', isDark),
             ListTile(
               contentPadding: EdgeInsets.zero,
               leading: const Icon(Icons.help_outline_rounded,
@@ -385,19 +388,19 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             const SizedBox(height: 28),
 
             // App Version Footer
-            const Center(
+            Center(
               child: Column(
                 children: [
                   Text(
                     '${AppConfig.appName} v${AppConfig.appVersion}',
                     style: TextStyle(
-                        fontSize: 12, color: AppColors.textMutedDark),
+                        fontSize: 12, color: mutedTextCol),
                   ),
-                  SizedBox(height: 4),
+                  const SizedBox(height: 4),
                   Text(
                     'Engineered with Flutter & Cloudflare Workers',
                     style:
-                        TextStyle(fontSize: 11, color: AppColors.textMutedDark),
+                        TextStyle(fontSize: 11, color: mutedTextCol),
                   ),
                 ],
               ),
@@ -410,16 +413,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
   }
 
-  Widget _buildSectionHeader(String title) {
+  Widget _buildSectionHeader(String title, bool isDark) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Text(
         title.toUpperCase(),
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 11,
           fontWeight: FontWeight.bold,
           letterSpacing: 1.1,
-          color: AppColors.textMutedDark,
+          color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
         ),
       ),
     );

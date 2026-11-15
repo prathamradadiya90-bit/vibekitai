@@ -51,11 +51,11 @@ class _ChallengeScreenState extends ConsumerState<ChallengeScreen> {
     if (!mounted) return;
     if (challenge.targetFeature == 'reply') {
       context.push(
-        '/studio?tab=reply&prompt=${Uri.encodeComponent(challenge.prompt)}&option=${challenge.tone}',
+        '/studio?tab=reply&prompt=${Uri.encodeComponent(challenge.prompt)}&option=${Uri.encodeComponent(challenge.tone)}',
       );
     } else if (challenge.targetFeature == 'caption') {
       context.push(
-        '/studio?tab=caption&prompt=${Uri.encodeComponent(challenge.prompt)}&option=${challenge.tone}',
+        '/studio?tab=caption&prompt=${Uri.encodeComponent(challenge.prompt)}&option=${Uri.encodeComponent(challenge.tone)}',
       );
     } else {
       context.push(
@@ -66,10 +66,27 @@ class _ChallengeScreenState extends ConsumerState<ChallengeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final scaffoldBg = isDark ? AppColors.backgroundDark : AppColors.backgroundLight;
+    final cardBg = isDark ? AppColors.surfaceCardDark : AppColors.surfaceCardLight;
+    final borderCol = isDark ? AppColors.borderDark : AppColors.borderLight;
+    final titleCol = isDark ? Colors.white : AppColors.textPrimaryLight;
+    final subtitleCol = isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight;
+    final toneMutedCol = isDark ? AppColors.textMutedDark : AppColors.textSecondaryLight;
+
     return Scaffold(
-      backgroundColor: AppColors.backgroundDark,
+      backgroundColor: scaffoldBg,
       appBar: AppBar(
-        title: const Text('Creative Challenges', style: TextStyle(fontWeight: FontWeight.bold)),
+        title: Text(
+          'Creative Challenges',
+          style: TextStyle(fontWeight: FontWeight.bold, color: titleCol),
+        ),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back_ios_new, color: titleCol, size: 20),
+          onPressed: () => context.pop(),
+        ),
       ),
       body: SafeArea(
         child: _isLoading
@@ -95,9 +112,9 @@ class _ChallengeScreenState extends ConsumerState<ChallengeScreen> {
                   return Container(
                     padding: const EdgeInsets.all(18),
                     decoration: BoxDecoration(
-                      color: AppColors.surfaceCardDark,
+                      color: cardBg,
                       borderRadius: BorderRadius.circular(18),
-                      border: Border.all(color: AppColors.borderDark),
+                      border: Border.all(color: borderCol),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -129,23 +146,23 @@ class _ChallengeScreenState extends ConsumerState<ChallengeScreen> {
                             ),
                             Text(
                               'Tone: ${item.tone}',
-                              style: const TextStyle(
-                                  fontSize: 12, color: AppColors.textMutedDark),
+                              style: TextStyle(
+                                  fontSize: 12, color: toneMutedCol),
                             ),
                           ],
                         ),
                         const SizedBox(height: 12),
                         Text(
                           item.title,
-                          style: const TextStyle(
-                              fontSize: 16, fontWeight: FontWeight.bold),
+                          style: TextStyle(
+                              fontSize: 16, fontWeight: FontWeight.bold, color: titleCol),
                         ),
                         const SizedBox(height: 6),
                         Text(
                           item.prompt,
-                          style: const TextStyle(
+                          style: TextStyle(
                               fontSize: 13,
-                              color: AppColors.textSecondaryDark,
+                              color: subtitleCol,
                               height: 1.4),
                         ),
                         const SizedBox(height: 14),

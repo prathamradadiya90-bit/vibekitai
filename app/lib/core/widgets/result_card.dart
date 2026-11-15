@@ -71,10 +71,16 @@ class _ResultCardState extends State<ResultCard> {
     ];
     String selectedReason = reasons.first;
 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final sheetBg = isDark ? AppColors.surfaceDark : AppColors.surfaceLight;
+    final textCol = isDark ? Colors.white : AppColors.textPrimaryLight;
+    final textSecCol = isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight;
+    final borderCol = isDark ? AppColors.borderDark : AppColors.borderLight;
+
     final shouldSubmit = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: AppColors.surfaceDark,
+      backgroundColor: sheetBg,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -93,26 +99,26 @@ class _ResultCardState extends State<ResultCard> {
                         width: 40,
                         height: 4,
                         decoration: BoxDecoration(
-                          color: AppColors.borderDark,
+                          color: borderCol,
                           borderRadius: BorderRadius.circular(2),
                         ),
                       ),
                     ),
                     const SizedBox(height: 16),
-                    const Row(
+                    Row(
                       children: [
-                        Icon(Icons.flag_rounded, color: AppColors.accentPink, size: 22),
-                        SizedBox(width: 8),
+                        const Icon(Icons.flag_rounded, color: AppColors.accentPink, size: 22),
+                        const SizedBox(width: 8),
                         Text(
                           'Report AI Content',
-                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
+                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: textCol),
                         ),
                       ],
                     ),
                     const SizedBox(height: 6),
-                    const Text(
+                    Text(
                       'Help keep VibeKit safe. Select why this AI response is inappropriate:',
-                      style: TextStyle(fontSize: 13, color: AppColors.textSecondaryDark),
+                      style: TextStyle(fontSize: 13, color: textSecCol),
                     ),
                     const SizedBox(height: 14),
                     ...reasons.map((reason) {
@@ -127,7 +133,7 @@ class _ResultCardState extends State<ResultCard> {
                               Icon(
                                 isSelected ? Icons.radio_button_checked : Icons.radio_button_off,
                                 size: 20,
-                                color: isSelected ? AppColors.primaryLight : AppColors.textMutedDark,
+                                color: isSelected ? AppColors.primaryLight : (isDark ? AppColors.textMutedDark : AppColors.textMutedLight),
                               ),
                               const SizedBox(width: 12),
                               Expanded(
@@ -135,7 +141,7 @@ class _ResultCardState extends State<ResultCard> {
                                   reason,
                                   style: TextStyle(
                                     fontSize: 14,
-                                    color: isSelected ? Colors.white : AppColors.textSecondaryDark,
+                                    color: isSelected ? (isDark ? Colors.white : AppColors.primary) : textSecCol,
                                     fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
                                   ),
                                 ),
@@ -152,10 +158,10 @@ class _ResultCardState extends State<ResultCard> {
                           child: OutlinedButton(
                             onPressed: () => Navigator.of(sheetContext).pop(false),
                             style: OutlinedButton.styleFrom(
-                              side: const BorderSide(color: AppColors.borderDark),
+                              side: BorderSide(color: borderCol),
                               padding: const EdgeInsets.symmetric(vertical: 12),
                             ),
-                            child: const Text('Cancel', style: TextStyle(color: Colors.white70)),
+                            child: Text('Cancel', style: TextStyle(color: textSecCol)),
                           ),
                         ),
                         const SizedBox(width: 12),
@@ -205,13 +211,21 @@ class _ResultCardState extends State<ResultCard> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardBg = isDark ? AppColors.surfaceCardDark : AppColors.surfaceCardLight;
+    final borderCol = isDark ? AppColors.borderDark : AppColors.borderLight;
+    final textCol = isDark ? Colors.white : AppColors.textPrimaryLight;
+    final subtitleCol = isDark ? AppColors.primaryLight : AppColors.primary;
+    final dividerCol = isDark ? AppColors.borderDark : AppColors.borderLight;
+    final iconCol = isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight;
+
     return Container(
       margin: const EdgeInsets.only(bottom: AppSpacing.md),
       padding: AppSpacing.paddingMd,
       decoration: BoxDecoration(
-        color: AppColors.surfaceCardDark,
+        color: cardBg,
         borderRadius: AppSpacing.roundedMd,
-        border: Border.all(color: AppColors.borderDark),
+        border: Border.all(color: borderCol),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -219,8 +233,8 @@ class _ResultCardState extends State<ResultCard> {
           if (widget.subtitle != null && widget.subtitle!.isNotEmpty) ...[
             Text(
               widget.subtitle!,
-              style: const TextStyle(
-                color: AppColors.primaryLight,
+              style: TextStyle(
+                color: subtitleCol,
                 fontSize: 12,
                 fontWeight: FontWeight.bold,
               ),
@@ -229,14 +243,14 @@ class _ResultCardState extends State<ResultCard> {
           ],
           SelectableText(
             widget.content,
-            style: const TextStyle(
-              color: Colors.white,
+            style: TextStyle(
+              color: textCol,
               fontSize: 15,
               height: 1.45,
             ),
           ),
           const SizedBox(height: AppSpacing.sm),
-          const Divider(color: AppColors.borderDark, height: 16),
+          Divider(color: dividerCol, height: 16),
           Row(
             children: [
               // Copy Button
@@ -247,7 +261,7 @@ class _ResultCardState extends State<ResultCard> {
                   icon: Icon(
                     _copied ? Icons.check : Icons.copy,
                     size: 18,
-                    color: _copied ? AppColors.success : AppColors.textSecondaryDark,
+                    color: _copied ? AppColors.success : iconCol,
                   ),
                   tooltip: 'Copy',
                   onPressed: _handleCopy,
@@ -259,10 +273,10 @@ class _ResultCardState extends State<ResultCard> {
                 label: 'Share generated text',
                 button: true,
                 child: IconButton(
-                  icon: const Icon(
+                  icon: Icon(
                     Icons.share_outlined,
                     size: 18,
-                    color: AppColors.textSecondaryDark,
+                    color: iconCol,
                   ),
                   tooltip: 'Share',
                   onPressed: _handleShare,
@@ -278,7 +292,7 @@ class _ResultCardState extends State<ResultCard> {
                     icon: Icon(
                       widget.isFavorite ? Icons.favorite : Icons.favorite_border,
                       size: 18,
-                      color: widget.isFavorite ? AppColors.accentPink : AppColors.textSecondaryDark,
+                      color: widget.isFavorite ? AppColors.accentPink : iconCol,
                     ),
                     tooltip: 'Favorite',
                     onPressed: widget.onFavoriteToggle,
@@ -293,7 +307,7 @@ class _ResultCardState extends State<ResultCard> {
                   icon: Icon(
                     _isReported ? Icons.flag_rounded : Icons.flag_outlined,
                     size: 18,
-                    color: _isReported ? AppColors.accentPink : AppColors.textSecondaryDark,
+                    color: _isReported ? AppColors.accentPink : iconCol,
                   ),
                   tooltip: _isReported ? 'Reported' : 'Report content',
                   onPressed: _isReported ? null : _showReportDialog,

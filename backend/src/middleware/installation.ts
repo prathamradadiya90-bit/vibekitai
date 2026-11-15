@@ -12,7 +12,10 @@ export const installationMiddleware = (): MiddlewareHandler<AppHonoEnv> => {
     }
 
     const rawInstanceId = c.req.header('X-App-Instance-Id')?.trim();
-    const installationId = rawInstanceId && rawInstanceId.length > 0 ? rawInstanceId : 'anonymous_default';
+    const sanitizedId = rawInstanceId
+      ? rawInstanceId.slice(0, 64).replace(/[^a-zA-Z0-9_\-\.]/g, '')
+      : '';
+    const installationId = sanitizedId.length > 0 ? sanitizedId : 'anonymous_default';
     const requestId =
       c.req.header('X-Request-Id')?.trim() ||
       `req_${Date.now()}_${Math.random().toString(36).substring(7)}`;
@@ -21,7 +24,7 @@ export const installationMiddleware = (): MiddlewareHandler<AppHonoEnv> => {
     c.set('requestId', requestId);
 
     // Fast cached ban verification (exempt privacy data erasure)
-    if (c.env.DB && c.req.path !== '/v1/privacy/delete-data') {
+    if (c.env?.DB && c.req.path !== '/v1/privacy/delete-data') {
       try {
         const bansRepo = new BansRepository(c.env.DB);
         const isBanned = await bansRepo.isBanned(installationId);
@@ -33,12 +36,21 @@ export const installationMiddleware = (): MiddlewareHandler<AppHonoEnv> => {
       }
     }
 
-    const repo = new InstallationsRepository(c.env.DB);
     let installation: InstallationRecord;
-
-    try {
-      installation = await repo.upsertInstallation(installationId);
-    } catch {
+    if (c.env?.DB) {
+      const repo = new InstallationsRepository(c.env.DB);
+      try {
+        installation = await repo.upsertInstallation(installationId);
+      } catch {
+        installation = {
+          id: installationId,
+          created_at: new Date().toISOString(),
+          last_active_at: new Date().toISOString(),
+          is_pro: 0,
+          pro_expires_at: null,
+        };
+      }
+    } else {
       installation = {
         id: installationId,
         created_at: new Date().toISOString(),
@@ -49,6 +61,7 @@ export const installationMiddleware = (): MiddlewareHandler<AppHonoEnv> => {
     }
 
     c.set('installation', installation);
+    c.set('installationId', installationId);
     await next();
   };
 };

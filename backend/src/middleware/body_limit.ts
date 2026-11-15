@@ -15,6 +15,17 @@ export const bodyLimitMiddleware = (maxBytes: number = 16384): MiddlewareHandler
       });
     }
 
+    if (!contentLength && (c.req.method === 'POST' || c.req.method === 'PUT' || c.req.method === 'PATCH')) {
+      // Chunked or streaming request without Content-Length header: verify buffer size
+      const raw = await c.req.raw.clone().arrayBuffer().catch(() => null);
+      if (raw && raw.byteLength > maxBytes) {
+        throw new ValidationError(`Request payload exceeds maximum allowed size of ${maxBytes} bytes.`, {
+          maxBytes,
+          receivedBytes: raw.byteLength,
+        });
+      }
+    }
+
     await next();
   };
 };
