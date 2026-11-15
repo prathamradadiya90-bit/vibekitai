@@ -17,6 +17,8 @@ const REPLIES: Record<Lang, Record<string, string[]>> = {
     Witty: ["I'll check with my schedule. It said yes before I finished asking.", 'consider me RSVP-ed and mildly overdressed', 'is this an invite or a challenge? either way, yes'],
     Rizz: ["I wasn't planning on having butterflies on a weekday, yet here we are.", "You owe me a coffee, because thinking about this text distracted me all morning.", "If you're looking for signs from the universe, this is definitely one."],
     Savage: ["I'd reply faster, but I was matching your energy.", "Did your keyboard run out of letters or just your conversational effort?", "I'm way too expensive to be left on delivered, but do your thing."],
+    Unbothered: ["All good, hit me up whenever you're around.", "Zero worries, do your thing.", "Sounds like a plan, let me know."],
+    Opener: ["Random question: are you team sweet breakfast or savoury breakfast?", "Your photo has major main-character energy, what's the backstory?", "Two truths and a lie: go first."],
   },
   Hinglish: {
     Funny: ['khana hai toh pakka aa raha hoon, warna soch ke batata hoon', 'mera bed mujhe jaane nahi de raha yaar', 'bas chappal pehen raha hoon, aa gaya samjho'],
@@ -29,6 +31,8 @@ const REPLIES: Record<Lang, Record<string, string[]>> = {
     Witty: ['calendar se pucha, usne bina sune haan bol diya', 'RSVP done, thoda overdressed aaunga', 'invite hai ya challenge? dono mein haan'],
     Rizz: ['itni subah subah distract karne ka fine lagega tumhe', 'coffee mere taraf se agar playlist tumhari achhi nikli toh', 'universe ne sign diya tha, isliye text kar diya'],
     Savage: ['energy match kar raha hoon, aur kuch nahi', 'text karne mein haath thak gaye the kya?', 'itna dry text toh desert mein bhi nahi milta'],
+    Unbothered: ['chill scene hai, jab free ho bata dena', 'no worries yaar, apna kaam nipta le', 'sab badhiya, baad mein baat karte hain'],
+    Opener: ['ek quick sawal: chai ya coffee? galat jawab pe block', 'ye wali photo ka backstory sunna padega boss', 'weekend pe adventure mode on ya lazy mode?'],
   },
   Hindi: {
     Funny: ['खाना है तो पक्का आ रहा हूँ 😄', 'मेरा बिस्तर मुझे छोड़ नहीं रहा', 'बस चप्पल पहन रहा हूँ, आ गया समझो'],
@@ -41,6 +45,8 @@ const REPLIES: Record<Lang, Record<string, string[]>> = {
     Witty: ['कैलेंडर से पूछा, उसने पूरा सुने बिना हाँ कह दी', 'हाज़िरी पक्की, बस थोड़ा ज़्यादा तैयार होकर आऊँगा', 'न्योता है या चुनौती? दोनों के लिए हाँ'],
     Rizz: ['इतनी प्यारी मुस्कान के बाद कॉफ़ी का बहाना तो बनता है', 'तुम्हें टेक्स्ट करने का कोई बहाना ढूँढ रहा था', 'अगर कॉफ़ी ख़राब निकली तो दोष मेरी पसंद पर डाल देना'],
     Savage: ['जितनी देर में रिप्लाई आया, उतनी देर में एक युग बीत गया', 'एनर्जी मैच कर रहा हूँ बस', 'कीबोर्ड में शब्द ख़त्म हो गए थे क्या?'],
+    Unbothered: ['कोई बात नहीं, जब फ़्री हो तब बताना।', 'सब ठीक है, अपना काम पूरा कर लो।', 'आराम से, कोई जल्दी नहीं है।'],
+    Opener: ['एक ज़रूरी सवाल: वीकेंड पर घूमना पसंद है या घर पर आराम?', 'तुम्हारी इस फ़ोटो के पीछे की कहानी क्या है?', 'चाय या कॉफ़ी? सही जवाब देना ज़रूरी है!'],
   },
   Gujarati: {
     Funny: ['જમવાનું હોય તો પાક્કું આવું છું 😄', 'મારો પલંગ મને જવા નથી દેતો', 'ચંપલ પહેરું છું, આવી ગયો સમજો'],
@@ -53,6 +59,8 @@ const REPLIES: Record<Lang, Record<string, string[]>> = {
     Witty: ['કેલેન્ડરને પૂછ્યું, આખું સાંભળ્યા વગર હા પાડી દીધી', 'હાજરી પાક્કી, થોડો વધારે તૈયાર થઈને આવીશ', 'આમંત્રણ છે કે ચેલેન્જ? બંનેમાં હા'],
     Rizz: ['તને મેસેજ કરવાનું બહાનું શોધતો હતો', 'કોફી મારી તરફથી જો તારું પ્લેલિસ્ટ સારું હોય તો', 'તારી સાથે વાતો કરવાની મજા જ અલગ છે'],
     Savage: ['જેટલી વારમાં રિપ્લાય આપ્યો એટલી વારમાં તો નવો જિલ્લો બની જાય', 'એનર્જી મેચ કરું છું બસ', 'કીબોર્ડમાં અક્ષરો ખૂટી ગયા હતા કે શું?'],
+    Unbothered: ['વાંધો નહીં, ફ્રી થાઓ ત્યારે જણાવજો.', 'બધું શાંતિથી પતાવી લો, કોઈ ઉતાવળ નથી.', 'બરાબર છે, સમય મળે ત્યારે વાત કરીએ.'],
+    Opener: ['એક સવાલ: વીકેન્ડ પર ફરવું ગમે કે ઘરે આરામ?', 'આ ફોટો પાછળની મજેદાર સ્ટોરી શું છે?', 'ચા કે કોફી? સાચો જવાબ આપજો!'],
   },
 };
 
@@ -190,6 +198,36 @@ export function mockVibeCheck(p: { text: string; mode: string; language: string 
       'Hey! Something urgent came up on my end so I won\'t be able to make it today. Let\'s reschedule soon!',
       'I\'m completely drained from work today and need a quiet evening to recharge. So sorry to miss out!',
       'So bummed to miss this, but my schedule got double-booked. Let\'s definitely catch up next week instead.',
+    ];
+  } else if (mode === 'revival') {
+    score = 90;
+    title = 'Zombie Convo Re-Ignited';
+    verdict = 'Re-opens the conversation with low pressure and high intrigue — zero awkwardness or guilt.';
+    tags = ['🧟 Ghosting Revival', '🎈 Low Pressure', '✨ High Curiosity'];
+    rewrites = [
+      'Saw this and immediately thought of that debate we had last week.',
+      'Random thought of the day: did you ever end up trying that place?',
+      'Hey! Survived the busy week. Hope things have been good on your end!',
+    ];
+  } else if (mode === 'apology') {
+    score = 94;
+    title = 'Sincere Accountability';
+    verdict = 'Mature, emotionally intelligent conflict defuser that de-escalates tension without defensive excuses.';
+    tags = ['🤝 Restores Trust', '🛡️ Zero Excuses', '❤️ Emotional Maturity'];
+    rewrites = [
+      'I realized my message came across harshly earlier, and I am genuinely sorry. I value you and want to hear your perspective.',
+      'I dropped the ball on this and take full responsibility. Here is how I am making sure it does not happen again.',
+      'I was stressed and reacted defensively instead of listening. You deserved better communication from me.',
+    ];
+  } else if (mode === 'overthinking') {
+    score = 92;
+    title = 'Grounded & Centered';
+    verdict = 'Distills anxious paragraphs into calm, centered self-assurance that keeps your peace.';
+    tags = ['🧠 Overthinking Antidote', '🧘 Secure Energy', '💎 Dignified & Direct'];
+    rewrites = [
+      'Sounds great, let me know what works for you.',
+      'Take all the time you need, talk soon!',
+      'Just checking in to confirm for tonight. Let me know by 6!',
     ];
   }
 

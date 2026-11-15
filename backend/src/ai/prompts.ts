@@ -52,6 +52,8 @@ const REPLY_TONES: Record<string, string> = {
   Witty: 'clever wordplay or a smart twist, dry rather than loud',
   Rizz: 'effortless high-charm flirting, witty opener or smooth tease with magnetic main-character energy; memorable and low-pressure',
   Savage: 'unapologetic, sharp mic-drop comeback that dismantles dry texts, disrespect, or ghosters with effortless wit',
+  Unbothered: 'cool, relaxed, secure-attachment energy; detached main-character peace, zero neediness or desperation',
+  Opener: 'magnetic conversation starter, creative curiosity spark or witty observation to start texting from scratch with high reply-rate',
 };
 
 const LENGTHS: Record<string, string> = {
@@ -65,11 +67,14 @@ const PLATFORM_GUIDES: Record<string, string> = {
   'Instagram Post': 'Can be a little longer and more personal/storytelling; first line still matters.',
   'WhatsApp Status': 'Very short, personal, no hashtags feel, reads like a status line to friends and family.',
   'YouTube Shorts': 'Title-like, curiosity driven, searchable keywords, short.',
+  'TikTok & Shorts': 'Ultra-punchy hook for short vertical video, curiosity gap in first 3 words, searchable sound tags.',
+  'Threads & X': 'Bite-sized opinion, thought-provoking observation or dry humor that sparks replies and reposts.',
   'General Social Media': 'Works across platforms; short and relatable.',
   Instagram: 'Max ~150 characters, line breaks and a few emojis allowed, can end with a light CTA.',
   WhatsApp: 'One short "About" line, max ~139 characters, no hashtags.',
   LinkedIn: 'Headline style: role + value + focus area, professional but human, no emoji spam.',
   'Twitter/X': 'Max ~160 characters, personality + interests, a dry joke works well.',
+  'Dating App': 'Curiosity-inducing bio with playful banter hooks, two truths and a lie style, or easy conversation starters for matches.',
   'General Profile': 'Short, versatile and personal.',
 };
 
@@ -175,6 +180,9 @@ const VIBE_MODE_GUIDES: Record<string, string> = {
   work: 'Crisp, assertive, executive presence. Clear action items, courteous boundaries, zero corporate jargon or weakness.',
   decoder: 'Decode cryptic text or subtext. Explain what they really meant, uncover hidden emotional undertone, and give 3 smart counter-replies.',
   excuse: 'Polite, convincing cancellation or boundary-setting excuse without burning bridges, sounding guilty, or over-explaining.',
+  revival: 'Ghosting revival & zombie text. Re-ignite a conversation that stalled or went cold weeks ago with zero awkwardness, blame, or desperation.',
+  apology: 'Sincere, emotionally intelligent apology and conflict defuser. Take clear accountability, remove defensive ego, and re-establish safety and trust.',
+  overthinking: 'Overthinking antidote. Condenses long, anxious, spiraling drafts into cool, grounded, secure messages that preserve dignity and peace.',
 };
 
 export function buildVibeCheckPrompt(p: {

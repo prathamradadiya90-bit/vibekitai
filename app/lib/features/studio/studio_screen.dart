@@ -89,6 +89,8 @@ class _StudioScreenState extends ConsumerState<StudioScreen> {
     'Witty',
     'Rizz',
     'Savage',
+    'Unbothered',
+    'Opener',
   ];
 
   static const List<Map<String, String>> _vibeModes = [
@@ -98,6 +100,9 @@ class _StudioScreenState extends ConsumerState<StudioScreen> {
     {'id': 'work', 'label': '💼 Boss Mode'},
     {'id': 'decoder', 'label': '🕵️ Text Decrypter'},
     {'id': 'excuse', 'label': '🏃 Excuse Studio'},
+    {'id': 'revival', 'label': '🧟 Ghosting Revival'},
+    {'id': 'apology', 'label': '🤝 Conflict Defuser'},
+    {'id': 'overthinking', 'label': '🧠 Overthinking Fix'},
   ];
 
   static const List<String> _captionVibes = [
@@ -123,11 +128,16 @@ class _StudioScreenState extends ConsumerState<StudioScreen> {
       {'label': '💬 Reply to "k."', 'text': 'k.'},
       {'label': '⚡ Savage Comeback', 'text': 'You took 6 hours to reply with "cool".'},
       {'label': '🥂 Magnetic Rizz', 'text': 'How do you look this good on a random Tuesday?'},
+      {'label': '🕶️ Unbothered', 'text': 'Leaving me on delivered all day? Interesting.'},
+      {'label': '🎯 Icebreaker', 'text': 'Matched on Hinge, she loves matcha, indie rock, and golden retrievers'},
       {'label': '☕ Coffee tonight?', 'text': 'Are you free for coffee tonight?'},
       {'label': '📅 Reschedule meeting', 'text': 'Can we push our meeting to tomorrow morning?'},
     ],
     StudioTab.vibeCheck: [
       {'label': '🕵️ Decrypt "fine."', 'text': 'fine.'},
+      {'label': '🧟 Zombie Revival', 'text': 'Conversation died 3 weeks ago after a fun first date. Want to reignite without being awkward.'},
+      {'label': '🤝 Conflict Defuser', 'text': 'I lost my temper and snapped during a disagreement yesterday. Want a sincere, mature apology.'},
+      {'label': '🧠 Overthinking Fix', 'text': 'Hey sorry to bother you I know you are super busy and probably do not want to talk but if you have five minutes maybe we could call? If not totally fine no pressure!'},
       {'label': '🏃 Cancel Plans', 'text': 'Hey sorry I really cannot make it tonight I am too tired.'},
       {'label': '💘 Crush DM', 'text': 'Hey are you free tonight? Just wondering what you are doing lol'},
       {'label': '💼 Raise Request', 'text': 'Hey boss, I have been working really hard lately and feel I deserve a raise.'},
@@ -159,6 +169,7 @@ class _StudioScreenState extends ConsumerState<StudioScreen> {
 
     if (widget.initialOption != null) {
       if (_replyTones.contains(widget.initialOption)) _replyTone = widget.initialOption!;
+      if (_vibeModes.any((m) => m['id'] == widget.initialOption)) _vibeMode = widget.initialOption!;
       if (_captionVibes.contains(widget.initialOption)) _captionVibe = widget.initialOption!;
       if (_bioVibes.contains(widget.initialOption)) _bioVibe = widget.initialOption!;
     }

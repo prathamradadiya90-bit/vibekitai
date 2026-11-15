@@ -3,7 +3,20 @@ import { z } from 'zod';
 export const ReplyRequestSchema = z
   .object({
     message: z.string().min(1, 'Message cannot be empty').max(500, 'Message cannot exceed 500 characters'),
-    tone: z.enum(['Funny', 'Friendly', 'Flirty', 'Confident', 'Professional', 'Polite', 'Supportive', 'Witty', 'Rizz', 'Savage']),
+    tone: z.enum([
+      'Funny',
+      'Friendly',
+      'Flirty',
+      'Confident',
+      'Professional',
+      'Polite',
+      'Supportive',
+      'Witty',
+      'Rizz',
+      'Savage',
+      'Unbothered',
+      'Opener',
+    ]),
     language: z.enum(['English', 'Hindi', 'Hinglish', 'Gujarati']),
     length: z.enum(['short', 'medium', 'detailed']).default('medium'),
     count: z.number().int().min(1).max(5).default(3),
@@ -20,7 +33,15 @@ export const ReplyOutputSchema = z
 export const CaptionRequestSchema = z
   .object({
     topic: z.string().min(1, 'Topic cannot be empty').max(400, 'Topic cannot exceed 400 characters'),
-    platform: z.enum(['Instagram Reels', 'Instagram Post', 'WhatsApp Status', 'YouTube Shorts', 'General Social Media']),
+    platform: z.enum([
+      'Instagram Reels',
+      'Instagram Post',
+      'WhatsApp Status',
+      'YouTube Shorts',
+      'TikTok & Shorts',
+      'Threads & X',
+      'General Social Media',
+    ]),
     tone: z.enum(['Trendy', 'Witty', 'Aesthetic', 'Confident', 'Professional', 'Inspirational', 'Humorous']),
     language: z.enum(['English', 'Hindi', 'Hinglish', 'Gujarati']),
     length: z.enum(['short', 'medium', 'detailed']).default('medium'),
@@ -42,7 +63,7 @@ export const CaptionOutputSchema = z
 export const BioRequestSchema = z
   .object({
     interests: z.string().min(1, 'Interests cannot be empty').max(300, 'Interests cannot exceed 300 characters'),
-    platform: z.enum(['Instagram', 'WhatsApp', 'LinkedIn', 'Twitter/X', 'General Profile']),
+    platform: z.enum(['Instagram', 'WhatsApp', 'LinkedIn', 'Twitter/X', 'Dating App', 'General Profile']),
     vibe: z.enum(['Aesthetic', 'Witty', 'Professional', 'Minimalist', 'Creative', 'Bold']),
     language: z.enum(['English', 'Hindi', 'Hinglish', 'Gujarati']),
     include_usernames: z.boolean().default(true),
@@ -59,7 +80,9 @@ export const BioOutputSchema = z
 export const VibeCheckRequestSchema = z
   .object({
     text: z.string().min(1, 'Text cannot be empty').max(500, 'Text cannot exceed 500 characters'),
-    mode: z.enum(['roast', 'polish', 'dating', 'work', 'decoder', 'excuse']).default('roast'),
+    mode: z
+      .enum(['roast', 'polish', 'dating', 'work', 'decoder', 'excuse', 'revival', 'apology', 'overthinking'])
+      .default('roast'),
     language: z.enum(['English', 'Hindi', 'Hinglish', 'Gujarati']).default('English'),
     challenge_id: z.string().optional(),
   })

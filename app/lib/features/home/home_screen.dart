@@ -33,6 +33,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       'prompt': "Replying to 'k' after 6 hours of silence",
       'buttonText': 'Spark Savage Comeback',
       'option': 'Savage',
+      'tab': 'reply',
     },
     {
       'title': '“When they text ‘wyd’ at 1:47 AM”',
@@ -40,6 +41,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       'prompt': "Replying to 'wyd' at 1:47 AM",
       'buttonText': 'Spark Magnetic Rizz',
       'option': 'Rizz',
+      'tab': 'reply',
     },
     {
       'title': '“They replied ‘we need to talk’ out of nowhere”',
@@ -47,20 +49,55 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       'prompt': "Responding calmly to 'we need to talk'",
       'buttonText': 'Stay Calm & Direct',
       'option': 'Confident',
+      'tab': 'reply',
     },
     {
-      'title': '“Sorry forgot to reply! (Sent 4 days later)”',
-      'subtitle': 'Match their slow energy or turn it into playful banter in seconds.',
-      'prompt': "Replying to someone who apologized 4 days late",
-      'buttonText': 'Match Their Energy',
-      'option': 'Witty',
+      'title': '“Re-igniting a chat that died 3 weeks ago”',
+      'subtitle': 'Effortless zombie revival text with zero awkwardness or guilt.',
+      'prompt': "Re-ignite a conversation that went cold 3 weeks ago",
+      'buttonText': 'Revive Dead Convo',
+      'option': 'revival',
+      'tab': 'vibe_check',
+    },
+    {
+      'title': '“Paralyzed overthinking a 4-paragraph text”',
+      'subtitle': 'Cut anxiety and distill it into centered, secure-attachment confidence.',
+      'prompt': "Overthinking what to text without sounding desperate or anxious",
+      'buttonText': 'Fix Overthinking Draft',
+      'option': 'overthinking',
+      'tab': 'vibe_check',
+    },
+    {
+      'title': '“Sent a harsh message in anger and regret it”',
+      'subtitle': 'Draft an emotionally mature apology that defuses conflict and restores trust.',
+      'prompt': "Sincere apology after losing my temper and sending a harsh text",
+      'buttonText': 'Defuse Conflict & Apologize',
+      'option': 'apology',
+      'tab': 'vibe_check',
+    },
+    {
+      'title': '“Matched on Hinge & tired of saying ‘hey’”',
+      'subtitle': 'High-response opening line with magnetic curiosity and playful banter.',
+      'prompt': "Creative icebreaker opening line for dating app match who loves hiking and dogs",
+      'buttonText': 'Craft Magnetic Opener',
+      'option': 'Opener',
+      'tab': 'reply',
+    },
+    {
+      'title': '“Left on delivered all day? Keep your cool”',
+      'subtitle': 'Unbothered, secure-attachment reply with effortless main-character peace.',
+      'prompt': "Replying to someone who left me on delivered for 18 hours",
+      'buttonText': 'Send Unbothered Reply',
+      'option': 'Unbothered',
+      'tab': 'reply',
     },
     {
       'title': '“Need an excuse to cancel tonight without guilt”',
       'subtitle': 'Gracious, polite boundary that saves your social battery completely.',
       'prompt': "Polite excuse to cancel plans tonight because social battery is zero",
       'buttonText': 'Craft Polite Exit',
-      'option': 'Polite',
+      'option': 'excuse',
+      'tab': 'vibe_check',
     },
   ];
 
@@ -486,8 +523,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           InkWell(
                             onTap: () {
                               HapticFeedback.mediumImpact();
+                              final targetTab = currentSpark['tab'] ?? 'reply';
                               context.push(
-                                '/studio?tab=reply&prompt=${Uri.encodeComponent(currentSpark['prompt']!)}&option=${currentSpark['option']!}',
+                                '/studio?tab=$targetTab&prompt=${Uri.encodeComponent(currentSpark['prompt']!)}&option=${currentSpark['option']!}',
                               );
                             },
                             borderRadius: BorderRadius.circular(16),
@@ -708,6 +746,36 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   child: Row(
                     children: [
                       _buildQuickShortcut(
+                        icon: '🧟',
+                        label: 'Ghosting Revival',
+                        onTap: () => context.push('/studio?tab=vibe_check&option=revival'),
+                      ),
+                      const SizedBox(width: 8),
+                      _buildQuickShortcut(
+                        icon: '🧠',
+                        label: 'Overthinking Fix',
+                        onTap: () => context.push('/studio?tab=vibe_check&option=overthinking'),
+                      ),
+                      const SizedBox(width: 8),
+                      _buildQuickShortcut(
+                        icon: '🎯',
+                        label: 'Dating Opener',
+                        onTap: () => context.push('/studio?tab=reply&option=Opener'),
+                      ),
+                      const SizedBox(width: 8),
+                      _buildQuickShortcut(
+                        icon: '🕶️',
+                        label: 'Unbothered',
+                        onTap: () => context.push('/studio?tab=reply&option=Unbothered'),
+                      ),
+                      const SizedBox(width: 8),
+                      _buildQuickShortcut(
+                        icon: '🤝',
+                        label: 'Conflict Defuser',
+                        onTap: () => context.push('/studio?tab=vibe_check&option=apology'),
+                      ),
+                      const SizedBox(width: 8),
+                      _buildQuickShortcut(
                         icon: '⚡',
                         label: 'Magnetic Rizz',
                         onTap: () => context.push('/studio?tab=reply&option=Rizz'),
@@ -765,14 +833,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         icon: '💼',
                         label: 'Boss Mode',
                         onTap: () => context.push('/studio?tab=vibe_check&option=work'),
-                      ),
-                      const SizedBox(width: 8),
-                      _buildQuickShortcut(
-                        icon: '☕',
-                        label: 'Late Apology',
-                        onTap: () => context.push(
-                          '/studio?tab=reply&prompt=${Uri.encodeComponent("Hey sorry running 20 mins late traffic is so crazy!")}&option=Polite',
-                        ),
                       ),
                     ],
                   ),
