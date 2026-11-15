@@ -221,7 +221,7 @@ describe('Critical Bug Fixes & Regression Test Suite', () => {
     });
 
     expect(res.status).toBe(200);
-    const data = await res.json();
+    const data = (await res.json()) as { installationId: string; requestId: string };
     expect(data.installationId.length).toBeLessThanOrEqual(64);
     expect(data.installationId).not.toContain('!');
     expect(data.installationId).not.toContain('@');
@@ -274,7 +274,7 @@ describe('Critical Bug Fixes & Regression Test Suite', () => {
     // 4th request must be 429
     const res4 = await req('1.2.3.4');
     expect(res4.status).toBe(429);
-    const body = await res4.json();
+    const body = (await res4.json()) as { error: { code: string; message: string } };
     expect(body.error.code).toBe('RATE_LIMIT_EXCEEDED');
   });
 });

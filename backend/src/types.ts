@@ -53,6 +53,7 @@ export interface InstallationRecord {
 
 export interface AppVariables {
   installation: InstallationRecord;
+  installationId?: string;
   requestId: string;
   adminUser?: AdminUser;
 }
