@@ -184,9 +184,9 @@ class _CardMakerScreenState extends ConsumerState<CardMakerScreen> {
               Container(
                 constraints: const BoxConstraints(maxHeight: 380),
                 decoration: BoxDecoration(
-                  color: AppColors.surfaceElevatedDark.withOpacity(0.4),
+                  color: isDark ? AppColors.surfaceElevatedDark.withOpacity(0.4) : const Color(0xFFF5EFE6),
                   borderRadius: BorderRadius.circular(24),
-                  border: Border.all(color: AppColors.borderDark),
+                  border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
                 ),
                 padding: const EdgeInsets.all(16),
                 child: CardCanvas(
@@ -313,9 +313,9 @@ class _CardMakerScreenState extends ConsumerState<CardMakerScreen> {
                       style:
                           TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
                   if (!quota.isPro)
-                    const Text('Pro templates locked',
+                    Text('Pro templates locked',
                         style: TextStyle(
-                            fontSize: 11, color: AppColors.textMutedDark)),
+                            fontSize: 11, color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight)),
                 ],
               ),
               const SizedBox(height: 10),
@@ -488,8 +488,8 @@ class _CardMakerScreenState extends ConsumerState<CardMakerScreen> {
                     ),
                   ),
                   Text('${_fontSize.toInt()}pt',
-                      style: const TextStyle(
-                          fontSize: 12, color: AppColors.textSecondaryDark)),
+                      style: TextStyle(
+                          fontSize: 12, color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight)),
                 ],
               ),
 

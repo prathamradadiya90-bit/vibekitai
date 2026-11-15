@@ -10,6 +10,7 @@ import 'package:vibekit_ai/core/widgets/loading_shimmer.dart';
 import 'package:vibekit_ai/core/widgets/quota_badge.dart';
 import 'package:vibekit_ai/core/widgets/result_card.dart';
 import 'package:vibekit_ai/core/widgets/tone_chips.dart';
+import 'package:vibekit_ai/features/onboarding/onboarding_screen.dart';
 import 'package:vibekit_ai/features/paywall/paywall_screen.dart';
 
 void main() {
@@ -155,6 +156,34 @@ void main() {
         expect(find.text('Annual Creator Pass'), findsOneWidget);
         expect(find.text('Tier Comparison Matrix'), findsOneWidget);
         expect(find.text('What Creators Say'), findsOneWidget);
+      }
+    });
+
+    testWidgets('OnboardingScreen renders slides and adapts to Light and Dark themes', (tester) async {
+      SharedPreferences.setMockInitialValues({'vibekit_onboarding_completed': false});
+      final prefs = await PreferencesService.create();
+
+      for (final theme in [AppTheme.lightTheme, AppTheme.darkTheme]) {
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              preferencesServiceProvider.overrideWithValue(prefs),
+            ],
+            child: MaterialApp(
+              theme: theme,
+              home: OnboardingScreen(key: UniqueKey()),
+            ),
+          ),
+        );
+
+        expect(find.text('VIBEKIT AI'), findsOneWidget);
+        expect(find.text('Clever Replies in Seconds'), findsOneWidget);
+        expect(find.text('Continue'), findsOneWidget);
+
+        // Advance to slide 1
+        await tester.tap(find.text('Continue'));
+        await tester.pumpAndSettle();
+        expect(find.text('Viral Captions & Reel Hooks'), findsOneWidget);
       }
     });
   });

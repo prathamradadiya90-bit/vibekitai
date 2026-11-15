@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -77,10 +78,17 @@ class ReviewPromptService {
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
       builder: (ctx) {
+        final isDark = Theme.of(ctx).brightness == Brightness.dark;
+        final sheetBg = isDark ? AppColors.surfaceElevatedDark : AppColors.surfaceLight;
+        final borderCol = isDark ? AppColors.borderDark : AppColors.borderLight;
+        final textPrimary = isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight;
+        final textSecondary = isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight;
+
         return Container(
-          decoration: const BoxDecoration(
-            color: Color(0xFF1E1E2E),
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          decoration: BoxDecoration(
+            color: sheetBg,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+            border: Border.all(color: borderCol),
           ),
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
           child: Column(
@@ -89,8 +97,8 @@ class ReviewPromptService {
               Container(
                 width: 64,
                 height: 64,
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withAlpha(40),
+                decoration: const BoxDecoration(
+                  gradient: AppColors.accentGradient,
                   shape: BoxShape.circle,
                 ),
                 child: const Center(
@@ -98,12 +106,12 @@ class ReviewPromptService {
                 ),
               ),
               const SizedBox(height: 16),
-              const Text(
+              Text(
                 'Enjoying VibeKit AI?',
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
-                  color: Colors.white,
+                  color: textPrimary,
                 ),
                 textAlign: TextAlign.center,
               ),
@@ -112,7 +120,7 @@ class ReviewPromptService {
                 'Your honest review on Google Play helps fellow creators find the best AI captions and replies!',
                 style: TextStyle(
                   fontSize: 14,
-                  color: Colors.white.withAlpha(200),
+                  color: textSecondary,
                   height: 1.4,
                 ),
                 textAlign: TextAlign.center,
@@ -123,8 +131,8 @@ class ReviewPromptService {
                   Expanded(
                     child: OutlinedButton(
                       style: OutlinedButton.styleFrom(
-                        foregroundColor: Colors.white.withAlpha(180),
-                        side: BorderSide(color: Colors.white.withAlpha(40)),
+                        foregroundColor: textSecondary,
+                        side: BorderSide(color: borderCol),
                         minimumSize: const Size.fromHeight(48),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       ),
@@ -172,7 +180,7 @@ class ReviewPromptService {
     final webUri = Uri.parse(webUrl);
 
     try {
-      if (await canLaunchUrl(marketUri)) {
+      if (!kIsWeb && await canLaunchUrl(marketUri)) {
         await launchUrl(marketUri, mode: LaunchMode.externalApplication);
       } else if (await canLaunchUrl(webUri)) {
         await launchUrl(webUri, mode: LaunchMode.externalApplication);

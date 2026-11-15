@@ -42,7 +42,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.backgroundDark,
+      backgroundColor: context.scaffoldBg,
       body: SafeArea(
         child: Column(
           children: [
@@ -67,19 +67,19 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                         width: 1,
                       ),
                     ),
-                    child: const Row(
+                    child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(
+                        const Icon(
                           Icons.coffee_rounded,
                           color: AppColors.accent,
                           size: 15,
                         ),
-                        SizedBox(width: 6),
+                        const SizedBox(width: 6),
                         Text(
                           'VIBEKIT AI',
                           style: TextStyle(
-                            color: AppColors.textPrimaryDark,
+                            color: context.textPrimary,
                             fontWeight: FontWeight.w800,
                             fontSize: 11,
                             letterSpacing: 1.4,
@@ -113,10 +113,10 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                 controller: _pageController,
                 onPageChanged: (index) => setState(() => _currentPage = index),
                 children: [
-                  _buildReplyStudioSlide(),
-                  _buildCaptionLabSlide(),
-                  _buildCardMakerSlide(),
-                  _buildPrivacySlide(),
+                  _buildReplyStudioSlide(context),
+                  _buildCaptionLabSlide(context),
+                  _buildCardMakerSlide(context),
+                  _buildPrivacySlide(context),
                 ],
               ),
             ),
@@ -144,7 +144,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                               : null,
                           color: _currentPage == index
                               ? null
-                              : AppColors.borderDark,
+                              : context.borderCol,
                           borderRadius: BorderRadius.circular(4),
                         ),
                       ),
@@ -212,10 +212,10 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
                   if (_currentPage == 3) ...[
                     const SizedBox(height: 10),
-                    const Text(
+                    Text(
                       'Free to use • No credit card required',
                       style: TextStyle(
-                        color: AppColors.textMutedDark,
+                        color: context.textMuted,
                         fontSize: 11,
                       ),
                     ),
@@ -232,7 +232,8 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   // -------------------------------------------------------------
   // SLIDE 0: Reply Studio (Interactive Chat Simulation)
   // -------------------------------------------------------------
-  Widget _buildReplyStudioSlide() {
+  Widget _buildReplyStudioSlide(BuildContext context) {
+    final isDark = context.isDarkMode;
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Column(
@@ -266,25 +267,25 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
           const SizedBox(height: 12),
 
-          const Text(
+          Text(
             'Clever Replies in Seconds',
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.w800,
-              color: AppColors.textPrimaryDark,
+              color: context.textPrimary,
               letterSpacing: -0.5,
             ),
           ),
 
           const SizedBox(height: 8),
 
-          const Text(
+          Text(
             'Turn dry, awkward or tricky texts into witty, flirty, or savage responses with one tap.',
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 13,
-              color: AppColors.textSecondaryDark,
+              color: context.textSecondary,
               height: 1.4,
             ),
           ),
@@ -296,10 +297,10 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
             width: double.infinity,
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: AppColors.surfaceDark,
+              color: context.surfaceCard,
               borderRadius: BorderRadius.circular(24),
               border: Border.all(
-                color: AppColors.borderDark,
+                color: context.borderCol,
                 width: 1.2,
               ),
             ),
@@ -328,19 +329,19 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                       ),
                     ),
                     const SizedBox(width: 10),
-                    const Expanded(
+                    Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
                             'Sarah 💫',
                             style: TextStyle(
-                              color: AppColors.textPrimaryDark,
+                              color: context.textPrimary,
                               fontWeight: FontWeight.bold,
                               fontSize: 13,
                             ),
                           ),
-                          Text(
+                          const Text(
                             'Active now',
                             style: TextStyle(
                               color: AppColors.accentWarm,
@@ -354,12 +355,12 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                       decoration: BoxDecoration(
-                        color: AppColors.surfaceElevatedDark,
+                        color: context.surfaceElevated,
                         borderRadius: BorderRadius.circular(10),
                       ),
-                      child: const Text(
+                      child: Text(
                         '10:42 PM',
-                        style: TextStyle(color: AppColors.textMutedDark, fontSize: 10),
+                        style: TextStyle(color: context.textMuted, fontSize: 10),
                       ),
                     ),
                   ],
@@ -374,19 +375,19 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                     constraints: const BoxConstraints(maxWidth: 280),
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                     decoration: BoxDecoration(
-                      color: AppColors.surfaceCardDark,
+                      color: isDark ? AppColors.surfaceElevatedDark : const Color(0xFFEDE4D8),
                       borderRadius: const BorderRadius.only(
                         topLeft: Radius.circular(18),
                         topRight: Radius.circular(18),
                         bottomRight: Radius.circular(18),
                         bottomLeft: Radius.circular(4),
                       ),
-                      border: Border.all(color: AppColors.borderDark),
+                      border: Border.all(color: context.borderCol),
                     ),
-                    child: const Text(
+                    child: Text(
                       'Leaving me on read again? 👀 What are you doing tonight?',
                       style: TextStyle(
-                        color: AppColors.textPrimaryDark,
+                        color: context.textPrimary,
                         fontSize: 13,
                         height: 1.35,
                       ),
@@ -399,10 +400,10 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                 // Live Tone Selector Chips
                 Row(
                   children: [
-                    const Text(
+                    Text(
                       'Select Tone:',
                       style: TextStyle(
-                        color: AppColors.textMutedDark,
+                        color: context.textMuted,
                         fontSize: 11,
                         fontWeight: FontWeight.w600,
                       ),
@@ -423,12 +424,12 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                                 decoration: BoxDecoration(
                                   color: isSelected
                                       ? AppColors.primary
-                                      : AppColors.surfaceCardDark,
+                                      : context.surfaceElevated,
                                   borderRadius: BorderRadius.circular(14),
                                   border: Border.all(
                                     color: isSelected
                                         ? AppColors.accent
-                                        : AppColors.borderDark,
+                                        : context.borderCol,
                                   ),
                                 ),
                                 child: Text(
@@ -440,7 +441,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                                               ? '☕ Witty'
                                               : '💼 Boss',
                                   style: TextStyle(
-                                    color: isSelected ? Colors.white : AppColors.textSecondaryDark,
+                                    color: isSelected ? Colors.white : context.textSecondary,
                                     fontSize: 11,
                                     fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
                                   ),
@@ -513,12 +514,12 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
                     decoration: BoxDecoration(
-                      color: AppColors.surfaceElevatedDark,
+                      color: context.surfaceElevated,
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: const Text(
+                    child: Text(
                       '👆 Tap the tone pills above to test live',
-                      style: TextStyle(color: AppColors.textMutedDark, fontSize: 10),
+                      style: TextStyle(color: context.textMuted, fontSize: 10),
                     ),
                   ),
                 ),
@@ -533,7 +534,8 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   // -------------------------------------------------------------
   // SLIDE 1: Caption Lab (Viral Feed Simulator)
   // -------------------------------------------------------------
-  Widget _buildCaptionLabSlide() {
+  Widget _buildCaptionLabSlide(BuildContext context) {
+    final isDark = context.isDarkMode;
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Column(
@@ -566,25 +568,25 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
           const SizedBox(height: 12),
 
-          const Text(
+          Text(
             'Viral Captions & Reel Hooks',
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.w800,
-              color: AppColors.textPrimaryDark,
+              color: context.textPrimary,
               letterSpacing: -0.5,
             ),
           ),
 
           const SizedBox(height: 8),
 
-          const Text(
+          Text(
             'Generate scroll-stopping hooks, high-converting CTAs, and tailored hashtags for Instagram & Shorts.',
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 13,
-              color: AppColors.textSecondaryDark,
+              color: context.textSecondary,
               height: 1.4,
             ),
           ),
@@ -596,10 +598,10 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
             width: double.infinity,
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: AppColors.surfaceDark,
+              color: context.surfaceCard,
               borderRadius: BorderRadius.circular(24),
               border: Border.all(
-                color: AppColors.borderDark,
+                color: context.borderCol,
                 width: 1.2,
               ),
             ),
@@ -617,29 +619,29 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                       child: Container(
                         width: 32,
                         height: 32,
-                        decoration: const BoxDecoration(
-                          color: AppColors.surfaceDark,
+                        decoration: BoxDecoration(
+                          color: context.surfaceCard,
                           shape: BoxShape.circle,
                         ),
                         child: const Icon(Icons.person, color: AppColors.accentWarm, size: 18),
                       ),
                     ),
                     const SizedBox(width: 10),
-                    const Expanded(
+                    Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
                             '@yourbrand • Reel Hook',
                             style: TextStyle(
-                              color: AppColors.textPrimaryDark,
+                              color: context.textPrimary,
                               fontWeight: FontWeight.bold,
                               fontSize: 13,
                             ),
                           ),
                           Text(
                             'Instagram Reels & Shorts',
-                            style: TextStyle(color: AppColors.textMutedDark, fontSize: 10),
+                            style: TextStyle(color: context.textMuted, fontSize: 10),
                           ),
                         ],
                       ),
@@ -675,24 +677,24 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                   width: double.infinity,
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: AppColors.surfaceCardDark,
+                    color: isDark ? AppColors.surfaceElevatedDark : const Color(0xFFEDE4D8),
                     borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: AppColors.borderDark),
+                    border: Border.all(color: context.borderCol),
                   ),
-                  child: const Column(
+                  child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         '“Stop writing boring captions in 2026! ☕ Here is the 3-second psychology trick that gets viewers to watch until the very end...”',
                         style: TextStyle(
-                          color: AppColors.textPrimaryDark,
+                          color: context.textPrimary,
                           fontSize: 13,
                           fontWeight: FontWeight.w600,
                           height: 1.4,
                         ),
                       ),
-                      SizedBox(height: 8),
-                      Text(
+                      const SizedBox(height: 8),
+                      const Text(
                         '#ViralHooks #ContentStrategy #CreatorTips #VibeKitAI',
                         style: TextStyle(
                           color: AppColors.accentWarm,
@@ -710,10 +712,10 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
-                    _buildMetricItem(Icons.favorite_rounded, '48.2K', const Color(0xFFC2410C)),
-                    _buildMetricItem(Icons.chat_bubble_rounded, '1,290', AppColors.accent),
-                    _buildMetricItem(Icons.send_rounded, '16.4K', const Color(0xFF2E7D32)),
-                    _buildMetricItem(Icons.bookmark_rounded, '9.8K', AppColors.accentWarm),
+                    _buildMetricItem(context, Icons.favorite_rounded, '48.2K', const Color(0xFFC2410C)),
+                    _buildMetricItem(context, Icons.chat_bubble_rounded, '1,290', AppColors.accent),
+                    _buildMetricItem(context, Icons.send_rounded, '16.4K', const Color(0xFF2E7D32)),
+                    _buildMetricItem(context, Icons.bookmark_rounded, '9.8K', AppColors.accentWarm),
                   ],
                 ),
               ],
@@ -724,7 +726,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     );
   }
 
-  Widget _buildMetricItem(IconData icon, String count, Color color) {
+  Widget _buildMetricItem(BuildContext context, IconData icon, String count, Color color) {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -732,8 +734,8 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         const SizedBox(width: 4),
         Text(
           count,
-          style: const TextStyle(
-            color: AppColors.textSecondaryDark,
+          style: TextStyle(
+            color: context.textSecondary,
             fontSize: 11,
             fontWeight: FontWeight.w600,
           ),
@@ -745,7 +747,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   // -------------------------------------------------------------
   // SLIDE 2: Card & Meme Maker (Aesthetic Canvas)
   // -------------------------------------------------------------
-  Widget _buildCardMakerSlide() {
+  Widget _buildCardMakerSlide(BuildContext context) {
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Column(
@@ -778,25 +780,25 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
           const SizedBox(height: 12),
 
-          const Text(
+          Text(
             'Stunning Cards & Memes',
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.w800,
-              color: AppColors.textPrimaryDark,
+              color: context.textPrimary,
               letterSpacing: -0.5,
             ),
           ),
 
           const SizedBox(height: 8),
 
-          const Text(
+          Text(
             'Turn quotes and thoughts into high-res story cards locally with multi-language support (English, Hindi & Gujarati).',
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 13,
-              color: AppColors.textSecondaryDark,
+              color: context.textSecondary,
               height: 1.4,
             ),
           ),
@@ -849,11 +851,11 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    _buildPillTag('🎨 8 Presets'),
+                    _buildPillTag(context, '🎨 8 Presets'),
                     const SizedBox(width: 6),
-                    _buildPillTag('🌐 हिंदी & ગુજરાતી'),
+                    _buildPillTag(context, '🌐 हिंदी & ગુજરાતી'),
                     const SizedBox(width: 6),
-                    _buildPillTag('⚡ 100% Offline'),
+                    _buildPillTag(context, '⚡ 100% Offline'),
                   ],
                 ),
               ],
@@ -864,13 +866,13 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     );
   }
 
-  Widget _buildPillTag(String label) {
+  Widget _buildPillTag(BuildContext context, String label) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
-        color: AppColors.surfaceElevatedDark,
+        color: context.surfaceElevated,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: AppColors.borderDark),
+        border: Border.all(color: context.borderCol),
       ),
       child: Text(
         label,
@@ -886,7 +888,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   // -------------------------------------------------------------
   // SLIDE 3: Privacy & Responsible AI (Apple-Style Trust)
   // -------------------------------------------------------------
-  Widget _buildPrivacySlide() {
+  Widget _buildPrivacySlide(BuildContext context) {
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Column(
@@ -919,25 +921,25 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
           const SizedBox(height: 12),
 
-          const Text(
+          Text(
             'Private & Responsible AI',
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.w800,
-              color: AppColors.textPrimaryDark,
+              color: context.textPrimary,
               letterSpacing: -0.5,
             ),
           ),
 
           const SizedBox(height: 8),
 
-          const Text(
+          Text(
             'Experience next-gen AI creativity without ever compromising your privacy or personal conversations.',
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 13,
-              color: AppColors.textSecondaryDark,
+              color: context.textSecondary,
               height: 1.4,
             ),
           ),
@@ -949,30 +951,33 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
             width: double.infinity,
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: AppColors.surfaceDark,
+              color: context.surfaceCard,
               borderRadius: BorderRadius.circular(24),
               border: Border.all(
-                color: AppColors.borderDark,
+                color: context.borderCol,
                 width: 1.2,
               ),
             ),
             child: Column(
               children: [
                 _buildTrustRow(
+                  context: context,
                   icon: Icons.lock_rounded,
                   color: const Color(0xFF66BB6A),
                   title: 'Zero Chat Retention',
                   desc: 'Your inputs are processed in-memory and never saved to a database.',
                 ),
-                const Divider(height: 20, color: AppColors.borderDark),
+                Divider(height: 20, color: context.borderCol),
                 _buildTrustRow(
+                  context: context,
                   icon: Icons.bolt_rounded,
                   color: AppColors.accent,
                   title: 'Local-First Rendering',
                   desc: 'Quote & meme cards are created and saved directly on your device GPU.',
                 ),
-                const Divider(height: 20, color: AppColors.borderDark),
+                Divider(height: 20, color: context.borderCol),
                 _buildTrustRow(
+                  context: context,
                   icon: Icons.verified_user_rounded,
                   color: AppColors.accentWarm,
                   title: 'Play Store Data Safety',
@@ -987,6 +992,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   }
 
   Widget _buildTrustRow({
+    required BuildContext context,
     required IconData icon,
     required Color color,
     required String title,
@@ -1010,8 +1016,8 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
             children: [
               Text(
                 title,
-                style: const TextStyle(
-                  color: AppColors.textPrimaryDark,
+                style: TextStyle(
+                  color: context.textPrimary,
                   fontWeight: FontWeight.bold,
                   fontSize: 13,
                 ),
@@ -1019,8 +1025,8 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
               const SizedBox(height: 2),
               Text(
                 desc,
-                style: const TextStyle(
-                  color: AppColors.textSecondaryDark,
+                style: TextStyle(
+                  color: context.textSecondary,
                   fontSize: 11,
                   height: 1.35,
                 ),
