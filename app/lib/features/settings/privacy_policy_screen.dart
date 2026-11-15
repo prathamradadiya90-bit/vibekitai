@@ -17,7 +17,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'VibeKit AI Privacy Policy',
+                'ReplyVibe AI Privacy Policy',
                 style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
               ),
               SizedBox(height: 6),
@@ -33,7 +33,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
               ),
               SizedBox(height: 6),
               Text(
-                'VibeKit AI ("we", "our", or "app") is designed with a strict privacy-first architecture. We do not require account registration, email addresses, phone numbers, or social media logins to use our services.',
+                'ReplyVibe AI ("we", "our", or "app") is designed with a strict privacy-first architecture. We do not require account registration, email addresses, phone numbers, or social media logins to use our services.',
                 style: TextStyle(fontSize: 13, height: 1.5),
               ),
               SizedBox(height: 16),

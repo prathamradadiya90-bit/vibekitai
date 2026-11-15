@@ -4,7 +4,7 @@ class AppStrings {
   AppStrings._();
 
   // App Identity
-  static const String appName = 'VibeKit AI';
+  static const String appName = 'ReplyVibe AI';
   static const String appTagline = 'Smart Replies, Viral Captions & Bio Studio';
 
   // Navigation & Feature Titles
@@ -14,14 +14,14 @@ class AppStrings {
   static const String cardMakerTitle = 'Card Studio';
   static const String historyTitle = 'Saved Cards & History';
   static const String settingsTitle = 'Settings';
-  static const String paywallTitle = 'VibeKit Pro';
+  static const String paywallTitle = 'ReplyVibe Pro';
 
   // Quota & Billing
   static const String outOfCreditsTitle = 'Daily Credits Exhausted';
   static const String outOfCreditsMessage =
       'You have used all daily free credits. Watch a short video to earn +3 credits or upgrade to Pro for unlimited generation.';
   static const String watchAdButton = 'Watch Video (+3 Credits)';
-  static const String upgradeProButton = 'Unlock VibeKit Pro';
+  static const String upgradeProButton = 'Unlock ReplyVibe Pro';
   static const String freeCreditsBadge = 'Free Credits';
   static const String proCreditsBadge = 'PRO Active';
 
