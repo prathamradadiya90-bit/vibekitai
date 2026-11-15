@@ -94,6 +94,9 @@ class _StudioScreenState extends ConsumerState<StudioScreen> {
   ];
 
   static const List<Map<String, String>> _vibeModes = [
+    {'id': 'flags', 'label': '🚩 Flag Scanner'},
+    {'id': 'story', 'label': '📸 Story Slider'},
+    {'id': 'chemistry', 'label': '✨ Chemistry Match'},
     {'id': 'roast', 'label': '🔥 Roast Me'},
     {'id': 'polish', 'label': '✨ Vibe Polish'},
     {'id': 'dating', 'label': '💘 Date Doctor'},
@@ -134,6 +137,9 @@ class _StudioScreenState extends ConsumerState<StudioScreen> {
       {'label': '📅 Reschedule meeting', 'text': 'Can we push our meeting to tomorrow morning?'},
     ],
     StudioTab.vibeCheck: [
+      {'label': '🚩 Red Flag Scan', 'text': 'My ex was totally crazy, you are the only one who gets me so don\'t let me down.'},
+      {'label': '📸 Food Story Reply', 'text': 'They posted a late-night story at a hidden ramen bar with no caption'},
+      {'label': '✨ Chemistry Match', 'text': 'Him: you have good music taste. Her: only took you 3 months to notice.'},
       {'label': '🕵️ Decrypt "fine."', 'text': 'fine.'},
       {'label': '🧟 Zombie Revival', 'text': 'Conversation died 3 weeks ago after a fun first date. Want to reignite without being awkward.'},
       {'label': '🤝 Conflict Defuser', 'text': 'I lost my temper and snapped during a disagreement yesterday. Want a sincere, mature apology.'},

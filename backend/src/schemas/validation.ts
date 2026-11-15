@@ -81,7 +81,20 @@ export const VibeCheckRequestSchema = z
   .object({
     text: z.string().min(1, 'Text cannot be empty').max(500, 'Text cannot exceed 500 characters'),
     mode: z
-      .enum(['roast', 'polish', 'dating', 'work', 'decoder', 'excuse', 'revival', 'apology', 'overthinking'])
+      .enum([
+        'roast',
+        'polish',
+        'dating',
+        'work',
+        'decoder',
+        'excuse',
+        'revival',
+        'apology',
+        'overthinking',
+        'flags',
+        'story',
+        'chemistry',
+      ])
       .default('roast'),
     language: z.enum(['English', 'Hindi', 'Hinglish', 'Gujarati']).default('English'),
     challenge_id: z.string().optional(),

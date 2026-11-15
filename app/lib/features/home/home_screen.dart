@@ -28,6 +28,30 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   static const List<Map<String, String>> _viralSparks = [
     {
+      'title': '“Is this text a red flag or am I tripping?”',
+      'subtitle': 'Scan messages for manipulation, love bombing, or genuine green flags.',
+      'prompt': "My ex was totally crazy, you are the only one who gets me so don't let me down.",
+      'buttonText': 'Scan for Red Flags',
+      'option': 'flags',
+      'tab': 'vibe_check',
+    },
+    {
+      'title': '“They posted a food story with no caption”',
+      'subtitle': 'Slide into their DMs with effortless curiosity that guarantees a reply.',
+      'prompt': "Reacting to an aesthetic late night ramen story with no caption",
+      'buttonText': 'Slide into Story DMs',
+      'option': 'story',
+      'tab': 'vibe_check',
+    },
+    {
+      'title': '“Testing our texting banter chemistry”',
+      'subtitle': 'Calculate texting compatibility score and discover your dynamic.',
+      'prompt': "Testing texting chemistry: Him: you have good music taste. Her: only took you 3 months to notice.",
+      'buttonText': 'Calculate Chemistry',
+      'option': 'chemistry',
+      'tab': 'vibe_check',
+    },
+    {
       'title': '“Replying to ‘k’ after 6 hours of silence”',
       'subtitle': 'Generate savage, flirty, or diplomatic comeback options in 1 tap.',
       'prompt': "Replying to 'k' after 6 hours of silence",
@@ -745,6 +769,24 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   scrollDirection: Axis.horizontal,
                   child: Row(
                     children: [
+                      _buildQuickShortcut(
+                        icon: '🚩',
+                        label: 'Flag Scanner',
+                        onTap: () => context.push('/studio?tab=vibe_check&option=flags'),
+                      ),
+                      const SizedBox(width: 8),
+                      _buildQuickShortcut(
+                        icon: '📸',
+                        label: 'Story Reply',
+                        onTap: () => context.push('/studio?tab=vibe_check&option=story'),
+                      ),
+                      const SizedBox(width: 8),
+                      _buildQuickShortcut(
+                        icon: '✨',
+                        label: 'Chemistry Match',
+                        onTap: () => context.push('/studio?tab=vibe_check&option=chemistry'),
+                      ),
+                      const SizedBox(width: 8),
                       _buildQuickShortcut(
                         icon: '🧟',
                         label: 'Ghosting Revival',

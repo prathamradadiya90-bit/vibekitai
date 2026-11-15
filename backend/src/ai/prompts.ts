@@ -183,6 +183,9 @@ const VIBE_MODE_GUIDES: Record<string, string> = {
   revival: 'Ghosting revival & zombie text. Re-ignite a conversation that stalled or went cold weeks ago with zero awkwardness, blame, or desperation.',
   apology: 'Sincere, emotionally intelligent apology and conflict defuser. Take clear accountability, remove defensive ego, and re-establish safety and trust.',
   overthinking: 'Overthinking antidote. Condenses long, anxious, spiraling drafts into cool, grounded, secure messages that preserve dignity and peace.',
+  flags: 'Red, Green & Beige Flag Detector. Scan text for emotional manipulation, love bombing, mixed signals (🚩 red flags), boring clichés (🟨 beige flags), or healthy communication (🟢 green flags). Return danger/health score, flag diagnosis, and 3 strategic counter-moves.',
+  story: 'Instagram & Snapchat Story Reply Assistant. Craft natural, magnetic reactions to stories (Food, Travel, Gym, Music, Pet, Selfie) that spark effortless conversations without feeling forced or creepy.',
+  chemistry: 'Texting Chemistry & Compatibility Matcher. Evaluate the texting dynamic, banter balance, energy parity, and reciprocity. Return a chemistry percentage score and 3 moves to deepen the spark or adjust pacing.',
 };
 
 export function buildVibeCheckPrompt(p: {

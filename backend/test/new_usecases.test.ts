@@ -116,6 +116,58 @@ describe('New High-Value Use Cases & Presets Audit', () => {
     expect(datingBio.success).toBe(true);
   });
 
+  it('validates VibeCheckRequestSchema accepts flags, story, and chemistry modes', () => {
+    const flags = VibeCheckRequestSchema.safeParse({
+      text: 'My ex was crazy, you are the only one who truly gets me so do not disappoint me.',
+      mode: 'flags',
+      language: 'English',
+    });
+    expect(flags.success).toBe(true);
+
+    const story = VibeCheckRequestSchema.safeParse({
+      text: 'They posted a story at a late night ramen spot in Shibuya',
+      mode: 'story',
+      language: 'English',
+    });
+    expect(story.success).toBe(true);
+
+    const chemistry = VibeCheckRequestSchema.safeParse({
+      text: 'Him: you have great music taste. Her: only took you 3 months to notice.',
+      mode: 'chemistry',
+      language: 'English',
+    });
+    expect(chemistry.success).toBe(true);
+  });
+
+  it('generates rich mock evaluations for flags, story, and chemistry modes', () => {
+    const flagsEval = mockVibeCheck({
+      text: 'My ex was crazy',
+      mode: 'flags',
+      language: 'English',
+    });
+    expect(flagsEval.title).toContain('Red Flags');
+    expect(flagsEval.tags).toContain('🚩 Guilt-Trip Alert');
+    expect(flagsEval.rewrites.length).toBe(3);
+
+    const storyEval = mockVibeCheck({
+      text: 'Ramen story',
+      mode: 'story',
+      language: 'English',
+    });
+    expect(storyEval.title).toContain('Story');
+    expect(storyEval.tags).toContain('📸 Story Reply');
+    expect(storyEval.rewrites.length).toBe(3);
+
+    const chemEval = mockVibeCheck({
+      text: 'Banter check',
+      mode: 'chemistry',
+      language: 'English',
+    });
+    expect(chemEval.title).toContain('Chemistry');
+    expect(chemEval.tags).toContain('✨ 88% Match');
+    expect(chemEval.rewrites.length).toBe(3);
+  });
+
   it('builds valid prompts for the new modes and tones without leakage', () => {
     const promptPair = buildVibeCheckPrompt({
       text: 'Hey sorry for ghosting!',

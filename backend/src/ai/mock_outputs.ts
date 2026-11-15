@@ -229,6 +229,36 @@ export function mockVibeCheck(p: { text: string; mode: string; language: string 
       'Take all the time you need, talk soon!',
       'Just checking in to confirm for tonight. Let me know by 6!',
     ];
+  } else if (mode === 'flags') {
+    score = 86;
+    title = '🚩 2 Red Flags Detected';
+    verdict = 'Subtle guilt-tripping and deflection detected. Guard your boundaries before over-investing emotionally.';
+    tags = ['🚩 Guilt-Trip Alert', '🟨 Low Effort', '🛡️ Boundary Needed'];
+    rewrites = [
+      'I hear you, but my schedule is full this weekend. Let\'s see how next week looks.',
+      'That doesn\'t really work for me, but happy to catch up another time.',
+      'I appreciate the honesty, but I think our communication expectations might be different.',
+    ];
+  } else if (mode === 'story') {
+    score = 94;
+    title = '📸 Effortless Story Slide';
+    verdict = 'Low-pressure, high-curiosity reaction that gives them an immediate hook to reply to without awkwardness.';
+    tags = ['📸 Story Reply', '✨ High Charm', '💬 Instant Hook'];
+    rewrites = [
+      'Putting this on my bucket list immediately. What was the best part?',
+      'Tell me the food actually lived up to the aesthetics here.',
+      '10/10 taste, honestly need the full recommendation list.',
+    ];
+  } else if (mode === 'chemistry') {
+    score = 88;
+    title = 'High Banter Chemistry';
+    verdict = 'Strong reciprocity and matched energy. The conversation flows with natural curiosity and mutual investment.';
+    tags = ['✨ 88% Match', '🔥 Matched Energy', '🎯 Mutual Spark'];
+    rewrites = [
+      'We have been debating this for 3 days now. Time to settle it over coffee.',
+      'If our music taste matches as well as our banter, we are in trouble.',
+      'You are surprisingly fun to talk to. Keep it up.',
+    ];
   }
 
   return { score, title, verdict, tags, rewrites };
