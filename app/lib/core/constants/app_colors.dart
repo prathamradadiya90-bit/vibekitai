@@ -71,3 +71,18 @@ class AppColors {
   static const Color borderDark = Color(0xFF4A3426); // Subtle Roasted Bean Border
   static const Color borderLight = Color(0xFFE5DACB); // Crisp Warm Biscuit Border
 }
+
+/// Convenient, DRY BuildContext extension for dynamic light/dark theme tokens.
+extension AppThemeContextExtension on BuildContext {
+  bool get isDarkMode => Theme.of(this).brightness == Brightness.dark;
+
+  Color get scaffoldBg => isDarkMode ? AppColors.backgroundDark : AppColors.backgroundLight;
+  Color get surfaceBg => isDarkMode ? AppColors.surfaceDark : AppColors.surfaceLight;
+  Color get surfaceCard => isDarkMode ? AppColors.surfaceCardDark : AppColors.surfaceCardLight;
+  Color get surfaceElevated => isDarkMode ? AppColors.surfaceElevatedDark : AppColors.surfaceElevatedLight;
+
+  Color get borderCol => isDarkMode ? AppColors.borderDark : AppColors.borderLight;
+  Color get textPrimary => isDarkMode ? AppColors.textPrimaryDark : AppColors.textPrimaryLight;
+  Color get textSecondary => isDarkMode ? AppColors.textSecondaryDark : AppColors.textSecondaryLight;
+  Color get textMuted => isDarkMode ? AppColors.textMutedDark : AppColors.textMutedLight;
+}

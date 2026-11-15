@@ -8,6 +8,7 @@ import { QuotaManager } from '../src/quota/quota_manager';
 import { validateOutboundUrl } from '../src/security/safe_fetch';
 import { installationMiddleware } from '../src/middleware/installation';
 import { bodyLimitMiddleware } from '../src/middleware/body_limit';
+import { rateLimiterMiddleware } from '../src/middleware/rate_limit';
 
 // Mock in-memory SQLite D1Database for isolated unit testing
 class MockD1Statement {
@@ -250,5 +251,30 @@ describe('Critical Bug Fixes & Regression Test Suite', () => {
     } catch (err: any) {
       expect(err.name).toBe('ValidationError');
     }
+  });
+
+  it('Bug #10: rateLimiterMiddleware gracefully runs without D1 and handles request rate limiting cleanly', async () => {
+    const app = new Hono<any>();
+    app.use('*', rateLimiterMiddleware({ generalLimit: 3, windowSeconds: 60 }));
+    app.get('/test-rate', (c) => c.text('ok'));
+
+    const req = (ip: string) =>
+      app.request('/test-rate', {
+        headers: { 'CF-Connecting-IP': ip, 'X-App-Instance-Id': 'rate_user_1' },
+      });
+
+    // 3 allowed requests
+    const res1 = await req('1.2.3.4');
+    expect(res1.status).toBe(200);
+    const res2 = await req('1.2.3.4');
+    expect(res2.status).toBe(200);
+    const res3 = await req('1.2.3.4');
+    expect(res3.status).toBe(200);
+
+    // 4th request must be 429
+    const res4 = await req('1.2.3.4');
+    expect(res4.status).toBe(429);
+    const body = await res4.json();
+    expect(body.error.code).toBe('RATE_LIMIT_EXCEEDED');
   });
 });

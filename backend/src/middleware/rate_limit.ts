@@ -36,7 +36,7 @@ export function rateLimiterMiddleware(options?: {
     const firstIp = (clientIp.split(',')[0] ?? clientIp).trim();
     const key = `${installId}_${firstIp}_${isGeneration ? 'gen' : 'all'}_${windowStart}`;
 
-    if (c.env.DB) {
+    if (c.env?.DB) {
       try {
         // Upsert counter in rate_limit_counters table
         await c.env.DB.prepare(

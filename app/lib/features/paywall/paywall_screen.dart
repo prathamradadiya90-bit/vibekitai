@@ -148,10 +148,32 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
       }
     }
 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final scaffoldBg = isDark ? AppColors.backgroundDark : AppColors.backgroundLight;
+    final textCol = isDark ? Colors.white : AppColors.textPrimaryLight;
+    final textSecCol = isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight;
+    final textMutedCol = isDark ? AppColors.textMutedDark : AppColors.textMutedLight;
+    final cardBg = isDark ? AppColors.surfaceDark : AppColors.surfaceCardLight;
+    final borderCol = isDark ? AppColors.borderDark : AppColors.borderLight;
+
     return Scaffold(
-      backgroundColor: AppColors.backgroundDark,
+      backgroundColor: scaffoldBg,
       appBar: AppBar(
-        title: const Text('VibeKit VIP & Pro', style: TextStyle(fontWeight: FontWeight.bold)),
+        title: Text(
+          'VibeKit VIP & Pro',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+          ),
+        ),
+        leading: IconButton(
+          icon: Icon(
+            Icons.arrow_back_ios_new,
+            size: 20,
+            color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+          ),
+          onPressed: () => context.pop(),
+        ),
         actions: [
           TextButton(
             onPressed: _isPurchasing ? null : _handleRestore,
@@ -231,8 +253,8 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
               const SizedBox(height: 24),
 
               // Feature Highlights
-              const Text('What is Included in Pro & VIP',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              Text('What is Included in Pro & VIP',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: textCol)),
               const SizedBox(height: 12),
               ..._proFeatures.map((feat) {
                 return Padding(
@@ -256,14 +278,14 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                           children: [
                             Text(
                               feat['title'] as String,
-                              style: const TextStyle(
-                                  fontWeight: FontWeight.bold, fontSize: 14),
+                              style: TextStyle(
+                                  fontWeight: FontWeight.bold, fontSize: 14, color: textCol),
                             ),
                             const SizedBox(height: 2),
                             Text(
                               feat['desc'] as String,
-                              style: const TextStyle(
-                                  color: AppColors.textSecondaryDark,
+                              style: TextStyle(
+                                  color: textSecCol,
                                   fontSize: 12),
                             ),
                           ],
@@ -277,8 +299,8 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
               const SizedBox(height: 16),
 
               // Plan Selection Cards
-              const Text('Choose Your Pass',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              Text('Choose Your Pass',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: textCol)),
               const SizedBox(height: 12),
 
               // 1. Yearly Plan (Best Value with Trial)
@@ -289,6 +311,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                 badgeText: 'BEST VALUE • 3-DAY FREE TRIAL',
                 badgeGradient: AppColors.accentGradient,
                 savings: 'Save 41%',
+                isDark: isDark,
               ),
 
               const SizedBox(height: 10),
@@ -303,6 +326,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                   colors: [Color(0xFFF59E0B), Color(0xFFD97706)],
                 ),
                 savings: 'No Subscriptions',
+                isDark: isDark,
               ),
 
               const SizedBox(height: 10),
@@ -314,6 +338,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                 subtitle: monthlyPrice,
                 badgeText: null,
                 savings: null,
+                isDark: isDark,
               ),
 
               // 4. Consumable Credit Pack Top-Up (only when the server has packs enabled)
@@ -325,6 +350,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                   subtitle: creditPackPrice,
                   badgeText: 'INSTANT BOOST',
                   savings: null,
+                  isDark: isDark,
                 ),
               ],
 
@@ -360,28 +386,28 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
               const SizedBox(height: 28),
 
               // Plan Comparison Table
-              const Text('Tier Comparison Matrix',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              Text('Tier Comparison Matrix',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: textCol)),
               const SizedBox(height: 12),
               Container(
                 decoration: BoxDecoration(
-                  color: AppColors.surfaceDark,
+                  color: cardBg,
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: AppColors.borderDark),
+                  border: Border.all(color: borderCol),
                 ),
                 child: Column(
                   children: [
-                    _buildComparisonRow('Feature', 'Free', 'Pro', 'Lifetime VIP', isHeader: true),
-                    const Divider(height: 1, color: AppColors.borderDark),
-                    _buildComparisonRow('AI Generations', '3 / day', '200 / mo', '200 / mo'),
-                    const Divider(height: 1, color: AppColors.borderDark),
-                    _buildComparisonRow('Ad-Free Clean UI', 'No', 'Yes', 'Yes'),
-                    const Divider(height: 1, color: AppColors.borderDark),
-                    _buildComparisonRow('Watermark-Free Cards', 'No', 'Yes', 'Yes'),
-                    const Divider(height: 1, color: AppColors.borderDark),
-                    _buildComparisonRow('Exclusive Templates', 'Basic', 'All', 'All + Future'),
-                    const Divider(height: 1, color: AppColors.borderDark),
-                    _buildComparisonRow('Priority Edge Queue', 'Standard', 'High', 'Highest VIP'),
+                    _buildComparisonRow('Feature', 'Free', 'Pro', 'Lifetime VIP', isHeader: true, isDark: isDark),
+                    Divider(height: 1, color: borderCol),
+                    _buildComparisonRow('AI Generations', '3 / day', '200 / mo', '200 / mo', isDark: isDark),
+                    Divider(height: 1, color: borderCol),
+                    _buildComparisonRow('Ad-Free Clean UI', 'No', 'Yes', 'Yes', isDark: isDark),
+                    Divider(height: 1, color: borderCol),
+                    _buildComparisonRow('Watermark-Free Cards', 'No', 'Yes', 'Yes', isDark: isDark),
+                    Divider(height: 1, color: borderCol),
+                    _buildComparisonRow('Exclusive Templates', 'Basic', 'All', 'All + Future', isDark: isDark),
+                    Divider(height: 1, color: borderCol),
+                    _buildComparisonRow('Priority Edge Queue', 'Standard', 'High', 'Highest VIP', isDark: isDark),
                   ],
                 ),
               ),
@@ -392,19 +418,19 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
               Container(
                 padding: const EdgeInsets.all(18),
                 decoration: BoxDecoration(
-                  color: AppColors.surfaceDark,
+                  color: cardBg,
                   borderRadius: BorderRadius.circular(18),
-                  border: Border.all(color: Colors.white.withOpacity(0.08)),
+                  border: Border.all(color: borderCol),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Row(
+                    Row(
                       children: [
-                        Text('💬', style: TextStyle(fontSize: 20)),
-                        SizedBox(width: 8),
+                        const Text('💬', style: TextStyle(fontSize: 20)),
+                        const SizedBox(width: 8),
                         Text('What Creators Say',
-                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: textCol)),
                       ],
                     ),
                     const SizedBox(height: 10),
@@ -413,7 +439,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                       style: TextStyle(
                         fontSize: 13,
                         fontStyle: FontStyle.italic,
-                        color: Colors.white.withOpacity(0.8),
+                        color: isDark ? Colors.white.withOpacity(0.8) : AppColors.textPrimaryLight,
                         height: 1.4,
                       ),
                     ),
@@ -430,12 +456,12 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
               Center(
                 child: Column(
                   children: [
-                    const Text(
+                    Text(
                       'Payment is processed securely by Google Play Billing. Subscriptions renew automatically unless cancelled at least 24 hours prior to the end of the current billing cycle.',
                       textAlign: TextAlign.center,
                       style: TextStyle(
                           fontSize: 11,
-                          color: AppColors.textMutedDark,
+                          color: textMutedCol,
                           height: 1.4),
                     ),
                     const SizedBox(height: 8),
@@ -453,23 +479,23 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                       children: [
                         TextButton(
                           onPressed: () => context.push('/privacy-policy'),
-                          child: const Text(
+                          child: Text(
                             'Privacy Policy',
                             style: TextStyle(
                               fontSize: 11,
-                              color: AppColors.textSecondaryDark,
+                              color: textSecCol,
                               decoration: TextDecoration.underline,
                             ),
                           ),
                         ),
-                        const Text('•', style: TextStyle(color: AppColors.textMutedDark)),
+                        Text('•', style: TextStyle(color: textMutedCol)),
                         TextButton(
                           onPressed: () => context.push('/terms-of-service'),
-                          child: const Text(
+                          child: Text(
                             'Terms of Service',
                             style: TextStyle(
                               fontSize: 11,
-                              color: AppColors.textSecondaryDark,
+                              color: textSecCol,
                               decoration: TextDecoration.underline,
                             ),
                           ),
@@ -494,8 +520,20 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
     required String? badgeText,
     Gradient? badgeGradient,
     String? savings,
+    required bool isDark,
   }) {
     final isSelected = _selectedPlan == planId;
+    final planCardBg = isSelected
+        ? (isDark ? AppColors.surfaceElevatedDark : const Color(0xFFFFF7ED))
+        : (isDark ? AppColors.surfaceCardDark : AppColors.surfaceCardLight);
+    final planBorder = isSelected
+        ? AppColors.primary
+        : (isDark ? AppColors.borderDark : AppColors.borderLight);
+    final radioCol = isSelected
+        ? AppColors.primary
+        : (isDark ? AppColors.textMutedDark : AppColors.textMutedLight);
+    final titleCol = isDark ? Colors.white : AppColors.textPrimaryLight;
+    final subCol = isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight;
 
     return InkWell(
       onTap: () => setState(() => _selectedPlan = planId),
@@ -503,10 +541,10 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: isSelected ? AppColors.surfaceElevatedDark : AppColors.surfaceCardDark,
+          color: planCardBg,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: isSelected ? AppColors.primary : AppColors.borderDark,
+            color: planBorder,
             width: isSelected ? 2 : 1,
           ),
           boxShadow: (isSelected && !kIsWeb)
@@ -525,7 +563,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
               isSelected
                   ? Icons.radio_button_checked_rounded
                   : Icons.radio_button_off_rounded,
-              color: isSelected ? AppColors.primary : AppColors.textMutedDark,
+              color: radioCol,
             ),
             const SizedBox(width: 14),
             Expanded(
@@ -539,7 +577,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                     children: [
                       Text(
                         title,
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: titleCol),
                       ),
                       if (badgeText != null)
                         Container(
@@ -562,8 +600,8 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                   const SizedBox(height: 3),
                   Text(
                     subtitle,
-                    style: const TextStyle(
-                      color: AppColors.textSecondaryDark,
+                    style: TextStyle(
+                      color: subCol,
                       fontSize: 13,
                     ),
                   ),
@@ -598,7 +636,21 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
     String col3,
     String col4, {
     bool isHeader = false,
+    required bool isDark,
   }) {
+    final titleCol = isHeader
+        ? AppColors.primaryLight
+        : (isDark ? Colors.white : AppColors.textPrimaryLight);
+    final freeCol = isHeader
+        ? (isDark ? Colors.white70 : AppColors.textSecondaryLight)
+        : (isDark ? Colors.white60 : AppColors.textMutedLight);
+    final proCol = isHeader
+        ? (isDark ? Colors.white70 : AppColors.textSecondaryLight)
+        : AppColors.primary;
+    final vipCol = isHeader
+        ? (isDark ? Colors.white70 : AppColors.textSecondaryLight)
+        : (isDark ? Colors.amberAccent : const Color(0xFFD97706));
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       child: Row(
@@ -610,7 +662,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: isHeader ? FontWeight.bold : FontWeight.w600,
-                color: isHeader ? AppColors.primaryLight : Colors.white,
+                color: titleCol,
               ),
             ),
           ),
@@ -622,7 +674,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
               style: TextStyle(
                 fontSize: 11,
                 fontWeight: isHeader ? FontWeight.bold : FontWeight.normal,
-                color: isHeader ? Colors.white70 : Colors.white60,
+                color: freeCol,
               ),
             ),
           ),
@@ -634,7 +686,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
               style: TextStyle(
                 fontSize: 11,
                 fontWeight: isHeader ? FontWeight.bold : FontWeight.bold,
-                color: isHeader ? Colors.white70 : AppColors.primaryLight,
+                color: proCol,
               ),
             ),
           ),
@@ -646,7 +698,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
               style: TextStyle(
                 fontSize: 11,
                 fontWeight: isHeader ? FontWeight.bold : FontWeight.bold,
-                color: isHeader ? Colors.white70 : Colors.amberAccent,
+                color: vipCol,
               ),
             ),
           ),

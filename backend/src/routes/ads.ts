@@ -157,10 +157,12 @@ adsRoute.post('/ads/verify-reward', async (c) => {
     );
   }
 
+  const currentQuota = isVerified ? await quotaManager.getQuotaStatus(installationId) : quota;
+
   return c.json({
     verified: isVerified,
-    credits_remaining: quota.total_credits_remaining,
-    rewarded_ads_watched_today: quota.rewarded_ads_watched_today,
-    max_rewarded_ads_per_day: quota.max_rewarded_ads_per_day,
+    credits_remaining: currentQuota.total_credits_remaining,
+    rewarded_ads_watched_today: currentQuota.rewarded_ads_watched_today,
+    max_rewarded_ads_per_day: currentQuota.max_rewarded_ads_per_day,
   });
 });

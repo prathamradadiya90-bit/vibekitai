@@ -10,6 +10,7 @@ import 'package:vibekit_ai/core/widgets/loading_shimmer.dart';
 import 'package:vibekit_ai/core/widgets/quota_badge.dart';
 import 'package:vibekit_ai/core/widgets/result_card.dart';
 import 'package:vibekit_ai/core/widgets/tone_chips.dart';
+import 'package:vibekit_ai/features/paywall/paywall_screen.dart';
 
 void main() {
   group('Theme Contrast & Accessibility Verification Tests', () {
@@ -130,6 +131,30 @@ void main() {
 
         expect(find.byType(QuotaBadge), findsOneWidget);
         expect(find.text('5 Left'), findsOneWidget);
+      }
+    });
+
+    testWidgets('PaywallScreen renders in Light and Dark themes without contrast errors', (tester) async {
+      SharedPreferences.setMockInitialValues({'cached_credits': 5, 'cached_is_pro': false});
+      final prefs = await PreferencesService.create();
+
+      for (final theme in [AppTheme.lightTheme, AppTheme.darkTheme]) {
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              preferencesServiceProvider.overrideWithValue(prefs),
+            ],
+            child: MaterialApp(
+              theme: theme,
+              home: const PaywallScreen(),
+            ),
+          ),
+        );
+
+        expect(find.text('VibeKit VIP & Pro'), findsOneWidget);
+        expect(find.text('Annual Creator Pass'), findsOneWidget);
+        expect(find.text('Tier Comparison Matrix'), findsOneWidget);
+        expect(find.text('What Creators Say'), findsOneWidget);
       }
     });
   });
