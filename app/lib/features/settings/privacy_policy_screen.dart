@@ -22,7 +22,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
               ),
               SizedBox(height: 6),
               Text(
-                'Effective Date: October 10, 2026',
+                'Effective Date: November 15, 2026',
                 style:
                     TextStyle(fontSize: 12, color: AppColors.textSecondaryDark),
               ),
