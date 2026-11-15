@@ -23,7 +23,7 @@ final localDatabaseProvider = Provider<LocalDatabase>((ref) {
 
 final apiClientProvider = Provider<ApiClient>((ref) {
   final prefs = ref.watch(preferencesServiceProvider);
-  return ApiClient(prefs: prefs);
+  return ApiClient(prefs: prefs, baseUrl: prefs.getCustomApiUrl());
 });
 
 final adMobServiceProvider = Provider<AdMobService>((ref) {

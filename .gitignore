@@ -47,6 +47,8 @@ build/
 key.properties
 service-account*.json
 *.pem
+*.apk
+*.aab
 
 # Node / Cloudflare Workers
 **/node_modules/

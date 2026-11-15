@@ -24,7 +24,9 @@ class ApiClient {
     String? baseUrl,
   })  : _client = client ?? http.Client(),
         _prefs = prefs,
-        _baseUrl = baseUrl ?? AppConfig.defaultApiUrl;
+        _baseUrl = baseUrl ?? prefs.getCustomApiUrl() ?? AppConfig.defaultApiUrl;
+
+  String get baseUrl => _baseUrl;
 
   Map<String, String> _buildHeaders({String? idempotencyKey}) {
     final requestId = const Uuid().v4();

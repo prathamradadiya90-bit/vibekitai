@@ -11,6 +11,7 @@ class PreferencesService {
   static const String _keySuccessGenerations = 'successful_generations_count';
   static const String _keyReviewPrompted = 'review_prompted_done';
   static const String _keySessionToken = 'auth_session_token';
+  static const String _keyCustomApiUrl = 'custom_api_url';
 
   final SharedPreferences _prefs;
 
@@ -19,6 +20,19 @@ class PreferencesService {
   static Future<PreferencesService> create() async {
     final prefs = await SharedPreferences.getInstance();
     return PreferencesService(prefs);
+  }
+
+  String? getCustomApiUrl() {
+    final url = _prefs.getString(_keyCustomApiUrl)?.trim();
+    return (url != null && url.isNotEmpty) ? url : null;
+  }
+
+  Future<void> setCustomApiUrl(String? url) async {
+    if (url == null || url.trim().isEmpty) {
+      await _prefs.remove(_keyCustomApiUrl);
+    } else {
+      await _prefs.setString(_keyCustomApiUrl, url.trim());
+    }
   }
 
   /// Cryptographic pseudonymous installation ID used for daily quota anchoring.

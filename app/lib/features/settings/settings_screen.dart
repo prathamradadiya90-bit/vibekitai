@@ -157,6 +157,60 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     });
   }
 
+  void _showServerEndpointDialog() {
+    final prefs = ref.read(preferencesServiceProvider);
+    final current = prefs.getCustomApiUrl() ?? ref.read(apiClientProvider).baseUrl;
+    final controller = TextEditingController(text: current);
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Backend Server Endpoint'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Set the Cloudflare Worker or local Wi-Fi IP URL (e.g. http://192.168.1.11:8787 or https://your-worker.workers.dev).',
+              style: TextStyle(fontSize: 12),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: controller,
+              decoration: const InputDecoration(
+                hintText: 'http://192.168.1.11:8787',
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () async {
+              await prefs.setCustomApiUrl(null);
+              if (dialogContext.mounted) Navigator.pop(dialogContext);
+              setState(() {});
+            },
+            child: const Text('Reset to Default'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final newUrl = controller.text.trim();
+              if (newUrl.isNotEmpty) {
+                await prefs.setCustomApiUrl(newUrl);
+              }
+              if (dialogContext.mounted) Navigator.pop(dialogContext);
+              setState(() {});
+            },
+            child: const Text('Save & Apply'),
+          ),
+        ],
+      ),
+    ).whenComplete(() {
+      controller.dispose();
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final quota = ref.watch(quotaProvider);
@@ -365,6 +419,18 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               subtitle: const Text('Guides, answers, billing rules, and support'),
               trailing: const Icon(Icons.chevron_right_rounded),
               onTap: () => context.push('/help-support'),
+            ),
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.cloud_outlined,
+                  color: AppColors.primaryLight),
+              title: const Text('Backend Server Endpoint'),
+              subtitle: Text(
+                ref.watch(apiClientProvider).baseUrl,
+                style: const TextStyle(fontSize: 12),
+              ),
+              trailing: const Icon(Icons.edit_outlined),
+              onTap: _showServerEndpointDialog,
             ),
             ListTile(
               contentPadding: EdgeInsets.zero,
