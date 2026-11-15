@@ -490,10 +490,31 @@ export class QuotaManager {
       .bind(params.status, params.expiresAt || null, params.purchaseToken)
       .run();
 
-    await this.db
-      .prepare('UPDATE installations SET is_pro = ?, pro_expires_at = COALESCE(?, pro_expires_at) WHERE id = ?')
-      .bind(isPro ? 1 : 0, params.expiresAt || null, sub.installation_id)
-      .run();
+    if (isPro) {
+      await this.db
+        .prepare('UPDATE installations SET is_pro = 1, pro_expires_at = COALESCE(?, pro_expires_at) WHERE id = ?')
+        .bind(params.expiresAt || null, sub.installation_id)
+        .run();
+    } else {
+      // Guard: Only revoke is_pro if the user has no other active entitlement or lifetime pass!
+      await this.db
+        .prepare(
+          `UPDATE installations SET is_pro = 0
+           WHERE id = ? AND NOT EXISTS (
+             SELECT 1 FROM subscription_entitlements
+             WHERE installation_id = ?
+               AND purchase_token != ?
+               AND (
+                 status IN ('ACTIVE', 'IN_GRACE_PERIOD')
+                 OR product_id = 'vibekit_pro_lifetime'
+                 OR expires_at IS NULL
+                 OR expires_at > ?
+               )
+           )`
+        )
+        .bind(sub.installation_id, sub.installation_id, params.purchaseToken, new Date().toISOString())
+        .run();
+    }
     // Renewals don't insert a cycle here: the current cycle ends at the old expiry and
     // getQuotaStatus opens a fresh 30-day window lazily, so credits can't be reset on demand.
   }

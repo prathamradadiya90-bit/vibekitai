@@ -147,12 +147,13 @@ adsRoute.post('/ads/verify-reward', async (c) => {
 
   // Production check: reward credits are only verified if granted via SSV
   let isVerified = false;
-  if (c.env.DB && bodyResult.success && (bodyResult.data.transaction_id || bodyResult.data.reward_id)) {
+  if (c.env.DB && bodyResult.success) {
     const adsRepo = new AdsRepository(c.env.DB);
     isVerified = await adsRepo.isTransactionRecorded(
       installationId,
       bodyResult.data.transaction_id,
-      bodyResult.data.reward_id
+      bodyResult.data.reward_id,
+      bodyResult.data.nonce
     );
   }
 

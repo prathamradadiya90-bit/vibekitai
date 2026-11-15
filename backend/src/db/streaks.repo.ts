@@ -28,6 +28,17 @@ export class StreaksRepository {
 
     const nowIso = new Date().toISOString();
     const initialFreezes = isPro ? 1 : 0;
+
+    // Ensure installation exists before referencing it in foreign key
+    await this.db
+      .prepare(
+        `INSERT INTO installations (id, created_at, last_active_at)
+         VALUES (?, ?, ?)
+         ON CONFLICT(id) DO UPDATE SET last_active_at = excluded.last_active_at`
+      )
+      .bind(installationId, nowIso, nowIso)
+      .run();
+
     await this.db
       .prepare(
         `INSERT INTO streaks (installation_id, current_streak, longest_streak, last_checkin_date, freeze_count, pro_freeze_refilled_at, created_at, updated_at)

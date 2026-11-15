@@ -28,18 +28,24 @@ class StreakScreen extends ConsumerWidget {
     final currentXpInLevel = streak.totalXp % 100;
     final progressToNextLevel = currentXpInLevel / 100.0;
 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardBg = isDark ? AppColors.surfaceDark : AppColors.surfaceLight;
+    final textCol = isDark ? Colors.white : AppColors.textPrimaryLight;
+    final textSecCol = isDark ? Colors.white.withOpacity(0.6) : AppColors.textSecondaryLight;
+    final borderCol = isDark ? Colors.white.withOpacity(0.08) : AppColors.borderLight;
+
     return Scaffold(
-      backgroundColor: AppColors.backgroundDark,
+      backgroundColor: isDark ? AppColors.backgroundDark : AppColors.backgroundLight,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 20),
+          icon: Icon(Icons.arrow_back_ios_new, color: textCol, size: 20),
           onPressed: () => context.pop(),
         ),
-        title: const Text(
+        title: Text(
           'Vibe Streaks & Rewards',
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.white),
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: textCol),
         ),
         centerTitle: true,
       ),
@@ -131,9 +137,9 @@ class StreakScreen extends ConsumerWidget {
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                color: AppColors.surfaceDark,
+                color: cardBg,
                 borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: Colors.white.withOpacity(0.08)),
+                border: Border.all(color: borderCol),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -147,10 +153,10 @@ class StreakScreen extends ConsumerWidget {
                           const SizedBox(width: 8),
                           Text(
                             'Level ${streak.level} Creator',
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
-                              color: Colors.white,
+                              color: textCol,
                             ),
                           ),
                         ],
@@ -171,14 +177,14 @@ class StreakScreen extends ConsumerWidget {
                     child: LinearProgressIndicator(
                       value: progressToNextLevel,
                       minHeight: 10,
-                      backgroundColor: Colors.white.withOpacity(0.1),
+                      backgroundColor: isDark ? Colors.white.withOpacity(0.1) : Colors.black.withOpacity(0.06),
                       valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primary),
                     ),
                   ),
                   const SizedBox(height: 8),
                   Text(
                     '$currentXpInLevel / 100 XP to Level ${streak.level + 1}',
-                    style: TextStyle(fontSize: 11, color: Colors.white.withOpacity(0.6)),
+                    style: TextStyle(fontSize: 11, color: textSecCol),
                   ),
                 ],
               ),
@@ -189,7 +195,7 @@ class StreakScreen extends ConsumerWidget {
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                color: AppColors.surfaceDark,
+                color: cardBg,
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(color: Colors.cyan.withOpacity(0.2)),
               ),
@@ -213,10 +219,10 @@ class StreakScreen extends ConsumerWidget {
                       children: [
                         Text(
                           '${streak.freezeCount} Freeze Available',
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 15,
                             fontWeight: FontWeight.bold,
-                            color: Colors.white,
+                            color: textCol,
                           ),
                         ),
                         const SizedBox(height: 2),
@@ -226,7 +232,7 @@ class StreakScreen extends ConsumerWidget {
                               : 'Protects your streak if you miss a day',
                           style: TextStyle(
                             fontSize: 12,
-                            color: Colors.white.withOpacity(0.6),
+                            color: textSecCol,
                           ),
                         ),
                       ],
@@ -337,13 +343,13 @@ class StreakScreen extends ConsumerWidget {
             // 6. Notification Settings Toggle
             SwitchListTile(
               contentPadding: EdgeInsets.zero,
-              title: const Text(
+              title: Text(
                 'Daily Streak Reminders',
-                style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600),
+                style: TextStyle(color: textCol, fontSize: 14, fontWeight: FontWeight.w600),
               ),
               subtitle: Text(
                 'Receive an evening reminder if your streak is about to break',
-                style: TextStyle(color: Colors.white.withOpacity(0.6), fontSize: 12),
+                style: TextStyle(color: textSecCol, fontSize: 12),
               ),
               value: notifsEnabled,
               activeColor: AppColors.primary,
@@ -379,18 +385,22 @@ class StreakScreen extends ConsumerWidget {
     required bool isClaimed,
   }) {
     final isUnlocked = currentStreak >= day;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardBg = isDark ? AppColors.surfaceDark : AppColors.surfaceLight;
+    final textCol = isDark ? Colors.white : AppColors.textPrimaryLight;
+    final textSecCol = isDark ? Colors.white.withOpacity(0.6) : AppColors.textSecondaryLight;
 
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.surfaceDark,
+        color: cardBg,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: isClaimed
               ? Colors.green.withOpacity(0.3)
               : isUnlocked
                   ? AppColors.primary.withOpacity(0.4)
-                  : Colors.white.withOpacity(0.06),
+                  : (isDark ? Colors.white.withOpacity(0.06) : AppColors.borderLight),
         ),
       ),
       child: Row(
@@ -405,10 +415,10 @@ class StreakScreen extends ConsumerWidget {
                   children: [
                     Text(
                       title,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.bold,
-                        color: Colors.white,
+                        color: textCol,
                       ),
                     ),
                     const SizedBox(width: 6),
@@ -416,7 +426,7 @@ class StreakScreen extends ConsumerWidget {
                       '($day Days)',
                       style: TextStyle(
                         fontSize: 12,
-                        color: Colors.white.withOpacity(0.5),
+                        color: textSecCol,
                       ),
                     ),
                   ],
@@ -426,7 +436,7 @@ class StreakScreen extends ConsumerWidget {
                   rewardDesc,
                   style: TextStyle(
                     fontSize: 12,
-                    color: Colors.white.withOpacity(0.7),
+                    color: textSecCol,
                   ),
                 ),
               ],

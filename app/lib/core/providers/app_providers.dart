@@ -114,11 +114,11 @@ class QuotaNotifier extends StateNotifier<QuotaModel> {
     _prefs.setCachedIsPro(updated.isPro);
   }
 
-  Future<bool> grantRewardCredit({String? nonce, String? transactionId}) async {
-    final rewardId = 'rew_${DateTime.now().millisecondsSinceEpoch}';
+  Future<bool> grantRewardCredit({String? nonce, String? transactionId, String? rewardId}) async {
+    final effectiveRewardId = rewardId ?? 'rew_${DateTime.now().millisecondsSinceEpoch}';
     try {
       final res = await _apiClient.verifyRewardedAd(
-        rewardId: rewardId,
+        rewardId: effectiveRewardId,
         transactionId: transactionId,
         nonce: nonce,
         adNetwork: 'admob',

@@ -4,40 +4,54 @@ export class AdsRepository {
   async isTransactionRecorded(
     installationId: string,
     transactionId?: string,
-    rewardId?: string
+    rewardId?: string,
+    nonce?: string
   ): Promise<boolean> {
-    if (!transactionId && !rewardId) return false;
+    if (!transactionId && !rewardId && !nonce) return false;
 
-    const tx = await this.db
-      .prepare(
-        'SELECT transaction_id FROM admob_ssv_transactions WHERE installation_id = ? AND (transaction_id = ? OR reward_id = ?)'
-      )
-      .bind(installationId, transactionId || '', rewardId || '')
-      .first();
+    // 1. If nonce provided, check if it was marked used by the SSV callback
+    if (nonce) {
+      const consumedNonce = await this.db
+        .prepare('SELECT nonce FROM ad_nonces WHERE nonce = ? AND installation_id = ? AND used_at IS NOT NULL')
+        .bind(nonce, installationId)
+        .first();
+      if (consumedNonce) return true;
+    }
 
-    return tx !== null;
+    // 2. Check if transaction_id or reward_id is recorded in admob_ssv_transactions
+    if (transactionId || rewardId) {
+      const tx = await this.db
+        .prepare(
+          'SELECT transaction_id FROM admob_ssv_transactions WHERE installation_id = ? AND ((? != \'\' AND transaction_id = ?) OR (? != \'\' AND reward_id = ?))'
+        )
+        .bind(installationId, transactionId || '', transactionId || '', rewardId || '', rewardId || '')
+        .first();
+      if (tx) return true;
+    }
+
+    return false;
   }
 
   async recordSsvTransaction(params: {
     transactionId: string;
     installationId: string;
-    rewardAmount: number;
-    rawQuery: string;
-    customData: string;
+    rewardId?: string;
+    keyId: number;
+    adNetwork?: string;
   }): Promise<void> {
     const nowIso = new Date().toISOString();
     await this.db
       .prepare(
-        `INSERT INTO admob_ssv_transactions (transaction_id, installation_id, reward_amount, raw_query, custom_data, verified_at)
+        `INSERT INTO admob_ssv_transactions (transaction_id, installation_id, reward_id, key_id, verified_at, ad_network)
          VALUES (?, ?, ?, ?, ?, ?)`
       )
       .bind(
         params.transactionId,
         params.installationId,
-        params.rewardAmount,
-        params.rawQuery,
-        params.customData,
-        nowIso
+        params.rewardId || null,
+        params.keyId,
+        nowIso,
+        params.adNetwork || 'admob'
       )
       .run();
   }

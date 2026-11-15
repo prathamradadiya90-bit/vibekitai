@@ -46,6 +46,15 @@ export class ReferralsRepository {
     const today = now.slice(0, 10);
 
     await this.db.batch([
+      // Ensure referred installation exists before inserting foreign key
+      this.db
+        .prepare(
+          `INSERT INTO installations (id, created_at, last_active_at)
+           VALUES (?, ?, ?)
+           ON CONFLICT(id) DO UPDATE SET last_active_at = excluded.last_active_at`
+        )
+        .bind(referredInstallationId, now, now),
+
       // 1. Insert referral record
       this.db
         .prepare(

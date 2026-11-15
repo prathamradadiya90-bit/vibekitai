@@ -34,6 +34,7 @@ class ApiClient {
       'X-Request-Id': requestId,
       'X-App-Instance-Id': _prefs.getAppInstanceId(),
       'X-App-Version': AppConfig.appVersion,
+      'X-Timezone-Offset': DateTime.now().timeZoneOffset.inMinutes.toString(),
     };
     final sessionToken = _prefs.getSessionToken();
     if (sessionToken != null && sessionToken.isNotEmpty) {

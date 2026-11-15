@@ -178,9 +178,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final instId = ref.read(preferencesServiceProvider).getAppInstanceId();
 
     final nonce = await apiClient.requestAdNonce();
+    final rewardId = 'rew_${DateTime.now().millisecondsSinceEpoch}';
     final customData = jsonEncode({
       'userId': instId,
       if (nonce != null) 'nonce': nonce,
+      'rewardId': rewardId,
       'timestamp': DateTime.now().millisecondsSinceEpoch,
     });
 
@@ -188,7 +190,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       userId: instId,
       customData: customData,
       onRewardEarned: (reward) async {
-        final verified = await quotaNotifier.grantRewardCredit(nonce: nonce);
+        final verified = await quotaNotifier.grantRewardCredit(
+          nonce: nonce,
+          rewardId: rewardId,
+        );
         if (mounted) {
           if (verified) {
             ScaffoldMessenger.of(context).showSnackBar(

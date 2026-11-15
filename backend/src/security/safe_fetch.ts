@@ -7,6 +7,7 @@ const ALLOWED_HOSTS = new Set([
   'generativelanguage.googleapis.com',
   'api.groq.com',
   'api.openai.com',
+  'openrouter.ai',
   'admob.googleapis.com',
   'gstatic.com',
   'www.gstatic.com',
