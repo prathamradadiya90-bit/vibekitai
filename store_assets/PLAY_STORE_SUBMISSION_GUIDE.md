@@ -9,10 +9,10 @@ This dossier contains all the pre-filled metadata, policy declarations, data saf
 | Item | Value |
 | :--- | :--- |
 | **Package Name / App ID** | `com.vibekit.vibekit_ai` |
-| **Target SDK Version** | `35` (Android 15 — Exceeds Google Play 2024–2026 requirement) |
+| **Target SDK Version** | `36` (Android 16 / 15 — Exceeds Google Play requirement) |
 | **Minimum SDK Version** | `24` (Android 7.0 Nougat — Covers 98%+ of global active Android devices) |
-| **Version Code** | `1` |
-| **Version Name** | `1.0.0` |
+| **Version Code** | `2` |
+| **Version Name** | `1.0.1` |
 | **Signed Release AAB File** | `app/build/app/outputs/bundle/release/app-release.aab` |
 | **AAB File Size** | `~62.5 MB` (Optimized with Proguard/R8 & shrinkResources) |
 | **Keystore File** | `app/android/upload-keystore.jks` |
