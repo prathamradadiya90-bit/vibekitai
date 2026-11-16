@@ -29,6 +29,7 @@ class BioLabScreen extends ConsumerStatefulWidget {
 class _BioLabScreenState extends ConsumerState<BioLabScreen> {
   final TextEditingController _interestsController = TextEditingController();
   final int _maxChars = 300;
+  final Set<String> _favoritedTexts = {};
 
   String _selectedPlatform = 'Instagram';
   String _selectedVibe = 'Aesthetic';
@@ -123,6 +124,35 @@ class _BioLabScreenState extends ConsumerState<BioLabScreen> {
           await ref.read(achievementServiceProvider).checkAndUnlockAchievements(context: context);
         }
       }
+    }
+  }
+
+  Future<void> _toggleFavorite(String text) async {
+    final db = ref.read(localDatabaseProvider);
+    final isFav = await db.toggleFavoriteByContent(
+      content: text,
+      title: '$_selectedPlatform Bio',
+      type: 'bio',
+      category: '$_selectedPlatform • $_selectedVibe',
+    );
+
+    HapticFeedback.selectionClick();
+    if (mounted) {
+      setState(() {
+        if (isFav) {
+          _favoritedTexts.add(text);
+        } else {
+          _favoritedTexts.remove(text);
+        }
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(isFav ? 'Saved to Favorites!' : 'Removed from Favorites'),
+          backgroundColor: isFav ? AppColors.success : AppColors.surfaceElevatedDark,
+          duration: const Duration(seconds: 2),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
     }
   }
 
@@ -318,6 +348,8 @@ class _BioLabScreenState extends ConsumerState<BioLabScreen> {
                 (bio) => ResultCard(
                   content: bio,
                   category: '$_selectedPlatform Bio',
+                  isFavorite: _favoritedTexts.contains(bio),
+                  onFavoriteToggle: () => _toggleFavorite(bio),
                 ),
               ),
 

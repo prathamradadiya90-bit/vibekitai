@@ -16,20 +16,16 @@ export class InstallationsRepository {
       };
     }
 
-    // Insert or update last_active_at atomically
-    await this.db
+    // Insert or update last_active_at atomically with RETURNING to eliminate second query
+    const record = await this.db
       .prepare(
         `INSERT INTO installations (id, created_at, last_active_at, is_pro, pro_expires_at)
          VALUES (?, ?, ?, 0, NULL)
          ON CONFLICT(id) DO UPDATE SET
-           last_active_at = excluded.last_active_at`
+           last_active_at = excluded.last_active_at
+         RETURNING id, created_at, last_active_at, is_pro, pro_expires_at`
       )
       .bind(id, nowIso, nowIso)
-      .run();
-
-    const record = await this.db
-      .prepare('SELECT id, created_at, last_active_at, is_pro, pro_expires_at FROM installations WHERE id = ?')
-      .bind(id)
       .first<InstallationRecord>();
 
     return (

@@ -56,6 +56,7 @@ class StudioScreen extends ConsumerStatefulWidget {
 class _StudioScreenState extends ConsumerState<StudioScreen> {
   late StudioTab _activeTab;
   final TextEditingController _textController = TextEditingController();
+  final Set<String> _favoritedTexts = {};
 
   // Mode/Tone state per tab
   String _replyTone = 'Funny';
@@ -201,6 +202,39 @@ class _StudioScreenState extends ConsumerState<StudioScreen> {
       _activeTab = tab;
       _textController.text = _sampleChips[tab]?.first['text'] ?? '';
     });
+  }
+
+  Future<void> _toggleFavorite(String text) async {
+    final db = ref.read(localDatabaseProvider);
+    final category = switch (_activeTab) {
+      StudioTab.reply => '$_replyTone • $_selectedLanguage',
+      StudioTab.vibeCheck => '$_vibeMode • $_selectedLanguage',
+      StudioTab.caption => '$_captionVibe • $_captionPlatform',
+      StudioTab.bio => '$_bioVibe • $_bioPlatform',
+    };
+    final newFav = await db.toggleFavoriteByContent(
+      content: text,
+      type: _activeTab.id,
+      category: category,
+      title: text.length > 35 ? '${text.substring(0, 35)}...' : text,
+    );
+    if (mounted) {
+      HapticFeedback.selectionClick();
+      setState(() {
+        if (newFav) {
+          _favoritedTexts.add(text);
+        } else {
+          _favoritedTexts.remove(text);
+        }
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(newFav ? 'Saved to Favorites' : 'Removed from Favorites'),
+          duration: const Duration(seconds: 1),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
   }
 
   Future<void> _handleGenerate() async {
@@ -1071,6 +1105,27 @@ class _StudioScreenState extends ConsumerState<StudioScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
+              TextButton.icon(
+                onPressed: () => _toggleFavorite(content),
+                icon: Icon(
+                  _favoritedTexts.contains(content)
+                      ? Icons.favorite_rounded
+                      : Icons.favorite_border_rounded,
+                  size: 15,
+                  color: _favoritedTexts.contains(content) ? AppColors.accentPink : null,
+                ),
+                label: Text(
+                  _favoritedTexts.contains(content) ? 'Saved' : 'Save',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: _favoritedTexts.contains(content) ? AppColors.accentPink : null,
+                  ),
+                ),
+                style: TextButton.styleFrom(
+                  foregroundColor: isDark ? AppColors.textPrimaryDark : AppColors.primary,
+                ),
+              ),
+              const SizedBox(width: 4),
               TextButton.icon(
                 onPressed: () {
                   Clipboard.setData(ClipboardData(text: content));

@@ -35,6 +35,7 @@ class ReplyStudioScreen extends ConsumerStatefulWidget {
 class _ReplyStudioScreenState extends ConsumerState<ReplyStudioScreen> {
   final TextEditingController _textController = TextEditingController();
   final int _maxChars = 500;
+  final Set<String> _favoritedTexts = {};
 
   String _selectedTone = 'Funny';
   String _selectedLanguage = 'English';
@@ -162,26 +163,29 @@ class _ReplyStudioScreenState extends ConsumerState<ReplyStudioScreen> {
     );
   }
 
-  Future<void> _saveFavorite(String text) async {
+  Future<void> _toggleFavorite(String text) async {
     final db = ref.read(localDatabaseProvider);
-    await db.insertItem(
-      HistoryItem(
-        id: const Uuid().v4(),
-        title: 'Favorite Reply',
-        content: text,
-        type: 'reply',
-        category: _selectedTone,
-        createdAt: DateTime.now(),
-        isFavorite: true,
-      ),
+    final isFav = await db.toggleFavoriteByContent(
+      content: text,
+      title: text.length > 40 ? '${text.substring(0, 40)}...' : text,
+      type: 'reply',
+      category: '$_selectedTone • $_selectedLanguage',
     );
 
     HapticFeedback.selectionClick();
     if (mounted) {
+      setState(() {
+        if (isFav) {
+          _favoritedTexts.add(text);
+        } else {
+          _favoritedTexts.remove(text);
+        }
+      });
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Saved to Favorites!'),
-          backgroundColor: AppColors.success,
+        SnackBar(
+          content: Text(isFav ? 'Saved to Favorites!' : 'Removed from Favorites'),
+          backgroundColor: isFav ? AppColors.success : AppColors.surfaceElevatedDark,
+          duration: const Duration(seconds: 2),
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -465,7 +469,8 @@ class _ReplyStudioScreenState extends ConsumerState<ReplyStudioScreen> {
                 (suggestion) => ResultCard(
                   content: suggestion,
                   category: '$_selectedTone • $_selectedLanguage',
-                  onFavoriteToggle: () => _saveFavorite(suggestion),
+                  isFavorite: _favoritedTexts.contains(suggestion),
+                  onFavoriteToggle: () => _toggleFavorite(suggestion),
                 ),
               ),
             ],

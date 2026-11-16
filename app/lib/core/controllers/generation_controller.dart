@@ -48,6 +48,11 @@ class GenerationNotifier<TRequest, TResult>
     required List<HistoryItem> Function(TResult result) buildHistoryItems,
     String actionType = 'general',
   }) async {
+    // Guard against concurrent invocations / double-tap race conditions
+    if (state.isGenerating) {
+      return false;
+    }
+
     // 1. Quota Check
     final quota = ref.read(quotaProvider);
     if (!quota.canGenerate) {

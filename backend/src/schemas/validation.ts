@@ -79,7 +79,7 @@ export const BioOutputSchema = z
 
 export const VibeCheckRequestSchema = z
   .object({
-    text: z.string().min(1, 'Text cannot be empty').max(500, 'Text cannot exceed 500 characters'),
+    text: z.string().min(1, 'Text cannot be empty').max(600, 'Text cannot exceed 600 characters'),
     mode: z
       .enum([
         'roast',
@@ -165,7 +165,15 @@ export const RtdnNotificationSchema = z
 export const StreakCheckinSchema = z
   .object({
     utc_offset_minutes: z.number().int().min(-840).max(840).default(0),
-    action: z.enum(['generate', 'card_export', 'challenge', 'share', 'save']),
+    action: z.enum([
+      'generate',
+      'card_export',
+      'challenge',
+      'share',
+      'save',
+      'checkin',
+      'aura_radar',
+    ]),
   })
   .strict();
 

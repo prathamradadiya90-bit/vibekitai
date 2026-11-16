@@ -49,7 +49,7 @@ export function isUnverifiedBillingAllowed(env: Env): boolean {
 }
 
 function packageNameOf(env: Env): string {
-  return env.GOOGLE_PLAY_PACKAGE_NAME || 'com.vibekit.ai';
+  return env.GOOGLE_PLAY_PACKAGE_NAME || 'com.vibekit.vibekit_ai';
 }
 
 function mockPeriodDays(productId: string): number {
@@ -85,7 +85,10 @@ function pemToDer(pem: string): ArrayBuffer {
   return bytes.buffer;
 }
 
-export async function getGoogleAccessToken(serviceAccountJson: string): Promise<string> {
+export async function getGoogleAccessToken(
+  serviceAccountJson: string,
+  scope: string = 'https://www.googleapis.com/auth/androidpublisher https://www.googleapis.com/auth/playintegrity'
+): Promise<string> {
   if (cachedToken && cachedToken.expiresAtMs - 60_000 > Date.now()) {
     return cachedToken.token;
   }
@@ -95,7 +98,7 @@ export async function getGoogleAccessToken(serviceAccountJson: string): Promise<
   const header = { alg: 'RS256', typ: 'JWT' };
   const claim = {
     iss: creds.client_email,
-    scope: 'https://www.googleapis.com/auth/androidpublisher',
+    scope,
     aud: 'https://oauth2.googleapis.com/token',
     iat,
     exp: iat + 3600,

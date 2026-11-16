@@ -86,12 +86,12 @@ export const adminAuthMiddleware = (): MiddlewareHandler<AppHonoEnv> => {
       const nowSec = Math.floor(Date.now() / 1000);
       const isExpired = typeof payload?.['exp'] === 'number' && (payload['exp'] as number) < nowSec;
 
-      // Validate AUD claim in production
-      const audMatches = !c.env.CF_ACCESS_AUD || (
-        Array.isArray(payload?.['aud'])
-          ? (payload['aud'] as string[]).includes(c.env.CF_ACCESS_AUD)
-          : payload?.['aud'] === c.env.CF_ACCESS_AUD
-      );
+      // In production, CF_ACCESS_AUD MUST be configured to trust CF Access assertions
+      const audMatches = c.env.CF_ACCESS_AUD
+        ? (Array.isArray(payload?.['aud'])
+            ? (payload['aud'] as string[]).includes(c.env.CF_ACCESS_AUD)
+            : payload?.['aud'] === c.env.CF_ACCESS_AUD)
+        : isDevOrTest;
 
       // In production, require unexpired assertion with matching AUD and recognized email
       if (!isExpired && audMatches && payload && typeof payload['email'] === 'string') {

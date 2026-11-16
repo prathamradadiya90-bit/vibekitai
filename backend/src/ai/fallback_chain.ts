@@ -1,10 +1,17 @@
 import { AIProvider } from './factory';
 
+// Shared circuit breaker state across requests within isolate
+let sharedFailureCount = 0;
+let sharedCircuitOpenUntil = 0;
+
+export function resetFallbackCircuitBreaker(): void {
+  sharedFailureCount = 0;
+  sharedCircuitOpenUntil = 0;
+}
+
 export class FallbackChainAIProvider implements AIProvider {
   private primary: AIProvider;
   private fallback?: AIProvider;
-  private failureCount = 0;
-  private circuitOpenUntil = 0;
   private readonly failureThreshold = 3;
   private readonly circuitCooldownMs = 60000; // 60 seconds
 
@@ -14,12 +21,12 @@ export class FallbackChainAIProvider implements AIProvider {
   }
 
   private isCircuitOpen(): boolean {
-    return Date.now() < this.circuitOpenUntil;
+    return Date.now() < sharedCircuitOpenUntil;
   }
 
   private recordSuccess(): void {
-    this.failureCount = 0;
-    this.circuitOpenUntil = 0;
+    sharedFailureCount = 0;
+    sharedCircuitOpenUntil = 0;
   }
 
   private recordFailure(error: any): void {
@@ -29,10 +36,10 @@ export class FallbackChainAIProvider implements AIProvider {
       return;
     }
 
-    this.failureCount += 1;
-    console.warn(`Primary AI provider failure #${this.failureCount}:`, error?.message || error);
-    if (this.failureCount >= this.failureThreshold) {
-      this.circuitOpenUntil = Date.now() + this.circuitCooldownMs;
+    sharedFailureCount += 1;
+    console.warn(`Primary AI provider failure #${sharedFailureCount}:`, error?.message || error);
+    if (sharedFailureCount >= this.failureThreshold) {
+      sharedCircuitOpenUntil = Date.now() + this.circuitCooldownMs;
       console.warn(`Circuit breaker tripped. Routing all AI traffic to fallback for ${this.circuitCooldownMs / 1000}s`);
     }
   }

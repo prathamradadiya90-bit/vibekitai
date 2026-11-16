@@ -15,7 +15,7 @@ enum SubscriptionState {
   error,
 }
 
-class BillingService {
+class BillingService extends ChangeNotifier {
   late final InAppPurchase? _iap;
   final ApiClient _apiClient;
   StreamSubscription<List<PurchaseDetails>>? _subscription;
@@ -56,6 +56,7 @@ class BillingService {
     }
     try {
       _isAvailable = await _iap.isAvailable();
+      notifyListeners();
       if (!_isAvailable) {
         debugPrint('BillingService: Play Billing unavailable on this device.');
         return;
@@ -77,9 +78,14 @@ class BillingService {
   }
 
   Future<void> _loadFeatureFlags() async {
-    final config = await _apiClient.getConfig();
-    final flags = config['feature_flags'];
-    _creditPacksEnabled = flags is Map && flags['credit_packs'] == true;
+    try {
+      final config = await _apiClient.getConfig();
+      final flags = config['feature_flags'];
+      _creditPacksEnabled = flags is Map && flags['credit_packs'] == true;
+      notifyListeners();
+    } catch (e) {
+      debugPrint('BillingService: loadFeatureFlags error: $e');
+    }
   }
 
   Future<void> loadProducts() async {
@@ -99,6 +105,7 @@ class BillingService {
             'Billing products not found in store: ${response.notFoundIDs}');
       }
       _products = response.productDetails;
+      notifyListeners();
     } catch (e) {
       debugPrint('Error loading billing products: $e');
     }
@@ -142,12 +149,14 @@ class BillingService {
       if (purchase.status == PurchaseStatus.pending) {
         debugPrint('Purchase pending for: ${purchase.productID}');
         _subscriptionState = SubscriptionState.pending;
+        notifyListeners();
         onSubscriptionStateChanged?.call(SubscriptionState.pending);
         onBillingMessage?.call(
             'Payment is pending approval. Your Pro access will activate automatically once confirmed.');
       } else if (purchase.status == PurchaseStatus.error) {
         debugPrint('Purchase failed with error: ${purchase.error}');
         _subscriptionState = SubscriptionState.error;
+        notifyListeners();
         onSubscriptionStateChanged?.call(SubscriptionState.error);
         if (purchase.pendingCompletePurchase && _iap != null) {
           await _iap.completePurchase(purchase);
@@ -182,10 +191,12 @@ class BillingService {
       );
       if (verification['is_verified'] == true) {
         _subscriptionState = SubscriptionState.active;
+        notifyListeners();
         onSubscriptionStateChanged?.call(SubscriptionState.active);
         onProStatusChanged?.call(true);
       } else {
         _subscriptionState = SubscriptionState.inactive;
+        notifyListeners();
         onSubscriptionStateChanged?.call(SubscriptionState.inactive);
         onProStatusChanged?.call(false);
       }
@@ -240,7 +251,9 @@ class BillingService {
     }
   }
 
+  @override
   void dispose() {
     _subscription?.cancel();
+    super.dispose();
   }
 }

@@ -197,7 +197,7 @@ export class GeminiProvider {
 
   private async callGeminiApi(systemInstruction: string, prompt: string, task: TaskKind): Promise<GenerationResult | null> {
     const sampling = SAMPLING[task];
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${this.model}:generateContent?key=${this.apiKey}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${this.model}:generateContent`;
 
     const payload = {
       systemInstruction: {
@@ -230,7 +230,10 @@ export class GeminiProvider {
     try {
       response = await safeFetch(url, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-goog-api-key': this.apiKey,
+        },
         body: JSON.stringify(payload),
         signal: controller.signal,
       }, this.isDevelopmentOrTest);

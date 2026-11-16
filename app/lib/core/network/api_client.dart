@@ -122,11 +122,9 @@ class ApiClient {
     String? idempotencyKey,
     Duration timeout = const Duration(seconds: 25),
   }) async {
-    final url = Uri.parse('$_baseUrl$endpoint');
-    final finalIdempotencyKey = idempotencyKey ?? const Uuid().v4();
     final isIdempotent = idempotencyKey != null ||
-        endpoint.contains('/generations/') ||
-        endpoint.contains('/auth/');
+        endpoint.contains('/generations/');
+    final finalIdempotencyKey = idempotencyKey ?? (isIdempotent ? const Uuid().v4() : null);
 
     return _executeWithRetry(
       action: () => _client.post(

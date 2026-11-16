@@ -2,6 +2,7 @@
 // Zero raw IP addresses or device serials are ever persisted.
 
 import { Env } from '../types';
+import { getGoogleAccessToken } from './google_play';
 
 export interface IntegrityVerdict {
   isValid: boolean;
@@ -119,28 +120,5 @@ export async function recordAbuseSignal(params: {
       .run();
   } catch (err) {
     // Non-blocking telemetry
-  }
-}
-
-// Lightweight JWT bearer token generator for Google Service Account
-async function getGoogleAccessToken(serviceAccountJson: string): Promise<string> {
-  try {
-    const creds = JSON.parse(serviceAccountJson);
-    const iat = Math.floor(Date.now() / 1000);
-    const exp = iat + 3600;
-
-    const header = { alg: 'RS256', typ: 'JWT' };
-    const claim = {
-      iss: creds.client_email,
-      scope: 'https://www.googleapis.com/auth/playintegrity https://www.googleapis.com/auth/androidpublisher',
-      aud: 'https://oauth2.googleapis.com/token',
-      exp,
-      iat,
-    };
-
-    // Return dummy or exchange if test
-    return 'test_bearer_token';
-  } catch {
-    return 'fallback_token';
   }
 }

@@ -181,6 +181,16 @@ export class StreaksRepository {
   }
 
   async earnFreeze(installationId: string, nowIso: string): Promise<number> {
+    // Ensure installation exists before inserting foreign key
+    await this.db
+      .prepare(
+        `INSERT INTO installations (id, created_at, last_active_at)
+         VALUES (?, ?, ?)
+         ON CONFLICT(id) DO UPDATE SET last_active_at = excluded.last_active_at`
+      )
+      .bind(installationId, nowIso, nowIso)
+      .run();
+
     await this.db
       .prepare(
         `INSERT INTO streaks (installation_id, current_streak, longest_streak, last_checkin_date, freeze_count, created_at, updated_at)

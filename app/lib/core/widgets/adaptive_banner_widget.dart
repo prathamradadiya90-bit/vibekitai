@@ -18,6 +18,7 @@ class _AdaptiveBannerWidgetState extends ConsumerState<AdaptiveBannerWidget> {
   BannerAd? _bannerAd;
   bool _isLoaded = false;
   bool _loadFailed = false;
+  int _initCheckAttempts = 0;
 
   @override
   void initState() {
@@ -26,12 +27,23 @@ class _AdaptiveBannerWidgetState extends ConsumerState<AdaptiveBannerWidget> {
   }
 
   void _loadBanner() {
+    if (!mounted) return;
     final isPro = ref.read(quotaProvider).isPro;
     if (isPro) return;
 
     final adMob = ref.read(adMobServiceProvider);
-    if (!adMob.isInitialized) return;
+    if (!adMob.isInitialized) {
+      // AdMob SDK may still be initializing asynchronously post-first-frame on cold start
+      if (_initCheckAttempts < 10) {
+        _initCheckAttempts++;
+        Future.delayed(const Duration(milliseconds: 500), () {
+          if (mounted) _loadBanner();
+        });
+      }
+      return;
+    }
 
+    _bannerAd?.dispose();
     _bannerAd = adMob.createBannerAd(
       onAdLoaded: () {
         if (mounted) {

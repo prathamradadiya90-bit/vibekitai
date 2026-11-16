@@ -13,6 +13,8 @@ const ACTION_XP: Record<string, number> = {
   challenge: 25,
   share: 15,
   save: 5,
+  checkin: 10,
+  aura_radar: 20,
 };
 
 // Helper: Calculate date string with client UTC offset
@@ -107,6 +109,11 @@ streakRoute.post('/streak/checkin', async (c) => {
   const xpAwarded = ACTION_XP[action] || 10;
   const nowIso = new Date().toISOString();
 
+  // Calculate the exact UTC timestamp corresponding to local midnight
+  const localMidnightUtcMs =
+    new Date(`${todayLocal}T00:00:00.000Z`).getTime() - utc_offset_minutes * 60 * 1000;
+  const localStartOfDayUtcIso = new Date(localMidnightUtcMs).toISOString();
+
   if (!c.env.DB) {
     return c.json({
       success: true,
@@ -129,7 +136,7 @@ streakRoute.post('/streak/checkin', async (c) => {
     // Already checked in today: check if XP for this action was already awarded today
     const existingXp = await c.env.DB
       .prepare('SELECT id FROM xp_events WHERE installation_id = ? AND action_type = ? AND created_at >= ? LIMIT 1')
-      .bind(installationId, action, `${todayLocal}T00:00:00.000Z`)
+      .bind(installationId, action, localStartOfDayUtcIso)
       .first();
     if (existingXp) {
       effectiveXp = 0;

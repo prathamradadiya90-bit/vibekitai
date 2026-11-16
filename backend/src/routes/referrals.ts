@@ -27,7 +27,8 @@ referralsRoute.post('/referrals/claim', async (c) => {
 
   // Verify Play Integrity token if supplied or if in production
   if (integrity_token) {
-    const integrityResult = await verifyPlayIntegrityToken(integrity_token, 'com.vibekit.ai', c.env, true);
+    const packageName = c.env.GOOGLE_PLAY_PACKAGE_NAME || 'com.vibekit.vibekit_ai';
+    const integrityResult = await verifyPlayIntegrityToken(integrity_token, packageName, c.env, true);
     if (!integrityResult.isValid) {
       return c.json({ error: { code: 'INTEGRITY_CHECK_FAILED', message: 'Device integrity verdict rejected' } }, 403);
     }

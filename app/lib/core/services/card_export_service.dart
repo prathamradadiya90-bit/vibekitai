@@ -37,15 +37,14 @@ class CardExportService {
     }
   }
 
-  /// Captures the widget inside the RepaintBoundary as a high-resolution PNG image.
-  /// On Mobile: saves to temporary cache and returns file path.
-  /// On Web: returns a virtual identifier to prevent MissingPluginException from path_provider.
-  static Future<String?> captureAndSaveCard(GlobalKey boundaryKey,
-      {String? filename}) async {
+  /// Saves pre-rendered PNG bytes to persistent application documents storage (or temporary cache).
+  /// Safe across mobile platforms and avoids web path_provider exceptions.
+  static Future<String?> saveCardBytes(
+    Uint8List pngBytes, {
+    String? filename,
+    bool persistent = true,
+  }) async {
     try {
-      final pngBytes = await captureCardBytes(boundaryKey);
-      if (pngBytes == null) return null;
-
       final name = filename ??
           'vibekit_card_${DateTime.now().millisecondsSinceEpoch}.png';
 
@@ -53,11 +52,31 @@ class CardExportService {
         return 'web_export:$name';
       }
 
-      final tempDir = await getTemporaryDirectory();
-      final file = File('${tempDir.path}/$name');
+      final dir = persistent
+          ? await getApplicationDocumentsDirectory()
+          : await getTemporaryDirectory();
+      final file = File('${dir.path}/$name');
 
       await file.writeAsBytes(pngBytes, flush: true);
       return file.path;
+    } catch (e) {
+      debugPrint('CardExportService.saveCardBytes error: $e');
+      return null;
+    }
+  }
+
+  /// Captures the widget inside the RepaintBoundary as a high-resolution PNG image.
+  /// On Mobile: saves to persistent app documents directory (or temporary cache) and returns file path.
+  /// On Web: returns a virtual identifier to prevent MissingPluginException from path_provider.
+  static Future<String?> captureAndSaveCard(
+    GlobalKey boundaryKey, {
+    String? filename,
+    bool persistent = true,
+  }) async {
+    try {
+      final pngBytes = await captureCardBytes(boundaryKey);
+      if (pngBytes == null) return null;
+      return saveCardBytes(pngBytes, filename: filename, persistent: persistent);
     } catch (e) {
       debugPrint('CardExportService error: $e');
       return null;

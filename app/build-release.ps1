@@ -10,18 +10,12 @@ Write-Host "==========================================================" -Foregro
 Write-Host "  VibeKit AI — Building Production Release Artifacts" -ForegroundColor Cyan
 Write-Host "==========================================================" -ForegroundColor Cyan
 
-# Configure safe environments
-$env:TEMP = "D:\Temp"
-$env:TMP = "D:\Temp"
-$env:GRADLE_USER_HOME = "D:\.gradle"
-$env:JAVA_HOME = "C:\Program Files\Android\Android Studio\jbr"
-
-if (-not (Test-Path "D:\Temp")) { New-Item -ItemType Directory -Path "D:\Temp" -Force | Out-Null }
-
 # Build defines
 $defines = @()
 if ($ApiUrl -ne "") {
     $defines += "--dart-define=API_URL=$ApiUrl"
+} else {
+    $defines += "--dart-define=API_URL=https://api.vibekit.ai"
 }
 if ($AdmobBannerId -ne "") {
     $defines += "--dart-define=ADMOB_BANNER_ID=$AdmobBannerId"
@@ -30,25 +24,12 @@ if ($AdmobRewardedId -ne "") {
     $defines += "--dart-define=ADMOB_REWARDED_ID=$AdmobRewardedId"
 }
 
-Write-Host "`n[1/2] Compiling Flutter Assets & Code..." -ForegroundColor Yellow
-& flutter build bundle $defines
+Write-Host "`n[1/2] Assembling Signed Android App Bundle (AAB for Google Play)..." -ForegroundColor Yellow
+& flutter build appbundle --release $defines
 
-Write-Host "`n[2/2] Assembling Signed Android App Bundle (AAB for Google Play)..." -ForegroundColor Yellow
-Push-Location "$PSScriptRoot\android"
-try {
-    & .\gradlew.bat bundleRelease
-} finally {
-    Pop-Location
-}
-
-if (-not $ApkOnly) {
+if ($ApkOnly) {
     Write-Host "`n[Optional] Assembling Standalone Signed APK for device testing..." -ForegroundColor Yellow
-    Push-Location "$PSScriptRoot\android"
-    try {
-        & .\gradlew.bat assembleRelease
-    } finally {
-        Pop-Location
-    }
+    & flutter build apk --release $defines
 }
 
 $apkPath = "$PSScriptRoot\build\app\outputs\apk\release\app-release.apk"

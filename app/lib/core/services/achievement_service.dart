@@ -32,7 +32,7 @@ class AchievementService {
         description: 'Generate your first social reply, caption or bio with AI.',
         icon: '⚡',
         xpReward: 50,
-        bonusCredits: 1,
+        bonusCredits: 0,
         category: 'Creation',
         isUnlocked: unlocked.contains('first_spark') || genCount >= 1,
         progress: (genCount / 1).clamp(0.0, 1.0),
@@ -44,7 +44,7 @@ class AchievementService {
         description: 'Experiment across 3 different conversation tones.',
         icon: '🎭',
         xpReward: 75,
-        bonusCredits: 1,
+        bonusCredits: 0,
         category: 'Exploration',
         isUnlocked: unlocked.contains('tone_master') || tonesUsed.length >= 3,
         progress: (tonesUsed.length / 3).clamp(0.0, 1.0),
@@ -56,7 +56,7 @@ class AchievementService {
         description: 'Create content in 2 or more languages (Hindi, Hinglish, Gujarati).',
         icon: '🌐',
         xpReward: 100,
-        bonusCredits: 1,
+        bonusCredits: 0,
         category: 'Exploration',
         isUnlocked: unlocked.contains('polyglot') || langsUsed.length >= 2,
         progress: (langsUsed.length / 2).clamp(0.0, 1.0),
@@ -68,7 +68,7 @@ class AchievementService {
         description: 'Design, render and export your first shareable quote card.',
         icon: '🎨',
         xpReward: 80,
-        bonusCredits: 1,
+        bonusCredits: 0,
         category: 'Creation',
         isUnlocked: unlocked.contains('card_artisan') || cardsCount >= 1,
         progress: (cardsCount / 1).clamp(0.0, 1.0),
@@ -80,7 +80,7 @@ class AchievementService {
         description: 'Complete a Daily Creative Challenge prompt.',
         icon: '🎯',
         xpReward: 120,
-        bonusCredits: 2,
+        bonusCredits: 0,
         category: 'Daily',
         isUnlocked: unlocked.contains('challenge_solver') || challengesCount >= 1,
         progress: (challengesCount / 1).clamp(0.0, 1.0),
@@ -92,7 +92,7 @@ class AchievementService {
         description: 'Maintain a 3-day continuous daily creative streak.',
         icon: '🥉',
         xpReward: 100,
-        bonusCredits: 1,
+        bonusCredits: 0,
         category: 'Streaks',
         isUnlocked: unlocked.contains('streak_warrior') || streak >= 3,
         progress: (streak / 3).clamp(0.0, 1.0),
@@ -104,7 +104,7 @@ class AchievementService {
         description: 'Maintain a 7-day continuous daily creative streak.',
         icon: '🥈',
         xpReward: 250,
-        bonusCredits: 2,
+        bonusCredits: 0,
         category: 'Streaks',
         isUnlocked: unlocked.contains('streak_champion') || streak >= 7,
         progress: (streak / 7).clamp(0.0, 1.0),
@@ -147,20 +147,6 @@ class AchievementService {
             ),
           );
         } catch (_) {}
-
-        // Grant bonus credits if applicable
-        if (a.bonusCredits > 0) {
-          try {
-            final quotaNotifier = _ref.read(quotaProvider.notifier);
-            final currentQuota = _ref.read(quotaProvider);
-            quotaNotifier.updateLocally(
-              currentQuota.copyWith(
-                totalCreditsRemaining: currentQuota.totalCreditsRemaining + a.bonusCredits,
-                freeCreditsRemaining: currentQuota.freeCreditsRemaining + a.bonusCredits,
-              ),
-            );
-          } catch (_) {}
-        }
       }
     }
 
@@ -183,7 +169,7 @@ class AchievementService {
                         style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                       ),
                       Text(
-                        '+${ach.xpReward} XP${ach.bonusCredits > 0 ? " • +${ach.bonusCredits} AI Credit" : ""}',
+                        '+${ach.xpReward} XP Earned • Level Progress Up!',
                         style: const TextStyle(fontSize: 11, color: Colors.white70),
                       ),
                     ],

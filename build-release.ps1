@@ -40,24 +40,20 @@ if ($AdmobInterstitialId) {
     Write-Host "AdMob Interstitial: $AdmobInterstitialId" -ForegroundColor Yellow
 }
 
-Write-Host "`n[1/2] Compiling Dart AOT and assets..." -ForegroundColor Yellow
+Write-Host "`n[1/2] Resolving Flutter dependencies..." -ForegroundColor Yellow
 Set-Location app
-
-# Set NDK location for symbol processing
-if (Test-Path "D:\Android\Sdk\ndk\28.2.13676358") {
-    $env:ANDROID_HOME = "D:\Android\Sdk"
-    $env:ANDROID_NDK_HOME = "D:\Android\Sdk\ndk\28.2.13676358"
-}
-
-# Run Flutter pub get
 flutter pub get
 
-Write-Host "`n[2/2] Generating signed Android App Bundle (bundleRelease)..." -ForegroundColor Yellow
-Set-Location android
-.\gradlew bundleRelease
+Write-Host "`n[2/2] Generating signed Android App Bundle (AAB) with production flags..." -ForegroundColor Yellow
+$flutterCmd = @("build", "appbundle", "--release", "--dart-define=API_URL=$ApiUrl")
+if ($AdmobBannerId) { $flutterCmd += "--dart-define=ADMOB_BANNER_ID=$AdmobBannerId" }
+if ($AdmobRewardedId) { $flutterCmd += "--dart-define=ADMOB_REWARDED_ID=$AdmobRewardedId" }
+if ($AdmobInterstitialId) { $flutterCmd += "--dart-define=ADMOB_INTERSTITIAL_ID=$AdmobInterstitialId" }
+
+& flutter $flutterCmd
 
 if ($LASTEXITCODE -eq 0) {
-    Set-Location ../..
+    Set-Location ..
     $aabPath = "app/build/app/outputs/bundle/release/app-release.aab"
     if (Test-Path $aabPath) {
         $fileItem = Get-Item $aabPath
@@ -68,7 +64,7 @@ if ($LASTEXITCODE -eq 0) {
         Write-Host "`nYou can upload this file directly to Google Play Console under Internal/Closed Testing or Production." -ForegroundColor Green
     }
 } else {
-    Set-Location ../..
+    Set-Location ..
     Write-Host "`n Build failed. Review gradle logs above." -ForegroundColor Red
     exit 1
 }

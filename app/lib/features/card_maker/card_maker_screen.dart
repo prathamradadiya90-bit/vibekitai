@@ -75,8 +75,11 @@ class _CardMakerScreenState extends ConsumerState<CardMakerScreen> {
     setState(() => _isExporting = true);
 
     try {
+      // Single rasterization pass for performance and reduced memory overhead
       final pngBytes = await CardExportService.captureCardBytes(_repaintKey);
-      final filePath = await CardExportService.captureAndSaveCard(_repaintKey);
+      final filePath = pngBytes != null
+          ? await CardExportService.saveCardBytes(pngBytes, persistent: true)
+          : null;
       if (!mounted) return;
       setState(() => _isExporting = false);
 
@@ -130,7 +133,7 @@ class _CardMakerScreenState extends ConsumerState<CardMakerScreen> {
     final text = _textController.text.trim();
     if (text.isEmpty) return;
 
-    final filePath = await CardExportService.captureAndSaveCard(_repaintKey);
+    final filePath = await CardExportService.captureAndSaveCard(_repaintKey, persistent: true);
     final db = ref.read(localDatabaseProvider);
     await db.insertItem(
       HistoryItem(

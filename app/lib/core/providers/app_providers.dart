@@ -30,7 +30,7 @@ final adMobServiceProvider = Provider<AdMobService>((ref) {
   return AdMobService();
 });
 
-final billingServiceProvider = Provider<BillingService>((ref) {
+final billingServiceProvider = ChangeNotifierProvider<BillingService>((ref) {
   final apiClient = ref.watch(apiClientProvider);
   return BillingService(apiClient);
 });
@@ -116,29 +116,36 @@ class QuotaNotifier extends StateNotifier<QuotaModel> {
 
   Future<bool> grantRewardCredit({String? nonce, String? transactionId, String? rewardId}) async {
     final effectiveRewardId = rewardId ?? 'rew_${DateTime.now().millisecondsSinceEpoch}';
-    try {
-      final res = await _apiClient.verifyRewardedAd(
-        rewardId: effectiveRewardId,
-        transactionId: transactionId,
-        nonce: nonce,
-        adNetwork: 'admob',
-      );
-      if (res['verified'] == true) {
-        final remaining = (res['credits_remaining'] as num?)?.toInt() ??
-            (state.totalCreditsRemaining + 3);
-        final watched = (res['rewarded_ads_watched_today'] as num?)?.toInt() ??
-            (state.rewardedAdsWatchedToday + 1);
-        final updated = state.copyWith(
-          totalCreditsRemaining: remaining,
-          rewardedCreditsRemaining: state.rewardedCreditsRemaining + 3,
-          rewardedAdsWatchedToday: watched,
-        );
-        state = updated;
-        await _prefs.setCachedCredits(remaining);
-        return true;
+
+    // Poll up to 4 times with progressive backoff to allow Google AdMob SSV webhook to arrive at Cloudflare
+    for (int attempt = 0; attempt < 4; attempt++) {
+      if (attempt > 0) {
+        await Future.delayed(Duration(milliseconds: 1000 * attempt));
       }
-    } catch (_) {
-      // Verification failed
+      try {
+        final res = await _apiClient.verifyRewardedAd(
+          rewardId: effectiveRewardId,
+          transactionId: transactionId,
+          nonce: nonce,
+          adNetwork: 'admob',
+        );
+        if (res['verified'] == true) {
+          final remaining = (res['credits_remaining'] as num?)?.toInt() ??
+              (state.totalCreditsRemaining + 3);
+          final watched = (res['rewarded_ads_watched_today'] as num?)?.toInt() ??
+              (state.rewardedAdsWatchedToday + 1);
+          final updated = state.copyWith(
+            totalCreditsRemaining: remaining,
+            rewardedCreditsRemaining: state.rewardedCreditsRemaining + 3,
+            rewardedAdsWatchedToday: watched,
+          );
+          state = updated;
+          await _prefs.setCachedCredits(remaining);
+          return true;
+        }
+      } catch (_) {
+        // Verification attempt failed; continue polling
+      }
     }
 
     // Dev mode fallback

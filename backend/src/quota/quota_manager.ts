@@ -521,21 +521,23 @@ export class QuotaManager {
 
   async deleteUserData(installationId: string): Promise<void> {
     if (!this.db) return;
-    await this.db.prepare('DELETE FROM idempotency_keys WHERE installation_id = ?').bind(installationId).run();
-    await this.db.prepare('DELETE FROM pro_cycle_usage WHERE installation_id = ?').bind(installationId).run();
-    await this.db.prepare('DELETE FROM admob_ssv_transactions WHERE installation_id = ?').bind(installationId).run();
-    await this.db.prepare('DELETE FROM ad_nonces WHERE installation_id = ?').bind(installationId).run();
-    await this.db.prepare('DELETE FROM daily_usage WHERE installation_id = ?').bind(installationId).run();
-    await this.db.prepare('DELETE FROM generation_metadata WHERE installation_id = ?').bind(installationId).run();
-    await this.db.prepare('DELETE FROM reward_events WHERE installation_id = ?').bind(installationId).run();
-    await this.db.prepare('DELETE FROM subscription_entitlements WHERE installation_id = ?').bind(installationId).run();
-    await this.db.prepare('DELETE FROM credit_pack_purchases WHERE installation_id = ?').bind(installationId).run();
-    await this.db.prepare('DELETE FROM streaks WHERE installation_id = ?').bind(installationId).run();
-    await this.db.prepare('DELETE FROM xp_events WHERE installation_id = ?').bind(installationId).run();
-    await this.db.prepare('DELETE FROM milestone_claims WHERE installation_id = ?').bind(installationId).run();
-    await this.db.prepare('DELETE FROM referrals WHERE referrer_installation_id = ? OR referred_installation_id = ?').bind(installationId, installationId).run();
-    await this.db.prepare('DELETE FROM feedback_records WHERE installation_id = ?').bind(installationId).run();
-    await this.db.prepare('DELETE FROM installations WHERE id = ?').bind(installationId).run();
+    await this.db.batch([
+      this.db.prepare('DELETE FROM idempotency_keys WHERE installation_id = ?').bind(installationId),
+      this.db.prepare('DELETE FROM pro_cycle_usage WHERE installation_id = ?').bind(installationId),
+      this.db.prepare('DELETE FROM admob_ssv_transactions WHERE installation_id = ?').bind(installationId),
+      this.db.prepare('DELETE FROM ad_nonces WHERE installation_id = ?').bind(installationId),
+      this.db.prepare('DELETE FROM daily_usage WHERE installation_id = ?').bind(installationId),
+      this.db.prepare('DELETE FROM generation_metadata WHERE installation_id = ?').bind(installationId),
+      this.db.prepare('DELETE FROM reward_events WHERE installation_id = ?').bind(installationId),
+      this.db.prepare('DELETE FROM subscription_entitlements WHERE installation_id = ?').bind(installationId),
+      this.db.prepare('DELETE FROM credit_pack_purchases WHERE installation_id = ?').bind(installationId),
+      this.db.prepare('DELETE FROM streaks WHERE installation_id = ?').bind(installationId),
+      this.db.prepare('DELETE FROM xp_events WHERE installation_id = ?').bind(installationId),
+      this.db.prepare('DELETE FROM milestone_claims WHERE installation_id = ?').bind(installationId),
+      this.db.prepare('DELETE FROM referrals WHERE referrer_installation_id = ? OR referred_installation_id = ?').bind(installationId, installationId),
+      this.db.prepare('DELETE FROM feedback_records WHERE installation_id = ?').bind(installationId),
+      this.db.prepare('DELETE FROM installations WHERE id = ?').bind(installationId),
+    ]);
   }
 
   async reconcileEntitlementsNightly(): Promise<{ checked: number; expired: number }> {

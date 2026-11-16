@@ -20,7 +20,7 @@ authRoute.post('/auth/attest', async (c) => {
     throw new ValidationError('Invalid attestation payload.', parsed.error.format());
   }
 
-  const packageName = c.env.GOOGLE_PLAY_PACKAGE_NAME || 'com.vibekit.ai';
+  const packageName = c.env.GOOGLE_PLAY_PACKAGE_NAME || 'com.vibekit.vibekit_ai';
   const verdict = await verifyPlayIntegrityToken(
     parsed.data.integrityToken,
     packageName,

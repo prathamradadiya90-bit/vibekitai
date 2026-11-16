@@ -14,6 +14,11 @@ export function rateLimiterMiddleware(options?: {
   const memoryCounts = new Map<string, { count: number; windowStart: number }>();
 
   return async (c, next) => {
+    // Exempt health check endpoints from rate limiting overhead
+    if (c.req.path === '/v1/health' || c.req.path === '/health') {
+      return await next();
+    }
+
     // Determine client identifier: installation ID or CF-Connecting-IP
     const clientIp = c.req.header('CF-Connecting-IP') || c.req.header('X-Forwarded-For') || 'unknown_ip';
     const installId = c.req.header('X-App-Instance-Id') || 'anon';
@@ -38,17 +43,14 @@ export function rateLimiterMiddleware(options?: {
 
     if (c.env?.DB) {
       try {
-        // Upsert counter in rate_limit_counters table
-        await c.env.DB.prepare(
+        // Atomic upsert with RETURNING count to eliminate extra SELECT roundtrip
+        const row = await c.env.DB.prepare(
           `INSERT INTO rate_limit_counters (key, count, window_start, expires_at)
            VALUES (?, 1, ?, ?)
-           ON CONFLICT(key) DO UPDATE SET count = count + 1`
+           ON CONFLICT(key) DO UPDATE SET count = count + 1
+           RETURNING count`
         )
           .bind(key, windowStart, windowStart + windowSeconds * 2)
-          .run();
-
-        const row = await c.env.DB.prepare('SELECT count FROM rate_limit_counters WHERE key = ?')
-          .bind(key)
           .first<{ count: number }>();
 
         if (row && row.count > limit) {

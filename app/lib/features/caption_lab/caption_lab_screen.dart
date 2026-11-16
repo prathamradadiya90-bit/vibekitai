@@ -35,6 +35,7 @@ class CaptionLabScreen extends ConsumerStatefulWidget {
 class _CaptionLabScreenState extends ConsumerState<CaptionLabScreen> {
   final TextEditingController _topicController = TextEditingController();
   final int _maxChars = 400;
+  final Set<String> _favoritedTexts = {};
 
   String _selectedPlatform = 'Instagram Reels';
   String _selectedTone = 'Trendy';
@@ -178,25 +179,29 @@ class _CaptionLabScreenState extends ConsumerState<CaptionLabScreen> {
     );
   }
 
-  Future<void> _saveFavorite(String text, String title) async {
+  Future<void> _toggleFavorite(String text, String title) async {
     final db = ref.read(localDatabaseProvider);
-    await db.insertItem(
-      HistoryItem(
-        id: const Uuid().v4(),
-        title: title,
-        content: text,
-        type: 'caption',
-        category: _selectedPlatform,
-        createdAt: DateTime.now(),
-        isFavorite: true,
-      ),
+    final isFav = await db.toggleFavoriteByContent(
+      content: text,
+      title: title,
+      type: 'caption',
+      category: '$_selectedPlatform • $_selectedTone',
     );
 
+    HapticFeedback.selectionClick();
     if (mounted) {
+      setState(() {
+        if (isFav) {
+          _favoritedTexts.add(text);
+        } else {
+          _favoritedTexts.remove(text);
+        }
+      });
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Saved to Favorites!'),
-          backgroundColor: AppColors.success,
+        SnackBar(
+          content: Text(isFav ? 'Saved to Favorites!' : 'Removed from Favorites'),
+          backgroundColor: isFav ? AppColors.success : AppColors.surfaceElevatedDark,
+          duration: const Duration(seconds: 2),
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -577,7 +582,13 @@ class _CaptionLabScreenState extends ConsumerState<CaptionLabScreen> {
                 (caption) => ResultCard(
                   content: caption,
                   category: '$_selectedPlatform • $_selectedTone',
-                  onFavoriteToggle: () => _saveFavorite(caption, 'Caption: ${_topicController.text}'),
+                  isFavorite: _favoritedTexts.contains(caption),
+                  onFavoriteToggle: () => _toggleFavorite(
+                    caption,
+                    _topicController.text.trim().isNotEmpty
+                        ? 'Caption: ${_topicController.text.trim()}'
+                        : 'Caption',
+                  ),
                 ),
               ),
 
@@ -598,7 +609,8 @@ class _CaptionLabScreenState extends ConsumerState<CaptionLabScreen> {
                     content: hook,
                     subtitle: 'HOOK',
                     category: 'Reel Hook',
-                    onFavoriteToggle: () => _saveFavorite(hook, 'Hook'),
+                    isFavorite: _favoritedTexts.contains(hook),
+                    onFavoriteToggle: () => _toggleFavorite(hook, 'Reel Hook'),
                   ),
                 ),
               ],
@@ -619,6 +631,11 @@ class _CaptionLabScreenState extends ConsumerState<CaptionLabScreen> {
                   content: genState.result!.hashtags.join(' '),
                   subtitle: 'CATEGORIZED HASHTAGS',
                   category: 'Hashtags',
+                  isFavorite: _favoritedTexts.contains(genState.result!.hashtags.join(' ')),
+                  onFavoriteToggle: () => _toggleFavorite(
+                    genState.result!.hashtags.join(' '),
+                    'Hashtags',
+                  ),
                 ),
               ],
             ],

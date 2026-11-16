@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart' as p;
+import 'package:uuid/uuid.dart';
 import '../../models/history_item.dart';
 
 class LocalDatabase {
@@ -117,6 +118,53 @@ class LocalDatabase {
       }
       if (offset >= list.length) return [];
       return list.skip(offset).take(limit).toList();
+    }
+  }
+
+  Future<HistoryItem?> findItemByContent(String content) async {
+    if (_db != null) {
+      final results = await _db!.query(
+        _tableName,
+        where: 'content = ?',
+        whereArgs: [content],
+        limit: 1,
+      );
+      if (results.isNotEmpty) {
+        return HistoryItem.fromMap(results.first);
+      }
+      return null;
+    } else {
+      final idx = _fallbackMemoryStore.indexWhere((i) => i.content == content);
+      if (idx != -1) return _fallbackMemoryStore[idx];
+      return null;
+    }
+  }
+
+  /// Toggles favorite on an existing item matching [content], or inserts a single
+  /// new favorited record if none exists yet. Returns the new favorite status.
+  Future<bool> toggleFavoriteByContent({
+    required String content,
+    String? title,
+    String? type,
+    String? category,
+  }) async {
+    final existing = await findItemByContent(content);
+    if (existing != null) {
+      final newFav = !existing.isFavorite;
+      await toggleFavorite(existing.id, newFav);
+      return newFav;
+    } else {
+      final newItem = HistoryItem(
+        id: const Uuid().v4(),
+        title: title ?? 'Saved Favorite',
+        content: content,
+        type: type ?? 'general',
+        category: category ?? 'general',
+        createdAt: DateTime.now(),
+        isFavorite: true,
+      );
+      await insertItem(newItem);
+      return true;
     }
   }
 
