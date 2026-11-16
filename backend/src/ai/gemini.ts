@@ -35,7 +35,7 @@ export class GeminiProvider {
 
   constructor(env: Env) {
     this.apiKey = env.GEMINI_API_KEY;
-    this.model = env.GEMINI_MODEL || 'gemini-2.0-flash';
+    this.model = env.GEMINI_MODEL || 'gemini-3.5-flash-lite';
     this.isDevelopmentOrTest = env.ENVIRONMENT === 'development' || env.ENVIRONMENT === 'test';
   }
 

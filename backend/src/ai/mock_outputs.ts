@@ -70,7 +70,12 @@ function asLang(language: string): Lang {
 
 export function mockReplies(p: { tone: string; language: string; count?: number }): string[] {
   const byTone = REPLIES[asLang(p.language)];
-  const list: string[] = byTone[p.tone] ?? byTone.Friendly ?? [];
+  const list: string[] = [...(byTone[p.tone] ?? byTone.Friendly ?? [])];
+  // Shuffle list for variety across multiple taps
+  for (let i = list.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [list[i], list[j]] = [list[j], list[i]];
+  }
   return list.slice(0, Math.max(1, Math.min(p.count ?? 3, list.length)));
 }
 

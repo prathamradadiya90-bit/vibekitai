@@ -15,7 +15,7 @@ export interface AppConfig {
 export function getAppConfig(env: Env): AppConfig {
   return {
     environment: env.ENVIRONMENT || 'development',
-    geminiModel: env.GEMINI_MODEL || 'gemini-1.5-flash',
+    geminiModel: env.GEMINI_MODEL || 'gemini-3.5-flash-lite',
     maxDailyFreeCredits: parseInt(env.MAX_DAILY_FREE_CREDITS || '3', 10),
     rewardCreditsPerAd: parseInt(env.REWARD_CREDITS_PER_AD || '3', 10),
     maxDailyRewards: parseInt(env.MAX_DAILY_REWARDS || '2', 10),
