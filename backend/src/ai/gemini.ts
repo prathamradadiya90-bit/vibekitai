@@ -197,6 +197,10 @@ export class GeminiProvider {
 
   private async callGeminiApi(systemInstruction: string, prompt: string, task: TaskKind): Promise<GenerationResult | null> {
     const sampling = SAMPLING[task];
+    if (!this.apiKey) {
+      throw new Error('GEMINI_API_KEY is not configured on the server.');
+    }
+
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${this.model}:generateContent`;
 
     const payload = {
