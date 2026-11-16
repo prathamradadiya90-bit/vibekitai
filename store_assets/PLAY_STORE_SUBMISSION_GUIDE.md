@@ -1,6 +1,6 @@
-# 🚀 VibeKit AI — Google Play Console Submission Guide
+# 🚀 ReplyVibe AI — Google Play Console Submission Guide
 
-This dossier contains all the pre-filled metadata, policy declarations, data safety questionnaire answers, and asset paths required to submit **VibeKit AI** to the Google Play Console for Production or Closed Testing.
+This dossier contains all the pre-filled metadata, policy declarations, data safety questionnaire answers, and asset paths required to submit **ReplyVibe AI** to the Google Play Console for Production or Closed Testing.
 
 ---
 
@@ -13,8 +13,8 @@ This dossier contains all the pre-filled metadata, policy declarations, data saf
 | **Minimum SDK Version** | `24` (Android 7.0 Nougat — Covers 98%+ of global active Android devices) |
 | **Version Code** | `2` |
 | **Version Name** | `1.0.1` |
-| **Signed Release AAB File** | `app/build/app/outputs/bundle/release/app-release.aab` |
-| **AAB File Size** | `~62.5 MB` (Optimized with Proguard/R8 & shrinkResources) |
+| **Signed Release AAB File** | `ReplyVibe-AI-v1.0.1-release.aab` / `app/build/app/outputs/bundle/release/app-release.aab` |
+| **AAB File Size** | `~62.8 MB` |
 | **Keystore File** | `app/android/upload-keystore.jks` |
 | **Keystore Alias** | `upload` |
 | **Cleartext HTTP Allowed** | `false` (Strict TLS 1.3 enforced via `network_security_config.xml`) |
@@ -25,7 +25,7 @@ This dossier contains all the pre-filled metadata, policy declarations, data saf
 
 ### App Title (Max 30 characters)
 ```text
-VibeKit AI - Vibe & Comebacks
+ReplyVibe AI - Smart Replies
 ```
 
 ### Short Description (Max 80 characters)
@@ -37,9 +37,9 @@ AI smart replies, savage comebacks, viral captions & aesthetic quote cards.
 ```text
 Stuck on what to reply? Need the perfect savage comeback, an aesthetic Instagram caption, or a viral Reel hook? 
 
-VibeKit AI is your all-in-one texting copilot and social media creativity studio, powered by Google Gemini AI.
+ReplyVibe AI is your all-in-one texting copilot and social media creativity studio, powered by Google Gemini AI.
 
-🔥 WHAT YOU CAN DO WITH VIBEKIT AI:
+🔥 WHAT YOU CAN DO WITH REPLYVIBE AI:
 
 💬 1. SMART REPLY STUDIO
 Never leave anyone on "read" again. Paste any DM, awkward text, flirtatious compliment, or professional inquiry and get instant tailored responses across 8 distinct tones:
@@ -51,7 +51,7 @@ Never leave anyone on "read" again. Paste any DM, awkward text, flirtatious comp
 • Supportive & Warm
 
 🔥 2. VIBE CHECK & ROAST
-Paste any draft or message before you hit send. VibeKit rates the tone, roasts cringe texts, and rewrites your message for maximum confidence. Modes include Roast Me, Vibe Polish, Date Doctor, and Boss Mode.
+Paste any draft or message before you hit send. ReplyVibe rates the tone, roasts cringe texts, and rewrites your message for maximum confidence. Modes include Roast Me, Vibe Polish, Date Doctor, and Boss Mode.
 
 ✨ 3. CAPTION & REEL HOOK LAB
 Level up your social media presence. Generate scroll-stopping captions, high-converting hooks, and trending hashtags for Instagram, TikTok, and X. Choose from Aesthetic, Savage, Hustle, Poetic, and Minimal vibes.
@@ -71,7 +71,7 @@ Build your creative momentum! Complete daily challenges, extend your streak, ear
 • 100% offline local card rendering.
 • You have the "Right to be Forgotten" with 1-tap data deletion in Settings.
 
-Download VibeKit AI now and elevate your social texting game!
+Download ReplyVibe AI now and elevate your social texting game!
 ```
 
 ---
@@ -84,13 +84,7 @@ All assets are located in the `store_assets/` directory:
 | :--- | :--- | :--- |
 | **App Icon** | 512 x 512 px PNG (32-bit, max 1024KB) | `store_assets/icon_512x512.png` |
 | **Feature Graphic** | 1024 x 500 px PNG (No transparency, max 1024KB) | `store_assets/feature_graphic_1024x500.png` |
-| **Phone Screenshot 1** | Home & Daily Spark Hero | `store_assets/screenshot_01_home.png` |
-| **Phone Screenshot 2** | AI Reply Studio & Tones | `store_assets/screenshot_02_reply_studio.png` |
-| **Phone Screenshot 3** | Vibe Check & Roast | `store_assets/screenshot_03_vibe_check.png` |
-| **Phone Screenshot 4** | Caption & Reel Hooks Lab | `store_assets/screenshot_04_caption_lab.png` |
-| **Phone Screenshot 5** | Meme & Quote Card Maker | `store_assets/screenshot_05_card_maker.png` |
-| **Phone Screenshot 6** | Streaks & Milestone Rewards | `store_assets/screenshot_06_streaks_rewards.png` |
-| **Phone Screenshot 7** | VIP & Pro Paywall | `store_assets/screenshot_07_pro_paywall.png` |
+| **Phone Screenshots (9:16)** | Minimum 1080x1920 (exceeds Google Play 1080px rule) | `store_assets/phone_screenshots/` |
 
 ---
 
@@ -98,7 +92,7 @@ All assets are located in the `store_assets/` directory:
 
 ### A. App Access
 * **Selection:** `All functionality is available without special access credentials.`
-* *(Explanation: VibeKit AI uses a seamless device-based pseudonymous ID; users do not need a login/password to access any screen).*
+* *(Explanation: ReplyVibe AI uses a seamless device-based pseudonymous ID; users do not need a login/password to access any screen).*
 
 ### B. Ads Declaration
 * **Selection:** `Yes, my app contains ads.`
@@ -160,9 +154,9 @@ Create these exact Product IDs in Play Console under **Monetize > In-app product
 
 ## 6. 🌐 Mandatory Legal URLs
 
-* **Privacy Policy URL:** `https://<YOUR_DEPLOYED_DOMAIN>/privacy-policy` (Served by `backend/src/routes/privacy.ts`)
-* **Terms of Service URL:** `https://<YOUR_DEPLOYED_DOMAIN>/terms` (Served by `backend/src/routes/privacy.ts`)
-* **Account / Data Deletion URL:** `https://<YOUR_DEPLOYED_DOMAIN>/delete-account` (Served by `backend/src/routes/privacy.ts`)
+* **Privacy Policy URL:** `https://vibekit-ai-privacy.vercel.app`
+* **Terms of Service URL:** `https://vibekit-ai-privacy.vercel.app/terms.html`
+* **Account / Data Deletion URL:** `https://vibekit-ai-privacy.vercel.app/#deletion`
 * **Support Email:** `support@vibekit.ai` / `privacy@vibekit.ai`
 
 ---
@@ -170,16 +164,17 @@ Create these exact Product IDs in Play Console under **Monetize > In-app product
 ## 7. 🚀 Final Submission Steps
 
 1. Log in to [Google Play Console](https://play.google.com/console).
-2. Click **Create App** → Set Name to `VibeKit AI - Vibe & Comebacks`, select **App** and **Free**.
+2. Set Name to `ReplyVibe AI - Smart Replies`, select **App** and **Free**.
 3. Under **Grow > Store presence > Main store listing**:
    - Paste Title, Short Description, and Full Description from Section 2.
    - Upload `store_assets/icon_512x512.png`.
    - Upload `store_assets/feature_graphic_1024x500.png`.
-   - Upload `store_assets/screenshot_*.png`.
+   - Upload screenshots from `store_assets/phone_screenshots/`.
 4. Under **Policy > App content**:
    - Complete each section using the exact answers in Section 4 & 5.
-5. Under **Release > Production** (or **Closed testing**):
+5. Under **Release > Closed testing**:
    - Create a new release.
-   - Drag & drop `app/build/app/outputs/bundle/release/app-release.aab`.
-   - Review release notes and click **Start rollout to Production**!
+   - Drag & drop `ReplyVibe-AI-v1.0.1-release.aab`.
+   - Review release notes and click **Start rollout to Closed testing**!
+
 
