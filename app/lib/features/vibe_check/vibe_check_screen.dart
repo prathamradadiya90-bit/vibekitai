@@ -29,6 +29,34 @@ class VibeCheckScreen extends ConsumerStatefulWidget {
 class _VibeCheckScreenState extends ConsumerState<VibeCheckScreen> {
   final TextEditingController _textController = TextEditingController();
   final int _maxChars = 600;
+  final Set<String> _favoritedTexts = {};
+
+  Future<void> _toggleFavorite(String text) async {
+    final db = ref.read(localDatabaseProvider);
+    final newFav = await db.toggleFavoriteByContent(
+      content: text,
+      type: 'vibe_check',
+      category: '$_selectedMode • $_selectedLanguage',
+      title: text.length > 35 ? '${text.substring(0, 35)}...' : text,
+    );
+    if (mounted) {
+      HapticFeedback.selectionClick();
+      setState(() {
+        if (newFav) {
+          _favoritedTexts.add(text);
+        } else {
+          _favoritedTexts.remove(text);
+        }
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(newFav ? 'Saved to Favorites' : 'Removed from Favorites'),
+          duration: const Duration(seconds: 1),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
 
   String _selectedMode = 'roast';
   String _selectedLanguage = 'English';
@@ -674,6 +702,28 @@ class _VibeCheckScreenState extends ConsumerState<VibeCheckScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
+                    // Favorite Action
+                    TextButton.icon(
+                      onPressed: () => _toggleFavorite(rewrite),
+                      icon: Icon(
+                        _favoritedTexts.contains(rewrite)
+                            ? Icons.favorite_rounded
+                            : Icons.favorite_border_rounded,
+                        size: 15,
+                        color: _favoritedTexts.contains(rewrite) ? AppColors.accentPink : null,
+                      ),
+                      label: Text(
+                        _favoritedTexts.contains(rewrite) ? 'Saved' : 'Save',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: _favoritedTexts.contains(rewrite) ? AppColors.accentPink : null,
+                        ),
+                      ),
+                      style: TextButton.styleFrom(
+                        foregroundColor: isDark ? AppColors.textPrimaryDark : AppColors.primary,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
                     // Copy Action
                     TextButton.icon(
                       onPressed: () {

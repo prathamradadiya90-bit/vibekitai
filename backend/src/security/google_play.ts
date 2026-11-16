@@ -9,9 +9,10 @@ export const SUBSCRIPTION_PRODUCTS = new Set([
   'vibekit_pro_monthly',
   'vibekit_pro_yearly',
 ]);
-export const LIFETIME_PRODUCTS = new Set(['vibekit_pro_lifetime']);
+export const LIFETIME_PRODUCTS = new Set(['vibekit_pro_lifetime', 'vibekit_lifetime']);
 export const CREDIT_PACK_PRODUCTS: Record<string, number> = {
   vibekit_credits_50: 50,
+  credit_pack_50: 50,
   vibekit_credits_25: 25,
 };
 

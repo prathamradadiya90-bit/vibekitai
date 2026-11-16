@@ -24,6 +24,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
     {'id': 'all', 'label': 'All'},
     {'id': 'favorites', 'label': 'Favorites'},
     {'id': 'reply', 'label': 'Replies'},
+    {'id': 'vibe_check', 'label': 'Vibe Checks'},
     {'id': 'caption', 'label': 'Captions'},
     {'id': 'bio', 'label': 'Bios'},
     {'id': 'card', 'label': 'Cards'},
@@ -226,7 +227,9 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                                     ? Icons.auto_awesome_rounded
                                     : item.type == 'bio'
                                         ? Icons.badge_outlined
-                                        : Icons.brush_outlined;
+                                        : item.type == 'vibe_check'
+                                            ? Icons.local_fire_department_rounded
+                                            : Icons.brush_outlined;
 
                             final typeColor = item.type == 'reply'
                                 ? (isDark ? AppColors.accentWarm : AppColors.primary)
@@ -234,7 +237,9 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                                     ? AppColors.accent
                                     : item.type == 'bio'
                                         ? Colors.cyan
-                                        : AppColors.accentPink;
+                                        : item.type == 'vibe_check'
+                                            ? const Color(0xFFD9531E)
+                                            : AppColors.accentPink;
 
                             return Container(
                               padding: const EdgeInsets.all(16),

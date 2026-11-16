@@ -1448,9 +1448,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                               ? Icons.auto_awesome_rounded
                                               : item.type == 'bio'
                                                   ? Icons.badge_outlined
-                                                  : Icons.brush_outlined,
+                                                  : item.type == 'vibe_check'
+                                                      ? Icons.local_fire_department_rounded
+                                                      : Icons.brush_outlined,
                                       size: 14,
-                                      color: item.type == 'bio' ? Colors.cyan : AppColors.primaryLight,
+                                      color: item.type == 'bio'
+                                          ? Colors.cyan
+                                          : item.type == 'vibe_check'
+                                              ? const Color(0xFFD9531E)
+                                              : AppColors.primaryLight,
                                     ),
                                     const SizedBox(width: 6),
                                     Expanded(

@@ -65,7 +65,7 @@ class _StudioScreenState extends ConsumerState<StudioScreen> {
   String _vibeMode = 'roast';
 
   String _captionVibe = 'Aesthetic';
-  final String _captionPlatform = 'Instagram';
+  final String _captionPlatform = 'Instagram Reels';
 
   String _bioVibe = 'Aesthetic';
   final String _bioPlatform = 'Instagram';
@@ -112,7 +112,12 @@ class _StudioScreenState extends ConsumerState<StudioScreen> {
   static const List<String> _captionVibes = [
     'Aesthetic',
     'Trendy',
+    'Witty',
+    'Confident',
+    'Humorous',
     'Savage',
+    'Inspirational',
+    'Professional',
     'Chill',
     'Poetic',
     'Hustle',
@@ -122,9 +127,10 @@ class _StudioScreenState extends ConsumerState<StudioScreen> {
   static const List<String> _bioVibes = [
     'Aesthetic',
     'Witty',
-    'Minimal',
     'Professional',
+    'Minimalist',
     'Creative',
+    'Bold',
   ];
 
   static const Map<StudioTab, List<Map<String, String>>> _sampleChips = {

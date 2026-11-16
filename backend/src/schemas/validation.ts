@@ -34,6 +34,7 @@ export const CaptionRequestSchema = z
   .object({
     topic: z.string().min(1, 'Topic cannot be empty').max(400, 'Topic cannot exceed 400 characters'),
     platform: z.enum([
+      'Instagram',
       'Instagram Reels',
       'Instagram Post',
       'WhatsApp Status',
@@ -42,7 +43,20 @@ export const CaptionRequestSchema = z
       'Threads & X',
       'General Social Media',
     ]),
-    tone: z.enum(['Trendy', 'Witty', 'Aesthetic', 'Confident', 'Professional', 'Inspirational', 'Humorous']),
+    tone: z.enum([
+      'Trendy',
+      'Witty',
+      'Aesthetic',
+      'Confident',
+      'Professional',
+      'Inspirational',
+      'Humorous',
+      'Savage',
+      'Chill',
+      'Poetic',
+      'Hustle',
+      'Minimalist',
+    ]),
     language: z.enum(['English', 'Hindi', 'Hinglish', 'Gujarati']),
     length: z.enum(['short', 'medium', 'detailed']).default('medium'),
     include_hooks: z.boolean().default(true),
@@ -64,7 +78,7 @@ export const BioRequestSchema = z
   .object({
     interests: z.string().min(1, 'Interests cannot be empty').max(300, 'Interests cannot exceed 300 characters'),
     platform: z.enum(['Instagram', 'WhatsApp', 'LinkedIn', 'Twitter/X', 'Dating App', 'General Profile']),
-    vibe: z.enum(['Aesthetic', 'Witty', 'Professional', 'Minimalist', 'Creative', 'Bold']),
+    vibe: z.enum(['Aesthetic', 'Witty', 'Professional', 'Minimalist', 'Minimal', 'Creative', 'Bold']),
     language: z.enum(['English', 'Hindi', 'Hinglish', 'Gujarati']),
     include_usernames: z.boolean().default(true),
   })
@@ -121,7 +135,9 @@ export const PurchaseVerifySchema = z
       'vibekit_pro_monthly',
       'vibekit_pro_yearly',
       'vibekit_pro_lifetime',
+      'vibekit_lifetime',
       'vibekit_credits_50',
+      'credit_pack_50',
       'vibekit_credits_25',
     ]),
     purchase_token: z.string().min(5),

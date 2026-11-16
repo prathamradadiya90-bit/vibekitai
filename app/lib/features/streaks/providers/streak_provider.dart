@@ -27,11 +27,12 @@ class StreakNotifier extends StateNotifier<StreakModel> {
     try {
       final res = await _client.checkinStreak(action);
       if (res['success'] == true) {
+        final newXp = state.totalXp + ((res['xp_awarded'] as num?)?.toInt() ?? 10);
         state = state.copyWith(
           currentStreak: (res['current_streak'] as num?)?.toInt() ?? state.currentStreak,
           longestStreak: (res['longest_streak'] as num?)?.toInt() ?? state.longestStreak,
-          totalXp: state.totalXp + ((res['xp_awarded'] as num?)?.toInt() ?? 10),
-          level: (state.totalXp / 100).floor() + 1,
+          totalXp: newXp,
+          level: (newXp / 100).floor() + 1,
           checkedInToday: true,
         );
       }

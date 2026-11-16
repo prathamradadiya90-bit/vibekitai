@@ -365,7 +365,17 @@ export class QuotaManager {
       return { success: false, reason: 'DAILY_REWARD_LIMIT_REACHED' };
     }
 
-    // 4. Record transaction in admob_ssv_transactions
+    // 4. Ensure installation record exists to satisfy foreign key constraint
+    await this.db
+      .prepare(
+        `INSERT INTO installations (id, created_at, last_active_at)
+         VALUES (?, ?, ?)
+         ON CONFLICT(id) DO UPDATE SET last_active_at = excluded.last_active_at`
+      )
+      .bind(installationId, nowIso, nowIso)
+      .run();
+
+    // 5. Record transaction in admob_ssv_transactions
     await this.db
       .prepare(
         `INSERT INTO admob_ssv_transactions (transaction_id, installation_id, reward_id, key_id, verified_at, ad_network)
@@ -374,7 +384,7 @@ export class QuotaManager {
       .bind(transactionId, installationId, rewardId || null, keyId, nowIso, adNetwork || 'admob')
       .run();
 
-    // 5. Increment daily_usage credits
+    // 6. Increment daily_usage credits
     await this.db
       .prepare(
         `INSERT INTO daily_usage (id, installation_id, usage_date, rewarded_credits_earned, rewarded_ads_watched, updated_at)

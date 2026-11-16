@@ -133,6 +133,16 @@ All assets are located in the `store_assets/` directory:
 * **Are user reporting mechanisms available?** `Yes`. (Every generated suggestion card includes a 1-tap Flag/Report button submitting reports directly to safety review).
 * **Are content guardrails in place?** `Yes`. (Automated content filters block hate speech, sexual violence, self-harm, and illegal content).
 
+### H. In-App Products & Subscriptions Setup (Monetization)
+Create these exact Product IDs in Play Console under **Monetize > In-app products / Subscriptions**:
+* **Subscriptions:**
+  * `vibekit_pro_yearly` (Base Plan: Yearly with 3-day free trial)
+  * `vibekit_pro_monthly` (Base Plan: Monthly recurring)
+  * `vibekit_pro_weekly` (Base Plan: Weekly recurring, optional)
+* **In-App Products:**
+  * `vibekit_pro_lifetime` (Non-consumable: One-time Lifetime VIP pass)
+  * `vibekit_credits_50` (Consumable: 50 AI Credits top-up)
+
 ---
 
 ## 5. 🛡️ Data Safety Section Questionnaire Guide
