@@ -49,6 +49,7 @@ service-account*.json
 *.pem
 *.apk
 *.aab
+old_releases/
 
 # Node / Cloudflare Workers
 **/node_modules/
