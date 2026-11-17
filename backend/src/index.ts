@@ -19,6 +19,7 @@ import { referralsRoute } from './routes/referrals';
 import { adminRoute } from './routes/admin';
 import { authRoute } from './routes/auth';
 import { getAdminHtml } from './admin/ui';
+import { getWebDemoHtml } from './web/demo_ui';
 import { handleScheduledTask } from './cron/nightly_stats';
 
 const app = new Hono<AppHonoEnv>();
@@ -106,10 +107,10 @@ app.route('/v1', streakRoute as any);
 app.route('/v1', referralsRoute as any);
 app.route('/', privacyRoute as any);
 
-// Root Fallback
-app.get('/', (c) => {
-  return c.text('VibeKit AI Edge API v1.0.0 is operational.');
-});
+// Interactive Web App Demo UI
+app.get('/', (c) => c.html(getWebDemoHtml()));
+app.get('/app', (c) => c.html(getWebDemoHtml()));
+app.get('/demo', (c) => c.html(getWebDemoHtml()));
 
 export { app };
 

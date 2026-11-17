@@ -16,6 +16,7 @@ export const ReplyRequestSchema = z
       'Savage',
       'Unbothered',
       'Opener',
+      'Chill',
     ]),
     language: z.enum(['English', 'Hindi', 'Hinglish', 'Gujarati']),
     length: z.enum(['short', 'medium', 'detailed']).default('medium'),

@@ -74,7 +74,12 @@ export function mockReplies(p: { tone: string; language: string; count?: number 
   // Shuffle list for variety across multiple taps
   for (let i = list.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
-    [list[i], list[j]] = [list[j], list[i]];
+    const itemI = list[i];
+    const itemJ = list[j];
+    if (itemI !== undefined && itemJ !== undefined) {
+      list[i] = itemJ;
+      list[j] = itemI;
+    }
   }
   return list.slice(0, Math.max(1, Math.min(p.count ?? 3, list.length)));
 }
