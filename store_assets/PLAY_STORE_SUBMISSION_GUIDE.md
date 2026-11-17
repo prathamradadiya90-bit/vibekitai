@@ -11,9 +11,9 @@ This dossier contains all the pre-filled metadata, policy declarations, data saf
 | **Package Name / App ID** | `com.vibekit.vibekit_ai` |
 | **Target SDK Version** | `36` (Android 16 / 15 — Exceeds Google Play requirement) |
 | **Minimum SDK Version** | `24` (Android 7.0 Nougat — Covers 98%+ of global active Android devices) |
-| **Version Code** | `2` |
-| **Version Name** | `1.0.1` |
-| **Signed Release AAB File** | `ReplyVibe-AI-v1.0.1-release.aab` / `app/build/app/outputs/bundle/release/app-release.aab` |
+| **Version Code** | `3` |
+| **Version Name** | `1.0.2` |
+| **Signed Release AAB File** | `ReplyVibe-AI-v1.0.2-release.aab` / `app/build/app/outputs/bundle/release/app-release.aab` |
 | **AAB File Size** | `~62.8 MB` |
 | **Keystore File** | `app/android/upload-keystore.jks` |
 | **Keystore Alias** | `upload` |
@@ -174,7 +174,7 @@ Create these exact Product IDs in Play Console under **Monetize > In-app product
    - Complete each section using the exact answers in Section 4 & 5.
 5. Under **Release > Closed testing**:
    - Create a new release.
-   - Drag & drop `ReplyVibe-AI-v1.0.1-release.aab`.
+   - Drag & drop `ReplyVibe-AI-v1.0.2-release.aab`.
    - Review release notes and click **Start rollout to Closed testing**!
 
 

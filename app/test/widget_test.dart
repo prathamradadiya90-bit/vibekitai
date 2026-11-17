@@ -236,12 +236,12 @@ void main() {
     test('ShareService constructs viral referral links and formatted share text', () {
       const testId = 'inst_test_abc_123';
       final link = ShareService.buildReferralLink(testId);
-      expect(link, contains('id=com.vibekit.ai'));
+      expect(link, contains('id=com.vibekit.vibekit_ai'));
       expect(link, contains('&referrer=ref_$testId'));
 
       final text = ShareService.formatShareText('Awesome witty reply!', installationId: testId);
       expect(text, contains('Awesome witty reply!'));
-      expect(text, contains('Made with VibeKit AI'));
+      expect(text, contains('Made with ReplyVibe AI'));
       expect(text, contains(link));
     });
 
@@ -296,7 +296,7 @@ void main() {
 
       await tester.pumpAndSettle();
 
-      expect(find.text('VIBEKIT AI'), findsOneWidget);
+      expect(find.text('REPLYVIBE AI'), findsOneWidget);
       expect(find.text('Clever Replies in Seconds'), findsOneWidget);
       expect(find.text('Skip'), findsOneWidget);
       expect(find.text('Continue'), findsOneWidget);
@@ -308,13 +308,14 @@ void main() {
       SharedPreferences.setMockInitialValues({'onboarding_done': true});
       final prefs = await PreferencesService.create();
       final db = LocalDatabase();
+      final adMob = AdMobService();
 
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
             preferencesServiceProvider.overrideWithValue(prefs),
             localDatabaseProvider.overrideWithValue(db),
-            adMobServiceProvider.overrideWithValue(AdMobService()),
+            adMobServiceProvider.overrideWithValue(adMob),
           ],
           child: const VibeKitApp(initialOnboardingDone: true),
         ),
@@ -322,11 +323,14 @@ void main() {
 
       await tester.pumpAndSettle();
 
-      expect(find.text('VibeKit AI'), findsOneWidget);
+      expect(find.text('ReplyVibe AI'), findsOneWidget);
       expect(find.text('Daily AI Credits'), findsOneWidget);
       expect(find.text('Reply Studio'), findsOneWidget);
       expect(find.text('Caption Lab'), findsOneWidget);
       expect(find.text('Meme & Card Maker'), findsOneWidget);
+
+      adMob.dispose();
+      await tester.pump(const Duration(seconds: 1));
     });
   });
 }

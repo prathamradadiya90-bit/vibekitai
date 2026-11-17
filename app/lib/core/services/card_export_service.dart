@@ -76,7 +76,7 @@ class CardExportService {
     try {
       final pngBytes = await captureCardBytes(boundaryKey);
       if (pngBytes == null) return null;
-      return saveCardBytes(pngBytes, filename: filename, persistent: persistent);
+      return await saveCardBytes(pngBytes, filename: filename, persistent: persistent);
     } catch (e) {
       debugPrint('CardExportService error: $e');
       return null;

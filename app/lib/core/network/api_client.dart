@@ -125,6 +125,7 @@ class ApiClient {
     final isIdempotent = idempotencyKey != null ||
         endpoint.contains('/generations/');
     final finalIdempotencyKey = idempotencyKey ?? (isIdempotent ? const Uuid().v4() : null);
+    final url = Uri.parse('$_baseUrl$endpoint');
 
     return _executeWithRetry(
       action: () => _client.post(

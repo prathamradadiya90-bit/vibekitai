@@ -6,10 +6,10 @@ import 'package:flutter/foundation.dart';
 class AppConfig {
   AppConfig._();
 
-  static const String appName = 'VibeKit AI';
+  static const String appName = 'ReplyVibe AI';
   static const String appTagline =
       'Create your next reply, caption and shareable card.';
-  static const String appVersion = '1.0.0+1';
+  static const String appVersion = '1.0.2+3';
 
   static bool get isDev => kDebugMode;
 

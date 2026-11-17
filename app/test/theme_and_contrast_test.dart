@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:vibekit_ai/core/config/app_config.dart';
 import 'package:vibekit_ai/core/providers/app_providers.dart';
 import 'package:vibekit_ai/core/storage/preferences_service.dart';
 import 'package:vibekit_ai/core/theme/app_theme.dart';
@@ -176,7 +177,7 @@ void main() {
           ),
         );
 
-        expect(find.text('VIBEKIT AI'), findsOneWidget);
+        expect(find.text(AppConfig.appName.toUpperCase()), findsOneWidget);
         expect(find.text('Clever Replies in Seconds'), findsOneWidget);
         expect(find.text('Continue'), findsOneWidget);
 

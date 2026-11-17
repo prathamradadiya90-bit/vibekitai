@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
+import '../config/app_config.dart';
 
 class ShareService {
   ShareService._();
@@ -18,7 +19,7 @@ class ShareService {
   /// Appends viral referral footer to shared text.
   static String formatShareText(String text, {String? installationId}) {
     final link = buildReferralLink(installationId);
-    return '$text\n\n✨ Made with VibeKit AI — Get it on Google Play: $link';
+    return '$text\n\n✨ Made with ${AppConfig.appName} — Get it on Google Play: $link';
   }
 
   /// Copies text to system clipboard and shows a snackbar confirmation.
@@ -41,7 +42,7 @@ class ShareService {
     final body = installationId != null ? formatShareText(text, installationId: installationId) : text;
     await Share.share(
       body,
-      subject: subject ?? 'Created with VibeKit AI',
+      subject: subject ?? 'Created with ${AppConfig.appName}',
     );
   }
 

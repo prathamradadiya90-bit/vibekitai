@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/constants/app_colors.dart';
+import '../../core/config/app_config.dart';
 import '../../core/providers/app_providers.dart';
 
 class OnboardingScreen extends ConsumerStatefulWidget {
@@ -77,7 +78,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                         ),
                         const SizedBox(width: 6),
                         Text(
-                          'VIBEKIT AI',
+                          AppConfig.appName.toUpperCase(),
                           style: TextStyle(
                             color: context.textPrimary,
                             fontWeight: FontWeight.w800,
@@ -483,7 +484,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                             const Icon(Icons.coffee_rounded, color: AppColors.accentWarm, size: 12),
                             const SizedBox(width: 4),
                             Text(
-                              'VibeKit AI • $_selectedTone',
+                              '${AppConfig.appName} • $_selectedTone',
                               style: const TextStyle(
                                 color: AppColors.accentWarm,
                                 fontSize: 10,
@@ -695,7 +696,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                       ),
                       const SizedBox(height: 8),
                       const Text(
-                        '#ViralHooks #ContentStrategy #CreatorTips #VibeKitAI',
+                        '#ViralHooks #ContentStrategy #CreatorTips #ReplyVibeAI',
                         style: TextStyle(
                           color: AppColors.accentWarm,
                           fontSize: 11,

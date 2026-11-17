@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
@@ -19,6 +20,7 @@ class _AdaptiveBannerWidgetState extends ConsumerState<AdaptiveBannerWidget> {
   bool _isLoaded = false;
   bool _loadFailed = false;
   int _initCheckAttempts = 0;
+  Timer? _initCheckTimer;
 
   @override
   void initState() {
@@ -36,7 +38,7 @@ class _AdaptiveBannerWidgetState extends ConsumerState<AdaptiveBannerWidget> {
       // AdMob SDK may still be initializing asynchronously post-first-frame on cold start
       if (_initCheckAttempts < 10) {
         _initCheckAttempts++;
-        Future.delayed(const Duration(milliseconds: 500), () {
+        _initCheckTimer = Timer(const Duration(milliseconds: 500), () {
           if (mounted) _loadBanner();
         });
       }
@@ -68,6 +70,8 @@ class _AdaptiveBannerWidgetState extends ConsumerState<AdaptiveBannerWidget> {
 
   @override
   void dispose() {
+    _initCheckTimer?.cancel();
+    _initCheckTimer = null;
     _bannerAd?.dispose();
     _bannerAd = null;
     super.dispose();

@@ -24,6 +24,8 @@ class AdMobService {
   DateTime? _lastInterstitialShownAt;
   int _interstitialsShownToday = 0;
   String _todayDateStr = DateTime.now().toUtc().toIso8601String().substring(0, 10);
+  Timer? _rewardedRetryTimer;
+  Timer? _interstitialRetryTimer;
 
   // Pro status cache
   bool _isProUser = false;
@@ -127,7 +129,7 @@ class AdMobService {
           if (_rewardedRetryCount < _maxRetries) {
             _rewardedRetryCount++;
             final delaySec = math.pow(2, _rewardedRetryCount).toInt();
-            Timer(Duration(seconds: delaySec), () {
+            _rewardedRetryTimer = Timer(Duration(seconds: delaySec), () {
               if (!_isProUser) loadRewardedAd();
             });
           }
@@ -243,7 +245,7 @@ class AdMobService {
           if (_interstitialRetryCount < _maxRetries) {
             _interstitialRetryCount++;
             final delaySec = math.pow(2, _interstitialRetryCount).toInt();
-            Timer(Duration(seconds: delaySec), () {
+            _interstitialRetryTimer = Timer(Duration(seconds: delaySec), () {
               if (!_isProUser) loadInterstitialAd();
             });
           }
@@ -344,6 +346,10 @@ class AdMobService {
   }
 
   void dispose() {
+    _rewardedRetryTimer?.cancel();
+    _rewardedRetryTimer = null;
+    _interstitialRetryTimer?.cancel();
+    _interstitialRetryTimer = null;
     _rewardedAd?.dispose();
     _rewardedAd = null;
     _interstitialAd?.dispose();
