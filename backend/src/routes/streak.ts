@@ -33,7 +33,9 @@ function getDayDiff(date1Str: string, date2Str: string): number {
 }
 
 // 1. GET /v1/streak - Fetch current streak, XP, level, and milestones
-streakRoute.get('/streak', async (c) => {
+streakRoute.get('/streak', handleGetStreak);
+streakRoute.get('/streaks', handleGetStreak);
+async function handleGetStreak(c: any) {
   const installationId = c.req.header('X-App-Instance-Id') || 'anonymous_default';
   const offsetHeader = c.req.header('X-Timezone-Offset');
   const offsetMinutes = offsetHeader ? parseInt(offsetHeader, 10) : 0;
@@ -84,10 +86,12 @@ streakRoute.get('/streak', async (c) => {
     level,
     claimed_milestones: claimedMilestones,
   });
-});
+}
 
 // 2. POST /v1/streak/checkin - Record daily action, update streak and award XP
-streakRoute.post('/streak/checkin', async (c) => {
+streakRoute.post('/streak/checkin', handleCheckin);
+streakRoute.post('/streaks/checkin', handleCheckin);
+async function handleCheckin(c: any) {
   const installationId = c.req.header('X-App-Instance-Id') || 'anonymous_default';
   const bodyResult = StreakCheckinSchema.safeParse(await c.req.json().catch(() => ({})));
 
@@ -182,7 +186,7 @@ streakRoute.post('/streak/checkin', async (c) => {
     xp_awarded: effectiveXp,
     streak_preserved_by_freeze: freezeUsed,
   });
-});
+}
 
 // 3. POST /v1/streak/claim-milestone - Claim milestone rewards
 streakRoute.post('/streak/claim-milestone', async (c) => {
