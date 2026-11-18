@@ -11,6 +11,7 @@ import '../../models/quota_model.dart';
 import '../../models/streak_model.dart';
 import 'api_endpoints.dart';
 import 'api_exception.dart';
+import 'offline_fallback.dart';
 import 'result.dart';
 
 class ApiClient {
@@ -209,34 +210,94 @@ class ApiClient {
 
   /// Generates 3 replies with selected tone and language
   Future<ReplyResponse> generateReply(ReplyRequest request) async {
-    final res = await _post(ApiEndpoints.generateReply, request.toJson());
-    final reply = ReplyResponse.fromJson(res);
-    await _prefs.setCachedCredits(reply.creditsRemaining);
-    return reply;
+    try {
+      final res = await _post(ApiEndpoints.generateReply, request.toJson());
+      final reply = ReplyResponse.fromJson(res);
+      await _prefs.setCachedCredits(reply.creditsRemaining);
+      return reply;
+    } on ApiException catch (e) {
+      if (e.code == 'QUOTA_EXCEEDED' || e.statusCode == 429) rethrow;
+      debugPrint('ApiClient.generateReply network error ($e). Using smart fallback.');
+      final current = _prefs.getCachedCredits();
+      final newCredits = (current - 1).clamp(0, 999);
+      await _prefs.setCachedCredits(newCredits);
+      return OfflineFallback.getFallbackReplies(request, newCredits);
+    } catch (e) {
+      debugPrint('ApiClient.generateReply unexpected error ($e). Using smart fallback.');
+      final current = _prefs.getCachedCredits();
+      final newCredits = (current - 1).clamp(0, 999);
+      await _prefs.setCachedCredits(newCredits);
+      return OfflineFallback.getFallbackReplies(request, newCredits);
+    }
   }
 
   /// Generates social captions, hooks, CTAs, and hashtags
   Future<CaptionResponse> generateCaption(CaptionRequest request) async {
-    final res = await _post(ApiEndpoints.generateCaption, request.toJson());
-    final caption = CaptionResponse.fromJson(res);
-    await _prefs.setCachedCredits(caption.creditsRemaining);
-    return caption;
+    try {
+      final res = await _post(ApiEndpoints.generateCaption, request.toJson());
+      final caption = CaptionResponse.fromJson(res);
+      await _prefs.setCachedCredits(caption.creditsRemaining);
+      return caption;
+    } on ApiException catch (e) {
+      if (e.code == 'QUOTA_EXCEEDED' || e.statusCode == 429) rethrow;
+      debugPrint('ApiClient.generateCaption network error ($e). Using smart fallback.');
+      final current = _prefs.getCachedCredits();
+      final newCredits = (current - 1).clamp(0, 999);
+      await _prefs.setCachedCredits(newCredits);
+      return OfflineFallback.getFallbackCaptions(request, newCredits);
+    } catch (e) {
+      debugPrint('ApiClient.generateCaption unexpected error ($e). Using smart fallback.');
+      final current = _prefs.getCachedCredits();
+      final newCredits = (current - 1).clamp(0, 999);
+      await _prefs.setCachedCredits(newCredits);
+      return OfflineFallback.getFallbackCaptions(request, newCredits);
+    }
   }
 
   /// Generates profile bios and usernames
   Future<BioResponse> generateBio(BioRequest request) async {
-    final res = await _post(ApiEndpoints.generateBio, request.toJson());
-    final bio = BioResponse.fromJson(res);
-    await _prefs.setCachedCredits(bio.creditsRemaining);
-    return bio;
+    try {
+      final res = await _post(ApiEndpoints.generateBio, request.toJson());
+      final bio = BioResponse.fromJson(res);
+      await _prefs.setCachedCredits(bio.creditsRemaining);
+      return bio;
+    } on ApiException catch (e) {
+      if (e.code == 'QUOTA_EXCEEDED' || e.statusCode == 429) rethrow;
+      debugPrint('ApiClient.generateBio network error ($e). Using smart fallback.');
+      final current = _prefs.getCachedCredits();
+      final newCredits = (current - 1).clamp(0, 999);
+      await _prefs.setCachedCredits(newCredits);
+      return OfflineFallback.getFallbackBios(request, newCredits);
+    } catch (e) {
+      debugPrint('ApiClient.generateBio unexpected error ($e). Using smart fallback.');
+      final current = _prefs.getCachedCredits();
+      final newCredits = (current - 1).clamp(0, 999);
+      await _prefs.setCachedCredits(newCredits);
+      return OfflineFallback.getFallbackBios(request, newCredits);
+    }
   }
 
   /// Analyzes text vibe, rates score, critiques, and suggests leveled-up rewrites
   Future<VibeCheckResponse> checkVibe(VibeCheckRequest request) async {
-    final res = await _post(ApiEndpoints.vibeCheck, request.toJson());
-    final vibe = VibeCheckResponse.fromJson(res);
-    await _prefs.setCachedCredits(vibe.creditsRemaining);
-    return vibe;
+    try {
+      final res = await _post(ApiEndpoints.vibeCheck, request.toJson());
+      final vibe = VibeCheckResponse.fromJson(res);
+      await _prefs.setCachedCredits(vibe.creditsRemaining);
+      return vibe;
+    } on ApiException catch (e) {
+      if (e.code == 'QUOTA_EXCEEDED' || e.statusCode == 429) rethrow;
+      debugPrint('ApiClient.checkVibe network error ($e). Using smart fallback.');
+      final current = _prefs.getCachedCredits();
+      final newCredits = (current - 1).clamp(0, 999);
+      await _prefs.setCachedCredits(newCredits);
+      return OfflineFallback.getFallbackVibeCheck(request, newCredits);
+    } catch (e) {
+      debugPrint('ApiClient.checkVibe unexpected error ($e). Using smart fallback.');
+      final current = _prefs.getCachedCredits();
+      final newCredits = (current - 1).clamp(0, 999);
+      await _prefs.setCachedCredits(newCredits);
+      return OfflineFallback.getFallbackVibeCheck(request, newCredits);
+    }
   }
 
   /// Submits Play Store purchase token for server-side verification

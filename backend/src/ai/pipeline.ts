@@ -31,7 +31,7 @@ export async function runGeneration<TInput, TOutput>(
   // 1. Idempotency Key Check (24-hour request deduplication)
   const idempotencyKey = c.req.header('Idempotency-Key')?.trim() || c.req.header('X-Idempotency-Key')?.trim();
   let idempotencyRepo: IdempotencyRepository | undefined;
-  if (idempotencyKey && c.env.DB) {
+  if (idempotencyKey && c.env?.DB) {
     idempotencyRepo = new IdempotencyRepository(c.env.DB);
     const cachedResponse = await idempotencyRepo.getValidResponse(idempotencyKey, installation.id, c.req.path);
     if (cachedResponse) {
@@ -40,7 +40,7 @@ export async function runGeneration<TInput, TOutput>(
   }
 
   // 2. Global AI Daily Budget Circuit Breaker Check
-  const circuitBreaker = new AICircuitBreaker(c.env.DB);
+  const circuitBreaker = new AICircuitBreaker(c.env?.DB);
   await circuitBreaker.checkBudgetGuard(0.001);
 
   // 3. Validate Input Payload with Zod
@@ -64,7 +64,7 @@ export async function runGeneration<TInput, TOutput>(
   const language = config.getCacheLanguage ? config.getCacheLanguage(input) : undefined;
 
   // 5. Daily Challenge Cache Check (if challenge request)
-  if (challengeId && tone && language && c.env.DB) {
+  if (challengeId && tone && language && c.env?.DB) {
     const cached = await getCachedChallengeResponse<TOutput>(
       c.env.DB,
       challengeId,
@@ -127,7 +127,7 @@ export async function runGeneration<TInput, TOutput>(
   } catch (err: unknown) {
     const errMessage = err instanceof Error ? err.message : 'AI generation error';
     // Record failure in audit metadata
-    const genRepo = new GenerationsRepository(c.env.DB);
+    const genRepo = new GenerationsRepository(c.env?.DB);
     await genRepo.insertMetadata({
       id: `gen_${Date.now()}_${Math.random().toString(36).substring(7)}`,
       requestId,
@@ -150,7 +150,7 @@ export async function runGeneration<TInput, TOutput>(
   const latencyMs = Date.now() - startTime;
 
   // 7. Cache challenge response if applicable
-  if (challengeId && tone && language && c.env.DB) {
+  if (challengeId && tone && language && c.env?.DB) {
     await setCachedChallengeResponse(
       c.env.DB,
       challengeId,
@@ -162,7 +162,7 @@ export async function runGeneration<TInput, TOutput>(
   }
 
   // 8. Write Audit Metadata (Never stores prompt content or generated text)
-  const genRepo = new GenerationsRepository(c.env.DB);
+  const genRepo = new GenerationsRepository(c.env?.DB);
   await genRepo.insertMetadata({
     id: `gen_${Date.now()}_${Math.random().toString(36).substring(7)}`,
     requestId,

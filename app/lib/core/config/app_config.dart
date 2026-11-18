@@ -9,22 +9,15 @@ class AppConfig {
   static const String appName = 'ReplyVibe AI';
   static const String appTagline =
       'Create your next reply, caption and shareable card.';
-  static const String appVersion = '1.0.2+3';
+  static const String appVersion = '1.0.3+4';
 
   static bool get isDev => kDebugMode;
 
-  // Backend API URL
-  // Automatically points to 127.0.0.1 on Web/Desktop, or 10.0.2.2 on Android emulator
+  // Production Backend API URL deployed on Vercel Edge
   static String get defaultApiUrl {
     const fromEnv = String.fromEnvironment('API_URL');
     if (fromEnv.isNotEmpty) return fromEnv;
-    if (kIsWeb ||
-        defaultTargetPlatform == TargetPlatform.windows ||
-        defaultTargetPlatform == TargetPlatform.linux ||
-        defaultTargetPlatform == TargetPlatform.macOS) {
-      return 'http://127.0.0.1:8787';
-    }
-    return 'http://10.0.2.2:8787';
+    return 'https://replyvibe-api.vercel.app';
   }
 
   // Play Billing Product IDs

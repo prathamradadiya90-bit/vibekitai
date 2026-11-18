@@ -62,4 +62,8 @@ old_releases/
 **/.dev.vars
 .playwright-mcp/
 
+# Vercel deployment
+.vercel/
+**/backend/vercel.json
+
 deploy_privacy/

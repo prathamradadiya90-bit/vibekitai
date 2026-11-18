@@ -45,7 +45,7 @@ configRoute.get('/config', async (c) => {
   };
 
   try {
-    const remoteRepo = new RemoteConfigRepository(c.env.DB);
+    const remoteRepo = new RemoteConfigRepository(c.env?.DB);
     const dynamicOverrides = await remoteRepo.getLatestConfig<Record<string, any>>('app_remote_config');
     if (dynamicOverrides?.value) {
       return c.json({

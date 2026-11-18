@@ -1,5 +1,7 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
+
+declare const process: any;
 import { AppHonoEnv } from './types';
 import { installationMiddleware } from './middleware/installation';
 import { structuredLoggerMiddleware } from './middleware/logger';
@@ -23,6 +25,16 @@ import { getWebDemoHtml } from './web/demo_ui';
 import { handleScheduledTask } from './cron/nightly_stats';
 
 const app = new Hono<AppHonoEnv>();
+
+// Hydrate c.env from process.env on Vercel / Node runtimes
+app.use('*', async (c, next) => {
+  const pEnv = typeof process !== 'undefined' && process.env ? process.env : {};
+  c.env = {
+    ...pEnv,
+    ...(c.env || {}),
+  } as any;
+  await next();
+});
 
 // 1. Strict Security Headers Middleware (OWASP ASVS Level 2)
 app.use('*', async (c, next) => {

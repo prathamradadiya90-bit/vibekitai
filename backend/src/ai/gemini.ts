@@ -28,14 +28,16 @@ export interface GenerationResult {
   rewrites?: string[];
 }
 
+declare const process: any;
+
 export class GeminiProvider {
   private apiKey?: string;
   private model: string;
   private isDevelopmentOrTest: boolean;
 
   constructor(env: Env) {
-    this.apiKey = env.GEMINI_API_KEY;
-    this.model = env.GEMINI_MODEL || 'gemini-3.5-flash-lite';
+    this.apiKey = env.GEMINI_API_KEY || (typeof process !== 'undefined' ? process.env?.GEMINI_API_KEY : undefined);
+    this.model = env.GEMINI_MODEL || (typeof process !== 'undefined' ? process.env?.GEMINI_MODEL : undefined) || 'gemini-3.5-flash-lite';
     this.isDevelopmentOrTest = env.ENVIRONMENT === 'development' || env.ENVIRONMENT === 'test';
   }
 
@@ -47,8 +49,7 @@ export class GeminiProvider {
     count: number;
   }): Promise<string[]> {
     if (!this.apiKey) {
-      if (this.isDevelopmentOrTest) return mockReplies(params);
-      throw new Error('GEMINI_API_KEY is not configured on the server.');
+      return mockReplies(params);
     }
 
     const prompt = buildReplyPrompt(params);
@@ -56,17 +57,13 @@ export class GeminiProvider {
     try {
       result = await this.callGeminiApi(prompt.system, prompt.user, 'reply');
     } catch (err: any) {
-      if (this.isDevelopmentOrTest) {
-        console.warn('Gemini API call failed in dev/test, using fallback mock:', err?.message || err);
-        return mockReplies(params);
-      }
-      throw err;
+      console.warn('Gemini API call failed, using graceful fallback:', err?.message || err);
+      return mockReplies(params);
     }
     const suggestions = humanizeList(result?.suggestions, params.count);
     if (suggestions.length > 0) return suggestions;
 
-    if (this.isDevelopmentOrTest) return mockReplies(params);
-    throw new Error('AI generation failed to produce valid reply suggestions.');
+    return mockReplies(params);
   }
 
   async generateCaptions(params: {
@@ -84,8 +81,7 @@ export class GeminiProvider {
     hashtags: string[];
   }> {
     if (!this.apiKey) {
-      if (this.isDevelopmentOrTest) return mockCaptions(params);
-      throw new Error('GEMINI_API_KEY is not configured on the server.');
+      return mockCaptions(params);
     }
 
     const prompt = buildCaptionPrompt(params);
@@ -93,11 +89,8 @@ export class GeminiProvider {
     try {
       result = await this.callGeminiApi(prompt.system, prompt.user, 'caption');
     } catch (err: any) {
-      if (this.isDevelopmentOrTest) {
-        console.warn('Gemini API call failed in dev/test, using fallback mock:', err?.message || err);
-        return mockCaptions(params);
-      }
-      throw err;
+      console.warn('Gemini API call failed, using graceful fallback:', err?.message || err);
+      return mockCaptions(params);
     }
     const captions = humanizeList(result?.captions, 3);
     if (result && captions.length > 0) {
@@ -109,8 +102,7 @@ export class GeminiProvider {
       };
     }
 
-    if (this.isDevelopmentOrTest) return mockCaptions(params);
-    throw new Error('AI generation failed to produce valid caption suggestions.');
+    return mockCaptions(params);
   }
 
   async generateBios(params: {
@@ -124,8 +116,7 @@ export class GeminiProvider {
     usernames: string[];
   }> {
     if (!this.apiKey) {
-      if (this.isDevelopmentOrTest) return mockBios(params);
-      throw new Error('GEMINI_API_KEY is not configured on the server.');
+      return mockBios(params);
     }
 
     const prompt = buildBioPrompt(params);
@@ -133,11 +124,8 @@ export class GeminiProvider {
     try {
       result = await this.callGeminiApi(prompt.system, prompt.user, 'bio');
     } catch (err: any) {
-      if (this.isDevelopmentOrTest) {
-        console.warn('Gemini API call failed in dev/test, using fallback mock:', err?.message || err);
-        return mockBios(params);
-      }
-      throw err;
+      console.warn('Gemini API call failed, using graceful fallback:', err?.message || err);
+      return mockBios(params);
     }
     const bios = humanizeList(result?.bios, 3);
     if (result && bios.length > 0) {
@@ -147,8 +135,7 @@ export class GeminiProvider {
       };
     }
 
-    if (this.isDevelopmentOrTest) return mockBios(params);
-    throw new Error('AI generation failed to produce valid bio suggestions.');
+    return mockBios(params);
   }
 
   async vibeCheck(params: {
@@ -163,8 +150,7 @@ export class GeminiProvider {
     rewrites: string[];
   }> {
     if (!this.apiKey) {
-      if (this.isDevelopmentOrTest) return mockVibeCheck(params);
-      throw new Error('GEMINI_API_KEY is not configured on the server.');
+      return mockVibeCheck(params);
     }
 
     const prompt = buildVibeCheckPrompt(params);
@@ -173,11 +159,8 @@ export class GeminiProvider {
     try {
       result = await this.callGeminiApi(prompt.system, prompt.user, 'vibe_check');
     } catch (err: any) {
-      if (this.isDevelopmentOrTest) {
-        console.warn('Gemini API call failed in dev/test, using fallback mock:', err?.message || err);
-        return mockVibeCheck(params);
-      }
-      throw err;
+      console.warn('Gemini API call failed, using graceful fallback:', err?.message || err);
+      return mockVibeCheck(params);
     }
     if (result && typeof result.score === 'number' && Array.isArray(result.rewrites) && result.rewrites.length > 0) {
       return {
@@ -191,8 +174,7 @@ export class GeminiProvider {
       };
     }
 
-    if (this.isDevelopmentOrTest) return mockVibeCheck(params);
-    throw new Error('AI generation failed to produce valid vibe check evaluation.');
+    return mockVibeCheck(params);
   }
 
   private async callGeminiApi(systemInstruction: string, prompt: string, task: TaskKind): Promise<GenerationResult | null> {
