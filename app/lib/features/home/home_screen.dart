@@ -377,18 +377,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                 ),
                               ),
                             ),
-                            const SizedBox(width: 4),
-                            IconButton(
-                              padding: EdgeInsets.zero,
-                              constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-                              onPressed: () => context.push('/history'),
-                              icon: Icon(
-                                Icons.bookmark_border_rounded,
-                                size: 20,
-                                color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
-                              ),
-                              tooltip: 'Favorites & History',
-                            ),
                           ],
                         ),
                       ),
