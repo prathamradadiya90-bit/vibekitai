@@ -119,25 +119,24 @@ class OfflineFallback {
     final topic = request.topic.trim();
     return CaptionResponse(
       captions: [
-        "Chasing moments, not things. ✨ When $topic hits just right.",
-        "Some days you just have to pause and soak it all in. 🌅 #LivingInTheMoment",
-        "If you were waiting for a sign, this is it. Never forget why you started. 🔥",
+        "Not the most productive morning, but definitely the most honest one. $topic",
+        "Saving this one so future me remembers how good today felt.",
+        "The plan was completely different, but honestly this turned out so much better.",
       ],
       hooks: [
-        "Stop scrolling for 3 seconds.",
-        "The best part nobody told you about this...",
+        "The one thing nobody warned me about...",
+        "I changed one tiny routine and it made all the difference.",
       ],
       callToActions: [
-        "Drop a ❤️ if you agree!",
-        "Tag someone who needs this today.",
+        "What would you have done here?",
+        "Send this to someone who needs this today.",
       ],
       hashtags: [
-        "#VibeCheck",
-        "#InstaDaily",
-        "#Mood",
-        "#Trending",
-        "#ExplorePage",
-        "#PhotoOfTheDay",
+        "#DailyLife",
+        "#SmallWins",
+        "#RealMoments",
+        "#CreatorLife",
+        "#Aesthetic",
       ],
       creditsRemaining: remainingCredits,
     );
@@ -150,16 +149,16 @@ class OfflineFallback {
     final interests = request.interests.trim();
     return BioResponse(
       bios: [
-        "✨ $interests enthusiast | Creating my own sunshine ☀️ | Always down for a good chat ☕",
-        "📍 Living in real time | $interests | Building things that matter 🚀",
-        "Just a human trying to navigate life with $interests and good playlists 🎧✨",
+        "$interests • chasing golden hour light and overthinking playlists.",
+        "Part-time $interests nerd, full-time aesthetic curator.",
+        "Building things that matter, living simply, and finding good coffee.",
       ],
       usernames: [
-        "@vibe_${interests.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '_').toLowerCase()}",
-        "@the_real_${request.vibe.toLowerCase()}",
-        "@daily_${request.platform.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '').toLowerCase()}_spark",
-        "@crafted_vibes",
-        "@neon_aesthetic",
+        "@${interests.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '_').toLowerCase().trim()}_daily",
+        "@the_${request.vibe.toLowerCase()}_cut",
+        "@not_just_${interests.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '').toLowerCase()}",
+        "@minimal_${request.platform.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '').toLowerCase()}",
+        "@curated_${request.vibe.toLowerCase()}",
       ],
       creditsRemaining: remainingCredits,
     );
@@ -170,15 +169,15 @@ class OfflineFallback {
     int remainingCredits,
   ) {
     return VibeCheckResponse(
-      score: 78,
-      title: "Strong Energy & Intent",
+      score: 84,
+      title: "Clear & Confident",
       verdict:
-          "Your message has clear direction and confidence. Adding a touch of personal flair or a specific call-to-action will boost the response rate significantly.",
-      tags: ["#Confident", "#ClearIntent", "#HighEngagement"],
+          "Solid baseline energy with direct intent. Trimming unnecessary hesitation makes this land with effortless main-character confidence.",
+      tags: ["#Direct", "#LowPressure", "#Natural"],
       rewrites: [
-        "Hey! Quick question: what does your schedule look like this week?",
-        "Loved your perspective on that! Let's grab coffee and talk through it.",
-        "Thinking of you! Hope your week is off to an amazing start.",
+        "Hey, what does your schedule look like for coffee this Thursday?",
+        "Free this week or should I book an appointment with your secretary?",
+        "Let's catch up soon. Let me know when you have a free evening.",
       ],
       creditsRemaining: remainingCredits,
     );
