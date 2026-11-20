@@ -432,7 +432,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                     ),
                                     const SizedBox(width: 5),
                                     Text(
-                                      'DAILY SPARK',
+                                      'VIRAL DILEMMA',
                                       style: TextStyle(
                                         fontSize: 10,
                                         fontWeight: FontWeight.w800,
@@ -469,7 +469,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                       ),
                                       const SizedBox(width: 4),
                                       Text(
-                                        'Shuffle',
+                                        'Next Scenario',
                                         style: TextStyle(
                                           fontSize: 11,
                                           fontWeight: FontWeight.w600,
@@ -484,7 +484,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           ),
                           const SizedBox(height: 14),
 
-                          // Animated Headline & Subtitle
+                          // Animated Scenario Content
                           AnimatedSwitcher(
                             duration: const Duration(milliseconds: 250),
                             transitionBuilder: (child, animation) => FadeTransition(
@@ -501,6 +501,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                               key: ValueKey<int>(_sparkIndex),
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
+                                // Title / Question
                                 Text(
                                   currentSpark['title']!,
                                   style: GoogleFonts.outfit(
@@ -511,21 +512,78 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                     color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                                   ),
                                 ),
-                                const SizedBox(height: 6),
+                                const SizedBox(height: 10),
+
+                                // Real Message Preview Bubble (Eliminates user confusion)
+                                Container(
+                                  width: double.infinity,
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                                  decoration: BoxDecoration(
+                                    color: isDark ? const Color(0xFF1B110A) : const Color(0xFFFBF6EF),
+                                    borderRadius: BorderRadius.circular(14),
+                                    border: Border.all(
+                                      color: isDark ? AppColors.borderDark : const Color(0xFFE5DDD0),
+                                      width: 1,
+                                    ),
+                                  ),
+                                  child: Row(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      const Text('💬', style: TextStyle(fontSize: 14)),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              'INCOMING MESSAGE',
+                                              style: TextStyle(
+                                                fontSize: 9.5,
+                                                fontWeight: FontWeight.w700,
+                                                letterSpacing: 0.6,
+                                                color: isDark
+                                                    ? AppColors.textSecondaryDark
+                                                    : AppColors.textSecondaryLight,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 3),
+                                            Text(
+                                              '"${currentSpark['prompt']!}"',
+                                              maxLines: 2,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: GoogleFonts.plusJakartaSans(
+                                                fontSize: 12.5,
+                                                fontWeight: FontWeight.w600,
+                                                fontStyle: FontStyle.italic,
+                                                color: isDark
+                                                    ? const Color(0xFFFFD199)
+                                                    : const Color(0xFF4A2A14),
+                                                height: 1.35,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(height: 10),
+
+                                // Subtitle
                                 Text(
                                   currentSpark['subtitle']!,
                                   style: TextStyle(
                                     fontSize: 13,
-                                    height: 1.45,
+                                    height: 1.4,
                                     color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
                                   ),
                                 ),
                               ],
                             ),
                           ),
-                          const SizedBox(height: 18),
+                          const SizedBox(height: 16),
 
-                          // Clean Primary CTA Button
+                          // Single, Clear Primary CTA Button (Zero Conflicting Links)
                           InkWell(
                             onTap: () {
                               HapticFeedback.mediumImpact();
@@ -566,7 +624,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                   ),
                                   const SizedBox(width: 6),
                                   Text(
-                                    currentSpark['buttonText']!,
+                                    '${currentSpark['buttonText']!} →',
                                     style: const TextStyle(
                                       color: Colors.white,
                                       fontSize: 14,
@@ -578,29 +636,28 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                               ),
                             ),
                           ),
-                          const SizedBox(height: 10),
+                          const SizedBox(height: 8),
 
-                          // Discreet secondary option (Clear & subtle)
+                          // Clear reassurance note
                           Center(
-                            child: InkWell(
-                              onTap: () {
-                                HapticFeedback.lightImpact();
-                                context.push(
-                                  '/studio?tab=vibe_check&prompt=${Uri.encodeComponent(currentSpark['prompt']!)}&option=roast',
-                                );
-                              },
-                              borderRadius: BorderRadius.circular(8),
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                child: Text(
-                                  'or Roast & Vibe Check this dilemma →',
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.touch_app_outlined,
+                                  size: 12,
+                                  color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  'Pre-loads in Studio with 1-tap AI answer',
                                   style: TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w600,
-                                    color: isDark ? AppColors.accentWarm : AppColors.primary,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w500,
+                                    color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
                                   ),
                                 ),
-                              ),
+                              ],
                             ),
                           ),
                         ],
