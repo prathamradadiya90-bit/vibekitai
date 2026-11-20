@@ -535,8 +535,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                             const SizedBox(height: 3),
                             Text(
                               quota.isPro
-                                  ? 'Unlimited generations • Watermark-free'
-                                  : '${quota.totalCreditsRemaining} credits left today • Resets midnight',
+                                  ? 'Unlimited creations • Watermark-free'
+                                  : 'Standard Member • Free Tier',
                               style: TextStyle(
                                 fontSize: 12,
                                 color: quota.isPro ? Colors.white70 : mutedTextCol,
