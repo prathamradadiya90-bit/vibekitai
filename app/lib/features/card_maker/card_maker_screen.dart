@@ -1,9 +1,11 @@
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:uuid/uuid.dart';
 import '../../core/constants/app_colors.dart';
+import '../../core/constants/app_spacing.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/services/card_export_service.dart';
 import '../../core/services/share_service.dart';
@@ -29,30 +31,92 @@ class _CardMakerScreenState extends ConsumerState<CardMakerScreen> {
   final TextEditingController _authorController = TextEditingController();
 
   CardTemplate _selectedTemplate = CardTemplates.all.first;
-  double _aspectRatio = 1.0; // 1:1 Square
+  CardStyle _selectedStyle = CardStyle.quote;
+  CardFontFamily _selectedFont = CardFontFamily.modernSans;
+  double _aspectRatio = 1.0; // 1:1 Square default
   TextAlign _textAlign = TextAlign.center;
   double _fontSize = 20.0;
   bool _isExporting = false;
+  int _activeEditorTab = 0; // 0: Content, 1: Style & Templates, 2: Typography & Ratio
 
   final List<Map<String, dynamic>> _aspectRatios = [
-    {'name': '1:1 Square', 'ratio': 1.0, 'icon': Icons.crop_square_rounded},
     {
-      'name': '9:16 Story',
-      'ratio': 9 / 16,
-      'icon': Icons.stay_current_portrait_rounded
+      'name': '1:1',
+      'label': 'Square',
+      'ratio': 1.0,
+      'icon': Icons.crop_square_rounded,
     },
     {
-      'name': '4:5 Portrait',
+      'name': '9:16',
+      'label': 'Story / Reel',
+      'ratio': 9 / 16,
+      'icon': Icons.stay_current_portrait_rounded,
+    },
+    {
+      'name': '4:5',
+      'label': 'Portrait Feed',
       'ratio': 4 / 5,
-      'icon': Icons.crop_portrait_rounded
+      'icon': Icons.crop_portrait_rounded,
+    },
+    {
+      'name': '16:9',
+      'label': 'Landscape',
+      'ratio': 16 / 9,
+      'icon': Icons.crop_16_9_rounded,
+    },
+  ];
+
+  static const List<Map<String, String>> _viralIdeaPrompts = [
+    {
+      'category': 'Dating',
+      'quote': 'Texted first, immediately put phone in refrigerator.',
+      'author': 'unbothered',
+    },
+    {
+      'category': 'Dating',
+      'quote': 'My love language is matching my energy without asking.',
+      'author': 'rizz_god',
+    },
+    {
+      'category': 'Relatable',
+      'quote': 'My day is 10% productivity and 90% contemplating life choices.',
+      'author': 'vibekit',
+    },
+    {
+      'category': 'Relatable',
+      'quote': 'Holding it all together with iced coffee and sheer willpower.',
+      'author': 'aesthetic',
+    },
+    {
+      'category': 'Meme',
+      'quote': 'I’m not arguing, I’m just passionately explaining why I’m right.',
+      'author': 'savage_quotes',
+    },
+    {
+      'category': 'Meme',
+      'quote': 'My wallet is like an onion. When I open it, it makes me cry.',
+      'author': 'daily_banter',
+    },
+    {
+      'category': 'Grind',
+      'quote': 'Quiet ambition. Let the results make all the noise.',
+      'author': 'visionary',
+    },
+    {
+      'category': 'Grind',
+      'quote': 'In a world of fast trends, build something that lasts forever.',
+      'author': 'founder_vibe',
     },
   ];
 
   @override
   void initState() {
     super.initState();
-    if (widget.initialText != null) {
+    if (widget.initialText != null && widget.initialText!.isNotEmpty) {
       _textController.text = widget.initialText!;
+    } else {
+      _textController.text = 'Late night coffee & big dreams.';
+      _authorController.text = 'vibekit';
     }
   }
 
@@ -61,6 +125,48 @@ class _CardMakerScreenState extends ConsumerState<CardMakerScreen> {
     _textController.dispose();
     _authorController.dispose();
     super.dispose();
+  }
+
+  void _shuffleInspiration() {
+    HapticFeedback.lightImpact();
+    final random = Random();
+    final prompt = _viralIdeaPrompts[random.nextInt(_viralIdeaPrompts.length)];
+    final availableTemplates = CardTemplates.all;
+    final template = availableTemplates[random.nextInt(availableTemplates.length)];
+    final styles = CardStyle.values;
+    final style = styles[random.nextInt(styles.length)];
+
+    setState(() {
+      _textController.text = prompt['quote']!;
+      _authorController.text = prompt['author']!;
+      _selectedTemplate = template;
+      _selectedStyle = style;
+      _textAlign = style == CardStyle.socialPost ? TextAlign.left : TextAlign.center;
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('✨ Shuffled: ${prompt['category']} style loaded!'),
+        duration: const Duration(seconds: 1),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  Future<void> _copyTextToClipboard() async {
+    final text = _textController.text.trim();
+    if (text.isEmpty) return;
+    HapticFeedback.selectionClick();
+    await Clipboard.setData(ClipboardData(text: text));
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Copied card text to clipboard!'),
+          behavior: SnackBarBehavior.floating,
+          duration: Duration(seconds: 1),
+        ),
+      );
+    }
   }
 
   Future<void> _exportAndShare() async {
@@ -75,7 +181,6 @@ class _CardMakerScreenState extends ConsumerState<CardMakerScreen> {
     setState(() => _isExporting = true);
 
     try {
-      // Single rasterization pass for performance and reduced memory overhead
       final pngBytes = await CardExportService.captureCardBytes(_repaintKey);
       final filePath = pngBytes != null
           ? await CardExportService.saveCardBytes(pngBytes, persistent: true)
@@ -85,7 +190,6 @@ class _CardMakerScreenState extends ConsumerState<CardMakerScreen> {
 
       if (filePath != null || pngBytes != null) {
         HapticFeedback.mediumImpact();
-        // Save to local database
         final db = ref.read(localDatabaseProvider);
         await db.insertItem(
           HistoryItem(
@@ -107,13 +211,11 @@ class _CardMakerScreenState extends ConsumerState<CardMakerScreen> {
         );
         AnalyticsService.instance.logShareCard();
 
-        // Increment cards exported count & verify achievements
         await ref.read(preferencesServiceProvider).incrementCardsExported();
         if (mounted) {
           await ref.read(achievementServiceProvider).checkAndUnlockAchievements(context: context);
         }
 
-        // Natural transition: Display interstitial ad if eligible (frequency-capped, suppressed for Pro)
         ref.read(adMobServiceProvider).showInterstitialAd();
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -129,7 +231,7 @@ class _CardMakerScreenState extends ConsumerState<CardMakerScreen> {
     }
   }
 
-  Future<void> _saveToHistoryOnly() async {
+  Future<void> _saveToFavorites() async {
     final text = _textController.text.trim();
     if (text.isEmpty) return;
 
@@ -152,7 +254,7 @@ class _CardMakerScreenState extends ConsumerState<CardMakerScreen> {
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Card saved to Favorites!'),
+          content: Text('Card saved to Favorites & History!'),
           backgroundColor: AppColors.success,
           behavior: SnackBarBehavior.floating,
         ),
@@ -167,372 +269,747 @@ class _CardMakerScreenState extends ConsumerState<CardMakerScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
+      backgroundColor: context.scaffoldBg,
       appBar: AppBar(
-        title: const Text('Meme & Card Maker'),
+        title: const Text('Meme & Card Studio'),
+        centerTitle: true,
         actions: [
+          IconButton(
+            icon: const Icon(Icons.shuffle_rounded),
+            tooltip: 'Surprise Me (Shuffle)',
+            onPressed: _shuffleInspiration,
+          ),
+          IconButton(
+            icon: const Icon(Icons.copy_rounded),
+            tooltip: 'Copy Text',
+            onPressed: _copyTextToClipboard,
+          ),
           IconButton(
             icon: const Icon(Icons.bookmark_add_outlined),
             tooltip: 'Save to Favorites',
-            onPressed: _saveToHistoryOnly,
+            onPressed: _saveToFavorites,
           ),
         ],
       ),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+          physics: const BouncingScrollPhysics(),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Live Interactive Canvas Preview
+              // 1. Live Interactive Canvas Area (Responsive, scalable preview)
               Container(
-                constraints: const BoxConstraints(maxHeight: 380),
+                constraints: const BoxConstraints(maxHeight: 340),
+                margin: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: isDark ? AppColors.surfaceElevatedDark.withOpacity(0.4) : const Color(0xFFF5EFE6),
+                  color: isDark ? AppColors.surfaceElevatedDark.withValues(alpha: 0.35) : const Color(0xFFF3EDE2),
                   borderRadius: BorderRadius.circular(24),
-                  border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
+                  border: Border.all(
+                    color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                    width: 1.2,
+                  ),
                 ),
-                padding: const EdgeInsets.all(16),
-                child: CardCanvas(
-                  repaintKey: _repaintKey,
-                  text: _textController.text,
-                  author: _authorController.text,
-                  template: _selectedTemplate,
-                  aspectRatio: _aspectRatio,
-                  textAlign: _textAlign,
-                  fontSize: _fontSize,
-                  showWatermark: showWatermark,
+                child: Center(
+                  child: CardCanvas(
+                    repaintKey: _repaintKey,
+                    text: _textController.text,
+                    author: _authorController.text,
+                    template: _selectedTemplate,
+                    aspectRatio: _aspectRatio,
+                    textAlign: _textAlign,
+                    fontSize: _fontSize,
+                    showWatermark: showWatermark,
+                    style: _selectedStyle,
+                    fontFamily: _selectedFont,
+                  ),
                 ),
               ),
+
+              // 2. Editor Segmented Tab Bar (Clean, DRY, Modern)
+              Container(
+                margin: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  color: isDark ? AppColors.surfaceCardDark : AppColors.surfaceCardLight,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    _buildTabButton(0, 'Content', Icons.edit_note_rounded, isDark),
+                    _buildTabButton(1, 'Style', Icons.palette_outlined, isDark),
+                    _buildTabButton(2, 'Layout', Icons.tune_rounded, isDark),
+                  ],
+                ),
+              ),
+
+              // 3. Tab Contents
+              _buildActiveTabContent(isDark, quota.isPro),
 
               const SizedBox(height: 16),
 
-              // Export & Share Action Buttons
-              Row(
-                children: [
-                  Expanded(
-                    child: SizedBox(
-                      height: 50,
-                      child: ElevatedButton.icon(
-                        onPressed: _isExporting ? null : _exportAndShare,
-                        icon: _isExporting
-                            ? const SizedBox(
-                                width: 18,
-                                height: 18,
-                                child: CircularProgressIndicator(
-                                    strokeWidth: 2, color: Colors.white),
-                              )
-                            : const Icon(Icons.share_rounded),
-                        label: Text(
-                          _isExporting ? 'Exporting...' : 'Share High-Res Card',
-                          style: const TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                      ),
+              // 4. Modern Primary Action Bar
+              _buildBottomActionBar(isDark),
+
+              const SizedBox(height: 12),
+            ],
+          ),
+        ),
+      ),
+      bottomNavigationBar: const AppBottomNav(currentIndex: 2),
+    );
+  }
+
+  Widget _buildTabButton(int index, String label, IconData icon, bool isDark) {
+    final isSelected = _activeEditorTab == index;
+    return Expanded(
+      child: InkWell(
+        onTap: () {
+          HapticFeedback.selectionClick();
+          setState(() => _activeEditorTab = index);
+        },
+        borderRadius: BorderRadius.circular(12),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          decoration: BoxDecoration(
+            color: isSelected
+                ? (isDark ? AppColors.surfaceElevatedDark : Colors.white)
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: isSelected && !isDark
+                ? [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.05),
+                      blurRadius: 4,
+                      offset: const Offset(0, 1),
                     ),
-                  ),
-                ],
+                  ]
+                : null,
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                icon,
+                size: 16,
+                color: isSelected
+                    ? (isDark ? AppColors.accentWarm : AppColors.primary)
+                    : (isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight),
               ),
-
-              const SizedBox(height: 24),
-
-              // Text Editing Inputs
-              const Text('Text & Content',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-              const SizedBox(height: 8),
-
-              // Quick Quote Idea Chips (Instant inspiration for new users)
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  children: [
-                    {'quote': 'Late night coffee & big dreams.', 'author': 'vibekit'},
-                    {'quote': 'Peace over drama every single day.', 'author': 'aesthetic'},
-                    {'quote': 'Work in silence, let the vibe speak.', 'author': 'creator'},
-                    {'quote': 'In a world of trends, remain a classic.', 'author': 'vintage'},
-                  ].map((item) {
-                    final isDark = Theme.of(context).brightness == Brightness.dark;
-                    return Padding(
-                      padding: const EdgeInsets.only(right: 8, bottom: 8),
-                      child: InkWell(
-                        onTap: () {
-                          HapticFeedback.selectionClick();
-                          setState(() {
-                            _textController.text = item['quote']!;
-                            _authorController.text = item['author']!;
-                          });
-                        },
-                        borderRadius: BorderRadius.circular(16),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                          decoration: BoxDecoration(
-                            color: isDark ? AppColors.surfaceElevatedDark : AppColors.surfaceCardLight,
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(
-                              color: isDark ? AppColors.borderDark : AppColors.borderLight,
-                            ),
-                          ),
-                          child: Text(
-                            item['quote']!,
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                              color: isDark ? AppColors.accentWarm : AppColors.primary,
-                            ),
-                          ),
-                        ),
-                      ),
-                    );
-                  }).toList(),
-                ),
-              ),
-
-              TextField(
-                controller: _textController,
-                maxLines: 3,
-                maxLength: 250,
-                decoration: const InputDecoration(
-                  hintText:
-                      'Enter your quote, funny text, or status thought...',
-                ),
-                onChanged: (_) => setState(() {}),
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: _authorController,
-                maxLength: 40,
-                decoration: const InputDecoration(
-                  hintText: 'Author or handle (optional)...',
-                  counterText: '',
-                ),
-                onChanged: (_) => setState(() {}),
-              ),
-
-              const SizedBox(height: 20),
-
-              // Template Palette Carousel
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text('Templates',
-                      style:
-                          TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                  if (!quota.isPro)
-                    Text('Pro templates locked',
-                        style: TextStyle(
-                            fontSize: 11, color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight)),
-                ],
-              ),
-              const SizedBox(height: 10),
-              SizedBox(
-                height: 75,
-                child: ListView.separated(
-                  scrollDirection: Axis.horizontal,
-                  itemCount: CardTemplates.all.length,
-                  separatorBuilder: (_, __) => const SizedBox(width: 10),
-                  itemBuilder: (context, index) {
-                    final t = CardTemplates.all[index];
-                    final isSelected = _selectedTemplate.id == t.id;
-                    return InkWell(
-                      onTap: () {
-                        if (t.isProOnly && !quota.isPro) {
-                          context.push('/paywall');
-                          return;
-                        }
-                        setState(() => _selectedTemplate = t);
-                      },
-                      borderRadius: BorderRadius.circular(12),
-                      child: Container(
-                        width: 75,
-                        decoration: BoxDecoration(
-                          gradient: t.backgroundGradient,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: isSelected
-                                ? AppColors.primary
-                                : Colors.transparent,
-                            width: 2.5,
-                          ),
-                        ),
-                        child: Stack(
-                          children: [
-                            Center(
-                              child: Text(
-                                t.name.split(' ').first,
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  color: t.textColor,
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                            if (t.isProOnly && !quota.isPro)
-                              Positioned(
-                                top: 4,
-                                right: 4,
-                                child: Container(
-                                  padding: const EdgeInsets.all(2),
-                                  decoration: const BoxDecoration(
-                                    color: Colors.black54,
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: const Icon(Icons.lock,
-                                      size: 10, color: Colors.amber),
-                                ),
-                              ),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
-
-              const SizedBox(height: 20),
-
-              // Aspect Ratio Selector
-              const Text('Format / Aspect Ratio',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-              const SizedBox(height: 8),
-              Row(
-                children: _aspectRatios.map((ar) {
-                  final isSelected = _aspectRatio == ar['ratio'];
-                  return Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 4),
-                      child: OutlinedButton.icon(
-                        onPressed: () {
-                          setState(() {
-                            _aspectRatio = ar['ratio'] as double;
-                          });
-                        },
-                        style: OutlinedButton.styleFrom(
-                          side: BorderSide(
-                            color: isSelected
-                                ? AppColors.primary
-                                : AppColors.borderDark,
-                            width: isSelected ? 1.5 : 1,
-                          ),
-                          backgroundColor: isSelected
-                              ? AppColors.primary.withOpacity(0.12)
-                              : null,
-                          padding: const EdgeInsets.symmetric(vertical: 10),
-                        ),
-                        icon: Icon(ar['icon'] as IconData, size: 16),
-                        label: Text(
-                          (ar['name'] as String).split(' ').first,
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: isSelected
-                                ? FontWeight.bold
-                                : FontWeight.normal,
-                          ),
-                        ),
-                      ),
-                    ),
-                  );
-                }).toList(),
-              ),
-
-              const SizedBox(height: 20),
-
-              // Layout & Typography Controls
-              Row(
-                children: [
-                  const Text('Alignment:',
-                      style:
-                          TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                  const SizedBox(width: 8),
-                  IconButton(
-                    icon: Icon(
-                      Icons.format_align_left_rounded,
-                      color: _textAlign == TextAlign.left
-                          ? AppColors.primary
-                          : AppColors.textMutedDark,
-                    ),
-                    onPressed: () =>
-                        setState(() => _textAlign = TextAlign.left),
-                  ),
-                  IconButton(
-                    icon: Icon(
-                      Icons.format_align_center_rounded,
-                      color: _textAlign == TextAlign.center
-                          ? AppColors.primary
-                          : AppColors.textMutedDark,
-                    ),
-                    onPressed: () =>
-                        setState(() => _textAlign = TextAlign.center),
-                  ),
-                  IconButton(
-                    icon: Icon(
-                      Icons.format_align_right_rounded,
-                      color: _textAlign == TextAlign.right
-                          ? AppColors.primary
-                          : AppColors.textMutedDark,
-                    ),
-                    onPressed: () =>
-                        setState(() => _textAlign = TextAlign.right),
-                  ),
-                ],
-              ),
-
-              Row(
-                children: [
-                  const Text('Font Size:',
-                      style:
-                          TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                  Expanded(
-                    child: Slider(
-                      value: _fontSize,
-                      min: 14.0,
-                      max: 32.0,
-                      divisions: 9,
-                      activeColor: AppColors.primary,
-                      onChanged: (val) => setState(() => _fontSize = val),
-                    ),
-                  ),
-                  Text('${_fontSize.toInt()}pt',
-                      style: TextStyle(
-                          fontSize: 12, color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight)),
-                ],
-              ),
-
-              // Watermark info for free vs pro
-              Container(
-                margin: const EdgeInsets.only(top: 12, bottom: 20),
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: isDark ? AppColors.surfaceCardDark : AppColors.surfaceCardLight,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      quota.isPro
-                          ? Icons.check_circle_rounded
-                          : Icons.info_outline_rounded,
-                      size: 18,
-                      color: quota.isPro ? AppColors.success : AppColors.accent,
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        quota.isPro
-                            ? 'Pro active: Watermark is removed from all card exports.'
-                            : 'Free exports include a subtle watermark. Upgrade to Pro for watermark-free cards.',
-                        style: TextStyle(
-                            fontSize: 12,
-                            color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight),
-                      ),
-                    ),
-                  ],
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                  color: isSelected
+                      ? (isDark ? AppColors.accentWarm : AppColors.primary)
+                      : (isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight),
                 ),
               ),
             ],
           ),
         ),
       ),
-      bottomNavigationBar: const AppBottomNav(currentIndex: 2),
+    );
+  }
+
+  Widget _buildActiveTabContent(bool isDark, bool isPro) {
+    switch (_activeEditorTab) {
+      case 0:
+        return _buildContentTab(isDark);
+      case 1:
+        return _buildStyleTab(isDark, isPro);
+      case 2:
+      default:
+        return _buildLayoutTab(isDark, isPro);
+    }
+  }
+
+  // TAB 0: CONTENT & VIRAL CHIPS
+  Widget _buildContentTab(bool isDark) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Quick Viral Inspiration Chips
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'Instant Inspiration',
+              style: TextStyle(
+                fontWeight: FontWeight.w700,
+                fontSize: 13,
+                color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+              ),
+            ),
+            InkWell(
+              onTap: _shuffleInspiration,
+              borderRadius: BorderRadius.circular(12),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                child: Row(
+                  children: [
+                    Icon(Icons.refresh_rounded, size: 13, color: AppColors.accent),
+                    const SizedBox(width: 3),
+                    Text(
+                      'More ideas',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.accent,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          physics: const BouncingScrollPhysics(),
+          child: Row(
+            children: _viralIdeaPrompts.take(6).map((item) {
+              return Padding(
+                padding: const EdgeInsets.only(right: 8, bottom: 4),
+                child: InkWell(
+                  onTap: () {
+                    HapticFeedback.selectionClick();
+                    setState(() {
+                      _textController.text = item['quote']!;
+                      _authorController.text = item['author']!;
+                    });
+                  },
+                  borderRadius: BorderRadius.circular(16),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                    decoration: BoxDecoration(
+                      color: isDark ? AppColors.surfaceElevatedDark : AppColors.surfaceCardLight,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          '#${item['category']}',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.accent,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          item['quote']!.length > 25
+                              ? '${item['quote']!.substring(0, 25)}...'
+                              : item['quote']!,
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w500,
+                            color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+        ),
+        const SizedBox(height: 12),
+
+        // Main Text Field
+        TextField(
+          controller: _textController,
+          maxLines: 3,
+          maxLength: 300,
+          style: TextStyle(
+            fontSize: 14,
+            color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+          ),
+          decoration: InputDecoration(
+            hintText: 'Enter your quote, funny text, tweet or meme...',
+            suffixIcon: _textController.text.isNotEmpty
+                ? IconButton(
+                    icon: const Icon(Icons.clear, size: 16),
+                    onPressed: () {
+                      _textController.clear();
+                      setState(() {});
+                    },
+                  )
+                : null,
+          ),
+          onChanged: (_) => setState(() {}),
+        ),
+        const SizedBox(height: 8),
+
+        // Author / Handle Field
+        TextField(
+          controller: _authorController,
+          maxLength: 40,
+          style: TextStyle(
+            fontSize: 13,
+            color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+          ),
+          decoration: const InputDecoration(
+            hintText: 'Author, handle, or meme setup (e.g. @username)',
+            prefixIcon: Icon(Icons.alternate_email_rounded, size: 16),
+            counterText: '',
+          ),
+          onChanged: (_) => setState(() {}),
+        ),
+      ],
+    );
+  }
+
+  // TAB 1: CARD STYLE & TEMPLATES
+  Widget _buildStyleTab(bool isDark, bool isPro) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // 1. Card Layout Selector
+        Text(
+          'Format Preset',
+          style: TextStyle(
+            fontWeight: FontWeight.w700,
+            fontSize: 13,
+            color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: CardStyle.values.map((style) {
+            final isSelected = _selectedStyle == style;
+            return Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 3),
+                child: InkWell(
+                  onTap: () {
+                    HapticFeedback.selectionClick();
+                    setState(() {
+                      _selectedStyle = style;
+                      if (style == CardStyle.socialPost) {
+                        _textAlign = TextAlign.left;
+                      }
+                    });
+                  },
+                  borderRadius: BorderRadius.circular(12),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? AppColors.primary
+                          : (isDark ? AppColors.surfaceCardDark : AppColors.surfaceCardLight),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: isSelected
+                            ? AppColors.primary
+                            : (isDark ? AppColors.borderDark : AppColors.borderLight),
+                      ),
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          style.icon,
+                          size: 18,
+                          color: isSelected ? Colors.white : (isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          style.label,
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                            color: isSelected ? Colors.white : (isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+        const SizedBox(height: 18),
+
+        // 2. Templates Carousel
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'Aesthetic Palettes',
+              style: TextStyle(
+                fontWeight: FontWeight.w700,
+                fontSize: 13,
+                color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+              ),
+            ),
+            if (!isPro)
+              Text(
+                '👑 Pro unlocked templates',
+                style: TextStyle(fontSize: 11, color: AppColors.accent),
+              ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        SizedBox(
+          height: 85,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            physics: const BouncingScrollPhysics(),
+            itemCount: CardTemplates.all.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 10),
+            itemBuilder: (context, index) {
+              final t = CardTemplates.all[index];
+              final isSelected = _selectedTemplate.id == t.id;
+              return InkWell(
+                onTap: () {
+                  if (t.isProOnly && !isPro) {
+                    context.push('/paywall');
+                    return;
+                  }
+                  HapticFeedback.selectionClick();
+                  setState(() => _selectedTemplate = t);
+                },
+                borderRadius: BorderRadius.circular(16),
+                child: Container(
+                  width: 82,
+                  decoration: BoxDecoration(
+                    gradient: t.backgroundGradient,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: isSelected ? AppColors.primary : Colors.white.withValues(alpha: 0.15),
+                      width: isSelected ? 3 : 1,
+                    ),
+                    boxShadow: isSelected
+                        ? [
+                            BoxShadow(
+                              color: AppColors.primary.withValues(alpha: 0.4),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ]
+                        : null,
+                  ),
+                  child: Stack(
+                    children: [
+                      Center(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 4),
+                          child: Text(
+                            t.name,
+                            textAlign: TextAlign.center,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: t.textColor,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
+                      if (t.isProOnly && !isPro)
+                        Positioned(
+                          top: 6,
+                          right: 6,
+                          child: Container(
+                            padding: const EdgeInsets.all(3),
+                            decoration: const BoxDecoration(
+                              color: Colors.black87,
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(Icons.lock, size: 10, color: Colors.amber),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  // TAB 2: TYPOGRAPHY, ALIGNMENT & RATIOS
+  Widget _buildLayoutTab(bool isDark, bool isPro) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // 1. Font Family Picker
+        Text(
+          'Font Family',
+          style: TextStyle(
+            fontWeight: FontWeight.w700,
+            fontSize: 13,
+            color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: CardFontFamily.values.map((font) {
+            final isSelected = _selectedFont == font;
+            return Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 3),
+                child: InkWell(
+                  onTap: () {
+                    HapticFeedback.selectionClick();
+                    setState(() => _selectedFont = font);
+                  },
+                  borderRadius: BorderRadius.circular(12),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? AppColors.primary
+                          : (isDark ? AppColors.surfaceCardDark : AppColors.surfaceCardLight),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: isSelected
+                            ? AppColors.primary
+                            : (isDark ? AppColors.borderDark : AppColors.borderLight),
+                      ),
+                    ),
+                    child: Center(
+                      child: Text(
+                        font.label.split(' ').last,
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                          color: isSelected ? Colors.white : (isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+        const SizedBox(height: 16),
+
+        // 2. Alignment & Size Row
+        Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Alignment',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 13,
+                      color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      _buildAlignButton(TextAlign.left, Icons.format_align_left_rounded, isDark),
+                      const SizedBox(width: 4),
+                      _buildAlignButton(TextAlign.center, Icons.format_align_center_rounded, isDark),
+                      const SizedBox(width: 4),
+                      _buildAlignButton(TextAlign.right, Icons.format_align_right_rounded, isDark),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Font Size',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 13,
+                          color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                        ),
+                      ),
+                      Text(
+                        '${_fontSize.toInt()}pt',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.accent,
+                        ),
+                      ),
+                    ],
+                  ),
+                  Slider(
+                    value: _fontSize,
+                    min: 14.0,
+                    max: 34.0,
+                    divisions: 10,
+                    activeColor: AppColors.primary,
+                    onChanged: (val) => setState(() => _fontSize = val),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+
+        // 3. Aspect Ratio Selector
+        Text(
+          'Format & Aspect Ratio',
+          style: TextStyle(
+            fontWeight: FontWeight.w700,
+            fontSize: 13,
+            color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: _aspectRatios.map((ar) {
+            final isSelected = _aspectRatio == ar['ratio'];
+            return Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 3),
+                child: OutlinedButton(
+                  onPressed: () {
+                    HapticFeedback.selectionClick();
+                    setState(() => _aspectRatio = ar['ratio'] as double);
+                  },
+                  style: OutlinedButton.styleFrom(
+                    side: BorderSide(
+                      color: isSelected ? AppColors.primary : (isDark ? AppColors.borderDark : AppColors.borderLight),
+                      width: isSelected ? 1.5 : 1,
+                    ),
+                    backgroundColor: isSelected ? AppColors.primary.withValues(alpha: 0.12) : null,
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(ar['icon'] as IconData, size: 16, color: isSelected ? AppColors.primary : null),
+                      const SizedBox(height: 2),
+                      Text(
+                        ar['name'] as String,
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                          color: isSelected ? AppColors.primary : null,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+
+        // 4. Pro Watermark Badge
+        Container(
+          margin: const EdgeInsets.only(top: 14, bottom: 8),
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: isDark ? AppColors.surfaceCardDark : AppColors.surfaceCardLight,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
+          ),
+          child: Row(
+            children: [
+              Icon(
+                isPro ? Icons.verified_rounded : Icons.info_outline_rounded,
+                size: 16,
+                color: isPro ? AppColors.success : AppColors.accent,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  isPro
+                      ? 'Pro Active: Export cards in crisp high-dpi without watermarks.'
+                      : 'Free exports include subtle watermark. Upgrade to Pro for watermark-free cards.',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildAlignButton(TextAlign align, IconData icon, bool isDark) {
+    final isSelected = _textAlign == align;
+    return InkWell(
+      onTap: () {
+        HapticFeedback.selectionClick();
+        setState(() => _textAlign = align);
+      },
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        padding: const EdgeInsets.all(7),
+        decoration: BoxDecoration(
+          color: isSelected ? AppColors.primary : (isDark ? AppColors.surfaceCardDark : AppColors.surfaceCardLight),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: isSelected ? AppColors.primary : (isDark ? AppColors.borderDark : AppColors.borderLight),
+          ),
+        ),
+        child: Icon(
+          icon,
+          size: 16,
+          color: isSelected ? Colors.white : (isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight),
+        ),
+      ),
+    );
+  }
+
+  // 4. Modern Primary Action Bar
+  Widget _buildBottomActionBar(bool isDark) {
+    return SizedBox(
+      height: 48,
+      width: double.infinity,
+      child: ElevatedButton.icon(
+        onPressed: _isExporting ? null : _exportAndShare,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: AppColors.primary,
+          foregroundColor: Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          elevation: 2,
+        ),
+        icon: _isExporting
+            ? const SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+              )
+            : const Icon(Icons.share_rounded, size: 18),
+        label: Text(
+          _isExporting ? 'Exporting High-Res...' : 'Export & Share Card',
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+        ),
+      ),
     );
   }
 }
