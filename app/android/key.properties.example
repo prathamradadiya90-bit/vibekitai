@@ -1,4 +1,4 @@
-# Example key.properties file for VibeKit AI production release signing
+# Example key.properties file for ReplyVibe AI production release signing & AdMob
 # Copy this file to: app/android/key.properties
 # DO NOT commit real key.properties or .jks files to GitHub (already ignored in .gitignore)
 
@@ -6,3 +6,7 @@ storePassword=YOUR_KEYSTORE_PASSWORD
 keyPassword=YOUR_KEY_PASSWORD
 keyAlias=upload
 storeFile=upload-keystore.jks
+
+# Your real Google AdMob Android App ID from https://admob.google.com
+# Example format: ca-app-pub-XXXXXXXXXXXXXXXX~YYYYYYYYYY
+admobAppId=ca-app-pub-3940256099942544~3347511713

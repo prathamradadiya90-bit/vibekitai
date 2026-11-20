@@ -35,20 +35,34 @@ class AppConfig {
   static const String testInterstitialAdUnitId =
       'ca-app-pub-3940256099942544/1033173712';
 
-  // Active AdMob Unit IDs (falls back to test IDs if not passed via --dart-define)
+  // Optional Direct Production Ad Unit IDs:
+  // Paste your real ca-app-pub-XXXXXXXXXXXXXXXX/YYYYYYYYYY IDs below for production release,
+  // or pass them via --dart-define (e.g. --dart-define=ADMOB_BANNER_ID=...).
+  // While running in debug mode (kDebugMode), official test IDs are automatically used to protect your account.
+  static const String prodBannerAdUnitId = '';
+  static const String prodRewardedAdUnitId = '';
+  static const String prodInterstitialAdUnitId = '';
+
+  // Active AdMob Unit IDs
   static String get bannerAdUnitId {
     const fromEnv = String.fromEnvironment('ADMOB_BANNER_ID');
-    return fromEnv.isNotEmpty ? fromEnv : testBannerAdUnitId;
+    if (fromEnv.isNotEmpty) return fromEnv;
+    if (prodBannerAdUnitId.isNotEmpty && !kDebugMode) return prodBannerAdUnitId;
+    return testBannerAdUnitId;
   }
 
   static String get rewardedAdUnitId {
     const fromEnv = String.fromEnvironment('ADMOB_REWARDED_ID');
-    return fromEnv.isNotEmpty ? fromEnv : testRewardedAdUnitId;
+    if (fromEnv.isNotEmpty) return fromEnv;
+    if (prodRewardedAdUnitId.isNotEmpty && !kDebugMode) return prodRewardedAdUnitId;
+    return testRewardedAdUnitId;
   }
 
   static String get interstitialAdUnitId {
     const fromEnv = String.fromEnvironment('ADMOB_INTERSTITIAL_ID');
-    return fromEnv.isNotEmpty ? fromEnv : testInterstitialAdUnitId;
+    if (fromEnv.isNotEmpty) return fromEnv;
+    if (prodInterstitialAdUnitId.isNotEmpty && !kDebugMode) return prodInterstitialAdUnitId;
+    return testInterstitialAdUnitId;
   }
 
   /// Verifies adherence to Google AdMob policy on environment separation:
