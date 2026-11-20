@@ -754,91 +754,151 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       _buildQuickShortcut(
                         icon: '🚩',
                         label: 'Flag Scanner',
-                        onTap: () => context.push('/studio?tab=vibe_check&option=flags'),
+                        onTap: () => _openStudioShortcut(
+                          tab: 'vibe_check',
+                          option: 'flags',
+                          prompt: "My ex was totally crazy, you are the only one who gets me so don't let me down.",
+                        ),
                       ),
                       const SizedBox(width: 8),
                       _buildQuickShortcut(
                         icon: '📸',
                         label: 'Story Reply',
-                        onTap: () => context.push('/studio?tab=vibe_check&option=story'),
+                        onTap: () => _openStudioShortcut(
+                          tab: 'vibe_check',
+                          option: 'story',
+                          prompt: "They posted a late-night rooftop cocktail story with no caption.",
+                        ),
                       ),
                       const SizedBox(width: 8),
                       _buildQuickShortcut(
                         icon: '✨',
                         label: 'Chemistry Match',
-                        onTap: () => context.push('/studio?tab=vibe_check&option=chemistry'),
+                        onTap: () => _openStudioShortcut(
+                          tab: 'vibe_check',
+                          option: 'chemistry',
+                          prompt: "Him: you have surprisingly good music taste. Her: only took you 3 months to notice.",
+                        ),
                       ),
                       const SizedBox(width: 8),
                       _buildQuickShortcut(
                         icon: '🧟',
                         label: 'Ghosting Revival',
-                        onTap: () => context.push('/studio?tab=vibe_check&option=revival'),
+                        onTap: () => _openStudioShortcut(
+                          tab: 'vibe_check',
+                          option: 'revival',
+                          prompt: "Conversation died 3 weeks ago after great chemistry. Want a witty, zero-pressure text to reignite.",
+                        ),
                       ),
                       const SizedBox(width: 8),
                       _buildQuickShortcut(
                         icon: '🧠',
                         label: 'Overthinking Fix',
-                        onTap: () => context.push('/studio?tab=vibe_check&option=overthinking'),
+                        onTap: () => _openStudioShortcut(
+                          tab: 'vibe_check',
+                          option: 'overthinking',
+                          prompt: "Hey sorry to bother you I know you are super busy and probably do not want to talk but if you have five minutes maybe we could call? If not totally fine no pressure!",
+                        ),
                       ),
                       const SizedBox(width: 8),
                       _buildQuickShortcut(
                         icon: '🎯',
                         label: 'Dating Opener',
-                        onTap: () => context.push('/studio?tab=reply&option=Opener'),
+                        onTap: () => _openStudioShortcut(
+                          tab: 'reply',
+                          option: 'Witty',
+                          prompt: "Matched on Hinge: loves iced matcha, indie vinyl, and golden retrievers",
+                        ),
                       ),
                       const SizedBox(width: 8),
                       _buildQuickShortcut(
                         icon: '🕶️',
                         label: 'Unbothered',
-                        onTap: () => context.push('/studio?tab=reply&option=Unbothered'),
+                        onTap: () => _openStudioShortcut(
+                          tab: 'reply',
+                          option: 'Unbothered',
+                          prompt: "Leaving me on delivered all day? I respect the mystery.",
+                        ),
                       ),
                       const SizedBox(width: 8),
                       _buildQuickShortcut(
                         icon: '🤝',
                         label: 'Conflict Defuser',
-                        onTap: () => context.push('/studio?tab=vibe_check&option=apology'),
+                        onTap: () => _openStudioShortcut(
+                          tab: 'vibe_check',
+                          option: 'apology',
+                          prompt: "I lost my temper and snapped during our argument yesterday. Want a sincere, mature apology.",
+                        ),
                       ),
                       const SizedBox(width: 8),
                       _buildQuickShortcut(
                         icon: '⚡',
                         label: 'Magnetic Rizz',
-                        onTap: () => context.push('/studio?tab=reply&option=Rizz'),
+                        onTap: () => _openStudioShortcut(
+                          tab: 'reply',
+                          option: 'Rizz',
+                          prompt: "How do you manage to look this effortlessly stunning on a random Tuesday?",
+                        ),
                       ),
                       const SizedBox(width: 8),
                       _buildQuickShortcut(
                         icon: '🕵️',
                         label: 'Text Decrypter',
-                        onTap: () => context.push('/studio?tab=vibe_check&option=decoder'),
+                        onTap: () => _openStudioShortcut(
+                          tab: 'vibe_check',
+                          option: 'decoder',
+                          prompt: "It's totally fine. Do whatever you want.",
+                        ),
                       ),
                       const SizedBox(width: 8),
                       _buildQuickShortcut(
                         icon: '🏃',
                         label: 'Cancel Plans',
-                        onTap: () => context.push('/studio?tab=vibe_check&option=excuse'),
+                        onTap: () => _openStudioShortcut(
+                          tab: 'vibe_check',
+                          option: 'excuse',
+                          prompt: "Hey sorry I really cannot make it tonight my social battery is at zero. Can we do Sunday instead?",
+                        ),
                       ),
                       const SizedBox(width: 8),
                       _buildQuickShortcut(
                         icon: '🔥',
                         label: 'Savage Roast',
-                        onTap: () => context.push('/studio?tab=vibe_check&option=roast'),
+                        onTap: () => _openStudioShortcut(
+                          tab: 'vibe_check',
+                          option: 'roast',
+                          prompt: "You took 6 hours to reply with 'cool'.",
+                        ),
                       ),
                       const SizedBox(width: 8),
                       _buildQuickShortcut(
                         icon: '💬',
                         label: 'Funny Reply',
-                        onTap: () => context.push('/studio?tab=reply&option=Funny'),
+                        onTap: () => _openStudioShortcut(
+                          tab: 'reply',
+                          option: 'Funny',
+                          prompt: "Are you free this weekend or should I book an appointment with your secretary?",
+                        ),
                       ),
                       const SizedBox(width: 8),
                       _buildQuickShortcut(
                         icon: '💘',
                         label: 'Flirty Text',
-                        onTap: () => context.push('/studio?tab=reply&option=Flirty'),
+                        onTap: () => _openStudioShortcut(
+                          tab: 'reply',
+                          option: 'Flirty',
+                          prompt: "Stop looking at my story and just text me already.",
+                        ),
                       ),
                       const SizedBox(width: 8),
                       _buildQuickShortcut(
                         icon: '✨',
                         label: 'Reel Hook',
-                        onTap: () => context.push('/studio?tab=caption&option=Trendy'),
+                        onTap: () => _openStudioShortcut(
+                          tab: 'caption',
+                          option: 'Trendy',
+                          prompt: "3 harsh truths nobody tells you about moving to a new city alone.",
+                        ),
                       ),
                       const SizedBox(width: 8),
                       _buildQuickShortcut(
@@ -850,13 +910,21 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       _buildQuickShortcut(
                         icon: '👤',
                         label: 'Aesthetic Bio',
-                        onTap: () => context.push('/studio?tab=bio&option=Aesthetic'),
+                        onTap: () => _openStudioShortcut(
+                          tab: 'bio',
+                          option: 'Aesthetic',
+                          prompt: "Living simply, reading deeply, chasing golden hour light. Based in SF / NYC.",
+                        ),
                       ),
                       const SizedBox(width: 8),
                       _buildQuickShortcut(
                         icon: '💼',
                         label: 'Boss Mode',
-                        onTap: () => context.push('/studio?tab=vibe_check&option=work'),
+                        onTap: () => _openStudioShortcut(
+                          tab: 'vibe_check',
+                          option: 'work',
+                          prompt: "Following up on my scope expansion and compensation review from last quarter.",
+                        ),
                       ),
                     ],
                   ),
@@ -1591,6 +1659,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         ),
       ),
     );
+  }
+
+  void _openStudioShortcut({
+    required String tab,
+    required String option,
+    required String prompt,
+  }) {
+    final encodedPrompt = Uri.encodeComponent(prompt);
+    final encodedOption = Uri.encodeComponent(option);
+    context.push('/studio?tab=$tab&option=$encodedOption&prompt=$encodedPrompt');
   }
 
   Widget _buildQuickShortcut({

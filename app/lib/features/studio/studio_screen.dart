@@ -137,35 +137,41 @@ class _StudioScreenState extends ConsumerState<StudioScreen> {
     StudioTab.reply: [
       {'label': '💬 Reply to "k."', 'text': 'k.'},
       {'label': '⚡ Savage Comeback', 'text': 'You took 6 hours to reply with "cool".'},
-      {'label': '🥂 Magnetic Rizz', 'text': 'How do you look this good on a random Tuesday?'},
-      {'label': '🕶️ Unbothered', 'text': 'Leaving me on delivered all day? Interesting.'},
-      {'label': '🎯 Icebreaker', 'text': 'Matched on Hinge, she loves matcha, indie rock, and golden retrievers'},
-      {'label': '☕ Coffee tonight?', 'text': 'Are you free for coffee tonight?'},
-      {'label': '📅 Reschedule meeting', 'text': 'Can we push our meeting to tomorrow morning?'},
+      {'label': '👀 Left on Read', 'text': 'Seen 4 hours ago. Guess you\'re practicing typing a masterpiece.'},
+      {'label': '🥂 Smooth Rizz', 'text': 'How do you manage to look this effortlessly stunning on a random Tuesday?'},
+      {'label': '🕶️ Unbothered Peace', 'text': 'Leaving me on delivered all day? I respect the mystery.'},
+      {'label': '🌙 1 AM "u up?"', 'text': 'u up?'},
+      {'label': '🎯 Hinge Opener', 'text': 'Matched on Hinge: loves iced matcha, indie vinyl, and golden retrievers'},
+      {'label': '☕ Low-Pressure Invite', 'text': 'Are you free to grab coffee or drinks sometime this week?'},
+      {'label': '🤝 Polite Raincheck', 'text': 'Hey, really sorry but feeling completely exhausted. Can we reschedule for this weekend?'},
+      {'label': '💼 Professional Follow-up', 'text': 'Following up on our discussion regarding scope expansion and compensation review.'},
     ],
     StudioTab.vibeCheck: [
-      {'label': '🚩 Red Flag Scan', 'text': 'My ex was totally crazy, you are the only one who gets me so don\'t let me down.'},
-      {'label': '📸 Food Story Reply', 'text': 'They posted a late-night story at a hidden ramen bar with no caption'},
-      {'label': '✨ Chemistry Match', 'text': 'Him: you have good music taste. Her: only took you 3 months to notice.'},
-      {'label': '🕵️ Decrypt "fine."', 'text': 'fine.'},
-      {'label': '🧟 Zombie Revival', 'text': 'Conversation died 3 weeks ago after a fun first date. Want to reignite without being awkward.'},
-      {'label': '🤝 Conflict Defuser', 'text': 'I lost my temper and snapped during a disagreement yesterday. Want a sincere, mature apology.'},
-      {'label': '🧠 Overthinking Fix', 'text': 'Hey sorry to bother you I know you are super busy and probably do not want to talk but if you have five minutes maybe we could call? If not totally fine no pressure!'},
-      {'label': '🏃 Cancel Plans', 'text': 'Hey sorry I really cannot make it tonight I am too tired.'},
-      {'label': '💘 Crush DM', 'text': 'Hey are you free tonight? Just wondering what you are doing lol'},
-      {'label': '💼 Raise Request', 'text': 'Hey boss, I have been working really hard lately and feel I deserve a raise.'},
+      {'label': '🚩 Red Flag Scanner', 'text': 'My ex was totally crazy, you are the only one who gets me so don\'t let me down.'},
+      {'label': '📸 Story Reply Check', 'text': 'They posted a late-night rooftop cocktail story with no caption.'},
+      {'label': '✨ Mixed Signals Check', 'text': 'Texts me all night, but takes 8 hours to reply during the day and never makes plans.'},
+      {'label': '🕵️ Decrypt "fine."', 'text': 'It\'s totally fine. Do whatever you want.'},
+      {'label': '🧟 Ghosting Revival', 'text': 'Conversation died 3 weeks ago after great chemistry. Want a witty, zero-pressure text to reignite.'},
+      {'label': '🧠 Stop Overthinking', 'text': 'Hey sorry to bother you I know you are super busy and probably do not want to talk but if you have five minutes maybe we could call? If not totally fine no pressure!'},
+      {'label': '🤝 Sincere Apology', 'text': 'I lost my temper and snapped during our argument yesterday. Want a sincere, emotionally mature apology without excuses.'},
+      {'label': '🏃 Cancel Gracefully', 'text': 'Hey sorry I really cannot make it tonight my social battery is at zero. Can we do Sunday instead?'},
+      {'label': '💘 Crush DM Check', 'text': 'Hey are you free tonight? Just wondering what you are doing lol'},
+      {'label': '💼 Raise Request', 'text': 'Hey boss, I have been taking on additional team leadership and delivered strong results this quarter. I would love to discuss a compensation review.'},
     ],
     StudioTab.caption: [
-      {'label': '☕ Sunday Cafe', 'text': 'Slow Sunday morning with warm latte and favorite book'},
-      {'label': '✈️ Goa Trip', 'text': 'Sunset beach walks and ocean breeze with best friends'},
-      {'label': '💪 Gym Grind', 'text': 'Consistent workouts paying off, new personal best today'},
-      {'label': '🌅 Golden Hour', 'text': 'Sunsets are proof that endings can often be beautiful too'},
+      {'label': '☕ Cozy Coffee Dump', 'text': 'Slow Sunday morning with an oat flat white, warm rain, and chapter four.'},
+      {'label': '🌅 Golden Hour Glow', 'text': 'Sunsets are proof that endings can often be beautiful too.'},
+      {'label': '💪 Gym Grind & PR', 'text': '5 AM discipline over motivation. New personal best in the books.'},
+      {'label': '✈️ Travel & Airport Dump', 'text': 'Window seat, noise-canceling headphones, and a boarding pass to somewhere new.'},
+      {'label': '👗 Streetwear Fit Check', 'text': 'Effortless monochrome aesthetic for a chilly autumn afternoon.'},
+      {'label': '🍕 Midnight Food Run', 'text': 'Good food, better company, and midnight street tacos.'},
     ],
     StudioTab.bio: [
-      {'label': '📸 Travel Creator', 'text': 'Travel filmmaker, exploring hidden coffee shops and mountain peaks'},
-      {'label': '☕ Coffee Lover', 'text': 'Obsessed with pour-overs, cozy bookstores, and late night thoughts'},
-      {'label': '💻 Tech Founder', 'text': 'Building next-gen AI tools for creators and modern thinkers'},
-      {'label': '✨ Minimalist', 'text': 'Living simply, writing daily, chasing golden hour light'},
+      {'label': '📸 Visual Storyteller', 'text': 'Visual artist & storyteller. Documenting quiet moments and urban architecture across the globe.'},
+      {'label': '💼 Tech Founder', 'text': 'Building next-gen AI tools for creators and modern thinkers. Obsessed with clean typography & coffee.'},
+      {'label': '✨ Witty & Self-Aware', 'text': 'Professional overthinker, semi-professional meme curator, full-time matcha enthusiast.'},
+      {'label': '🌿 Minimalist Vibe', 'text': 'Living simply, reading deeply, chasing golden hour light. Based in SF / NYC.'},
+      {'label': '🎧 Music & Culture', 'text': 'Curating late-night playlists, scouring vinyl bins, and finding the best hidden ramen spots.'},
     ],
   };
 
@@ -193,6 +199,15 @@ class _StudioScreenState extends ConsumerState<StudioScreen> {
     super.didUpdateWidget(oldWidget);
     if (widget.initialTabId != null && widget.initialTabId != oldWidget.initialTabId) {
       _switchTab(StudioTab.fromId(widget.initialTabId));
+    }
+    if (widget.initialPrompt != null && widget.initialPrompt != oldWidget.initialPrompt) {
+      _textController.text = widget.initialPrompt!;
+    }
+    if (widget.initialOption != null && widget.initialOption != oldWidget.initialOption) {
+      if (_replyTones.contains(widget.initialOption)) _replyTone = widget.initialOption!;
+      if (_vibeModes.any((m) => m['id'] == widget.initialOption)) _vibeMode = widget.initialOption!;
+      if (_captionVibes.contains(widget.initialOption)) _captionVibe = widget.initialOption!;
+      if (_bioVibes.contains(widget.initialOption)) _bioVibe = widget.initialOption!;
     }
   }
 
@@ -498,19 +513,36 @@ class _StudioScreenState extends ConsumerState<StudioScreen> {
                   scrollDirection: Axis.horizontal,
                   child: Row(
                     children: (_sampleChips[_activeTab] ?? []).map((sample) {
+                      final isSelected = _textController.text.trim() == sample['text']!.trim();
                       return Padding(
                         padding: const EdgeInsets.only(right: 8),
                         child: ActionChip(
-                          avatar: const Icon(Icons.flash_on, size: 14, color: AppColors.primary),
-                          label: Text(sample['label']!),
-                          backgroundColor: isDark ? AppColors.surfaceCardDark : AppColors.surfaceCardLight,
+                          label: Text(
+                            sample['label']!,
+                            style: TextStyle(
+                              fontSize: 12.5,
+                              fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                              color: isSelected
+                                  ? (isDark ? AppColors.accentWarm : AppColors.primary)
+                                  : (isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight),
+                            ),
+                          ),
+                          backgroundColor: isSelected
+                              ? (isDark
+                                  ? AppColors.primary.withValues(alpha: 0.25)
+                                  : AppColors.primary.withValues(alpha: 0.12))
+                              : (isDark ? AppColors.surfaceCardDark : AppColors.surfaceCardLight),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(20),
                             side: BorderSide(
-                              color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                              color: isSelected
+                                  ? (isDark ? AppColors.accentWarm : AppColors.primary)
+                                  : (isDark ? AppColors.borderDark : AppColors.borderLight),
+                              width: isSelected ? 1.5 : 1.0,
                             ),
                           ),
                           onPressed: () {
+                            HapticFeedback.selectionClick();
                             setState(() {
                               _textController.text = sample['text']!;
                             });

@@ -77,20 +77,44 @@ class _VibeCheckScreenState extends ConsumerState<VibeCheckScreen> {
 
   static const List<Map<String, String>> _sampleDrafts = [
     {
+      'label': '🚩 Red Flag Scanner',
+      'text': 'My ex was totally crazy, you are the only one who gets me so don\'t let me down.',
+    },
+    {
+      'label': '📸 Story Reply Check',
+      'text': 'They posted a late-night rooftop cocktail story with no caption.',
+    },
+    {
+      'label': '✨ Mixed Signals Check',
+      'text': 'Texts me all night, but takes 8 hours to reply during the day and never makes plans.',
+    },
+    {
+      'label': '🕵️ Decrypt "fine."',
+      'text': 'It\'s totally fine. Do whatever you want.',
+    },
+    {
+      'label': '🧟 Ghosting Revival',
+      'text': 'Conversation died 3 weeks ago after great chemistry. Want a witty, zero-pressure text to reignite.',
+    },
+    {
+      'label': '🧠 Stop Overthinking',
+      'text': 'Hey sorry to bother you I know you are super busy and probably do not want to talk but if you have five minutes maybe we could call? If not totally fine no pressure!',
+    },
+    {
       'label': '💘 Crush DM',
       'text': 'Hey are you free tonight? Just wondering what you are doing lol',
     },
     {
       'label': '💼 Raise Request',
-      'text': 'Hey boss, I have been working really hard lately and feel I deserve a raise.',
+      'text': 'Hey boss, I have been taking on additional team leadership and delivered strong results this quarter. I would love to discuss a compensation review.',
     },
     {
-      'label': '🤝 Cold Outreach',
-      'text': 'Hi, I saw your profile and want to connect. Are there any open roles at your company?',
+      'label': '🏃 Cancel Gracefully',
+      'text': 'Hey sorry I really cannot make it tonight my social battery is at zero. Can we do Sunday instead?',
     },
     {
-      'label': '☕ Late Apology',
-      'text': 'Hey sorry running like 20 mins late traffic is so crazy!',
+      'label': '🤝 Sincere Apology',
+      'text': 'I lost my temper and snapped during our argument yesterday. Want a sincere, emotionally mature apology without excuses.',
     },
   ];
 
@@ -301,19 +325,36 @@ class _VibeCheckScreenState extends ConsumerState<VibeCheckScreen> {
                   scrollDirection: Axis.horizontal,
                   child: Row(
                     children: _sampleDrafts.map((sample) {
+                      final isSelected = _textController.text.trim() == sample['text']!.trim();
                       return Padding(
                         padding: const EdgeInsets.only(right: 8),
                         child: ActionChip(
-                          avatar: const Icon(Icons.flash_on, size: 14, color: AppColors.primary),
-                          label: Text(sample['label']!),
-                          backgroundColor: isDark ? AppColors.surfaceCardDark : AppColors.surfaceCardLight,
+                          label: Text(
+                            sample['label']!,
+                            style: TextStyle(
+                              fontSize: 12.5,
+                              fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                              color: isSelected
+                                  ? (isDark ? AppColors.accentWarm : AppColors.primary)
+                                  : (isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight),
+                            ),
+                          ),
+                          backgroundColor: isSelected
+                              ? (isDark
+                                  ? AppColors.primary.withValues(alpha: 0.25)
+                                  : AppColors.primary.withValues(alpha: 0.12))
+                              : (isDark ? AppColors.surfaceCardDark : AppColors.surfaceCardLight),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(20),
                             side: BorderSide(
-                              color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                              color: isSelected
+                                  ? (isDark ? AppColors.accentWarm : AppColors.primary)
+                                  : (isDark ? AppColors.borderDark : AppColors.borderLight),
+                              width: isSelected ? 1.5 : 1.0,
                             ),
                           ),
                           onPressed: () {
+                            HapticFeedback.selectionClick();
                             setState(() {
                               _textController.text = sample['text']!;
                             });
