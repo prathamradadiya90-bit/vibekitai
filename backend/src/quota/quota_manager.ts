@@ -12,6 +12,16 @@ export interface QuotaStatus {
   reset_at_utc: string;
 }
 
+interface MemoryQuotaEntry {
+  date: string;
+  freeUsed: number;
+  rewardedEarned: number;
+  rewardedAdsWatched: number;
+}
+
+// In-memory daily quota store for stateless / serverless environments without persistent D1
+const memoryUsageStore = new Map<string, MemoryQuotaEntry>();
+
 export class QuotaManager {
   private db?: D1Database;
   private maxDailyFree: number;
@@ -43,15 +53,22 @@ export class QuotaManager {
     const resetAtUtc = this.getTomorrowMidnightUtcString();
 
     if (!this.db) {
-      // Memory fallback for standalone test mocks
+      let entry = memoryUsageStore.get(installationId);
+      if (!entry || entry.date !== today) {
+        // Auto reset on new day!
+        entry = { date: today, freeUsed: 0, rewardedEarned: 0, rewardedAdsWatched: 0 };
+        memoryUsageStore.set(installationId, entry);
+      }
+      const freeRemaining = Math.max(0, this.maxDailyFree - entry.freeUsed);
+      const totalRemaining = freeRemaining + entry.rewardedEarned;
       return {
-        free_credits_remaining: this.maxDailyFree,
-        rewarded_credits_remaining: 0,
-        total_credits_remaining: this.maxDailyFree,
+        free_credits_remaining: freeRemaining,
+        rewarded_credits_remaining: entry.rewardedEarned,
+        total_credits_remaining: totalRemaining,
         is_pro: false,
         pro_credits_remaining: 0,
         pro_cycle_resets_at: null,
-        rewarded_ads_watched_today: 0,
+        rewarded_ads_watched_today: entry.rewardedAdsWatched,
         max_rewarded_ads_per_day: this.maxDailyRewards,
         reset_at_utc: resetAtUtc,
       };
@@ -183,7 +200,22 @@ export class QuotaManager {
     const today = this.getTodayUtcString();
     const nowIso = new Date().toISOString();
 
-    if (!this.db) return true;
+    if (!this.db) {
+      let entry = memoryUsageStore.get(installationId);
+      if (!entry || entry.date !== today) {
+        entry = { date: today, freeUsed: 0, rewardedEarned: 0, rewardedAdsWatched: 0 };
+        memoryUsageStore.set(installationId, entry);
+      }
+      if (entry.freeUsed < this.maxDailyFree) {
+        entry.freeUsed += 1;
+        return true;
+      }
+      if (entry.rewardedEarned > 0) {
+        entry.rewardedEarned -= 1;
+        return true;
+      }
+      return false; // Daily quota exhausted!
+    }
 
     // 1. Check if user is Pro
     const inst = await this.db
@@ -326,7 +358,20 @@ export class QuotaManager {
     adNetwork?: string;
     nonce?: string;
   }): Promise<{ success: boolean; reason?: string }> {
-    if (!this.db) return { success: true };
+    if (!this.db) {
+      const today = this.getTodayUtcString();
+      let entry = memoryUsageStore.get(params.installationId);
+      if (!entry || entry.date !== today) {
+        entry = { date: today, freeUsed: 0, rewardedEarned: 0, rewardedAdsWatched: 0 };
+        memoryUsageStore.set(params.installationId, entry);
+      }
+      if (entry.rewardedAdsWatched >= this.maxDailyRewards) {
+        return { success: false, reason: 'DAILY_REWARD_LIMIT_REACHED' };
+      }
+      entry.rewardedAdsWatched += 1;
+      entry.rewardedEarned += this.creditsPerReward;
+      return { success: true };
+    }
 
     const { installationId, transactionId, rewardId, keyId, adNetwork, nonce } = params;
     const today = this.getTodayUtcString();

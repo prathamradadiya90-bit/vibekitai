@@ -70,7 +70,45 @@ class PreferencesService {
     await _prefs.setString(_keyLanguage, lang);
   }
 
+  static const String _keyLastCreditResetDate = 'last_credit_reset_date';
+  static const String _keyRewardedAdsWatched = 'rewarded_ads_watched_today';
+
+  String getTodayLocalDateStr() {
+    final now = DateTime.now();
+    final y = now.year.toString().padLeft(4, '0');
+    final m = now.month.toString().padLeft(2, '0');
+    final d = now.day.toString().padLeft(2, '0');
+    return '$y-$m-$d';
+  }
+
+  String? getLastCreditResetDate() {
+    return _prefs.getString(_keyLastCreditResetDate);
+  }
+
+  Future<void> setLastCreditResetDate(String dateStr) async {
+    await _prefs.setString(_keyLastCreditResetDate, dateStr);
+  }
+
+  /// Automatically verifies if a new calendar day has started.
+  /// If today is a new day, resets free daily credits to 3 and rewarded ads watched to 0.
+  bool checkAndPerformDailyLocalReset({int defaultDailyCredits = 3}) {
+    final today = getTodayLocalDateStr();
+    final lastReset = getLastCreditResetDate();
+    if (lastReset == null) {
+      _prefs.setString(_keyLastCreditResetDate, today);
+      return false;
+    }
+    if (lastReset != today) {
+      _prefs.setString(_keyLastCreditResetDate, today);
+      _prefs.setInt(_keyCredits, defaultDailyCredits);
+      _prefs.setInt(_keyRewardedAdsWatched, 0);
+      return true;
+    }
+    return false;
+  }
+
   int getCachedCredits() {
+    checkAndPerformDailyLocalReset();
     return _prefs.getInt(_keyCredits) ?? 3;
   }
 

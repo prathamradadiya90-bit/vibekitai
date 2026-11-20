@@ -50,17 +50,28 @@ class QuotaNotifier extends StateNotifier<QuotaModel> {
   final PreferencesService _prefs;
 
   QuotaNotifier(this._apiClient, this._prefs) : super(QuotaModel.initial()) {
-    // Initialise with cached values immediately for fast startup
+    // Check and perform daily local reset immediately on initialization
+    final didReset = _prefs.checkAndPerformDailyLocalReset();
+    final cachedCredits = _prefs.getCachedCredits();
+
     state = state.copyWith(
-      totalCreditsRemaining: _prefs.getCachedCredits(),
-      freeCreditsRemaining: _prefs.getCachedCredits(),
+      totalCreditsRemaining: cachedCredits,
+      freeCreditsRemaining: didReset ? 3 : cachedCredits,
       isPro: _prefs.getCachedIsPro(),
+      rewardedAdsWatchedToday: didReset ? 0 : state.rewardedAdsWatchedToday,
     );
     refresh();
   }
 
   Future<void> refresh() async {
     try {
+      if (_prefs.checkAndPerformDailyLocalReset()) {
+        state = state.copyWith(
+          totalCreditsRemaining: 3,
+          freeCreditsRemaining: 3,
+          rewardedAdsWatchedToday: 0,
+        );
+      }
       final quota = await _apiClient.getUsage();
       state = quota;
       await _prefs.setCachedCredits(quota.totalCreditsRemaining);
@@ -74,14 +85,18 @@ class QuotaNotifier extends StateNotifier<QuotaModel> {
     if (state.isPro) {
       state = state.copyWith(proCreditsRemaining: remaining);
     } else {
-      final free = remaining.clamp(0, state.freeCreditsRemaining);
-      final rewarded = (remaining - free).clamp(0, 999);
+      // Ensure consumption is reflected even if backend is stateless
+      final newTotal = remaining < state.totalCreditsRemaining
+          ? remaining
+          : (state.totalCreditsRemaining - 1).clamp(0, 999);
+      final free = newTotal.clamp(0, state.freeCreditsRemaining > 0 ? state.freeCreditsRemaining - 1 : 0);
+      final rewarded = (newTotal - free).clamp(0, 999);
       state = state.copyWith(
-        totalCreditsRemaining: remaining,
+        totalCreditsRemaining: newTotal,
         freeCreditsRemaining: free,
         rewardedCreditsRemaining: rewarded,
       );
-      _prefs.setCachedCredits(remaining);
+      _prefs.setCachedCredits(newTotal);
     }
   }
 
