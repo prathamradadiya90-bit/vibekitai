@@ -39,7 +39,7 @@ class AppConfig {
   // Paste your real ca-app-pub-XXXXXXXXXXXXXXXX/YYYYYYYYYY IDs below for production release,
   // or pass them via --dart-define (e.g. --dart-define=ADMOB_BANNER_ID=...).
   // While running in debug mode (kDebugMode), official test IDs are automatically used to protect your account.
-  static const String prodBannerAdUnitId = '';
+  static const String prodBannerAdUnitId = 'ca-app-pub-2168884661772447/4264617323';
   static const String prodRewardedAdUnitId = '';
   static const String prodInterstitialAdUnitId = '';
 
