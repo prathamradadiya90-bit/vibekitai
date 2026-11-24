@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../config/app_config.dart';
@@ -163,8 +164,8 @@ class QuotaNotifier extends StateNotifier<QuotaModel> {
       }
     }
 
-    // Dev mode fallback
-    if (AppConfig.isDev) {
+    // Dev or Web mode fallback
+    if (AppConfig.isDev || kIsWeb) {
       final updated = state.copyWith(
         totalCreditsRemaining: state.totalCreditsRemaining + 3,
         rewardedCreditsRemaining: state.rewardedCreditsRemaining + 3,

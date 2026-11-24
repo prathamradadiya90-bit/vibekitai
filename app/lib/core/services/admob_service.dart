@@ -149,6 +149,14 @@ class AdMobService {
   }) async {
     if (_isProUser) return false;
 
+    if (kIsWeb) {
+      debugPrint('[AdMob] Web platform detected. Simulating rewarded ad for web testing.');
+      await Future.delayed(const Duration(milliseconds: 600));
+      onRewardEarned(RewardItem(3, 'credits'));
+      onAdClosed?.call();
+      return true;
+    }
+
     // Double-tap mutex lock
     if (_isShowingRewardedAd) {
       debugPrint('[AdMob] Rewarded ad already showing. Suppressing double invocation.');
