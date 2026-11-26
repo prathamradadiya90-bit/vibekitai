@@ -13,6 +13,15 @@ export const adminRoute = new Hono<AppHonoEnv>();
 
 // Apply admin authentication to all /admin and /v1/admin routes
 adminRoute.use('*', adminAuthMiddleware());
+adminRoute.use('*', async (c, next) => {
+  if (!c.env.DB && !c.req.path.endsWith('/me')) {
+    return c.json(
+      { error: { code: 'SERVICE_UNAVAILABLE', message: 'Database binding is not configured.' } },
+      503
+    );
+  }
+  await next();
+});
 
 // Zod Schemas for admin mutations
 const grantCreditsSchema = z.object({
@@ -165,19 +174,54 @@ adminRoute.post('/installations/:id/grant-credits', async (c) => {
   const today = new Date().toISOString().substring(0, 10);
   const now = new Date().toISOString();
 
-  // Adjust rewarded credits or free credits on today's usage row
+  // Ensure installation exists first to satisfy foreign-key constraints
   await c.env.DB
     .prepare(
-      `INSERT INTO daily_usage (
-         id, installation_id, usage_date, free_credits_used, rewarded_credits_earned,
-         rewarded_ads_watched, pro_credits_used, updated_at
-       ) VALUES (?, ?, ?, 0, ?, 0, 0, ?)
-       ON CONFLICT(installation_id, usage_date) DO UPDATE SET
-         rewarded_credits_earned = MAX(0, daily_usage.rewarded_credits_earned + ?),
-         updated_at = ?`
+      `INSERT INTO installations (id, created_at, last_active_at)
+       VALUES (?, ?, ?)
+       ON CONFLICT(id) DO UPDATE SET last_active_at = excluded.last_active_at`
     )
-    .bind(`usage_${id}_${today}`, id, today, Math.max(0, creditsDelta), now, creditsDelta, now)
+    .bind(id, now, now)
     .run();
+
+  if (creditsDelta >= 0) {
+    await c.env.DB
+      .prepare(
+        `INSERT INTO daily_usage (
+           id, installation_id, usage_date, free_credits_used, rewarded_credits_earned,
+           rewarded_ads_watched, pro_credits_used, updated_at
+         ) VALUES (?, ?, ?, 0, ?, 0, 0, ?)
+         ON CONFLICT(installation_id, usage_date) DO UPDATE SET
+           rewarded_credits_earned = MAX(0, daily_usage.rewarded_credits_earned + ?),
+           updated_at = ?`
+      )
+      .bind(`usage_${id}_${today}`, id, today, creditsDelta, now, creditsDelta, now)
+      .run();
+  } else {
+    // Deduct across all usage rows carrying rewarded credits (earliest first)
+    let toDeduct = Math.abs(creditsDelta);
+    const rows = await c.env.DB
+      .prepare(
+        `SELECT id, rewarded_credits_earned
+         FROM daily_usage
+         WHERE installation_id = ? AND rewarded_credits_earned > 0
+         ORDER BY usage_date ASC`
+      )
+      .bind(id)
+      .all<{ id: string; rewarded_credits_earned: number }>();
+
+    for (const row of rows.results ?? []) {
+      if (toDeduct <= 0) break;
+      const take = Math.min(toDeduct, row.rewarded_credits_earned);
+      await c.env.DB
+        .prepare(
+          'UPDATE daily_usage SET rewarded_credits_earned = MAX(0, rewarded_credits_earned - ?), updated_at = ? WHERE id = ?'
+        )
+        .bind(take, now, row.id)
+        .run();
+      toDeduct -= take;
+    }
+  }
 
   const auditRepo = new AdminAuditRepository(c.env.DB);
   await auditRepo.recordLog({
@@ -404,10 +448,14 @@ adminRoute.post('/feedback/:id/resolve', async (c) => {
   const id = c.req.param('id');
   const now = new Date().toISOString();
 
-  await c.env.DB
+  const res = await c.env.DB
     .prepare('UPDATE feedback_records SET status = ?, resolved_by = ?, resolved_at = ? WHERE id = ?')
-    .bind('RESOLVED', adminUser.email, now, id)
+    .bind('resolved', adminUser.email, now, id)
     .run();
+
+  if ((res.meta?.changes ?? 0) === 0) {
+    throw new NotFoundError(`Feedback ${id} not found.`);
+  }
 
   const auditRepo = new AdminAuditRepository(c.env.DB);
   await auditRepo.recordLog({

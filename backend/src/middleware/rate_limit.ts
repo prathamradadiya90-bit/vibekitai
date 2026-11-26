@@ -1,11 +1,11 @@
 import { MiddlewareHandler } from 'hono';
-import { Env } from '../types';
+import { AppHonoEnv } from '../types';
 
 export function rateLimiterMiddleware(options?: {
   generalLimit?: number;
   generationLimit?: number;
   windowSeconds?: number;
-}): MiddlewareHandler<{ Bindings: Env }> {
+}): MiddlewareHandler<AppHonoEnv> {
   const generalLimit = options?.generalLimit ?? 60;
   const generationLimit = options?.generationLimit ?? 15;
   const windowSeconds = options?.windowSeconds ?? 60;
@@ -19,9 +19,10 @@ export function rateLimiterMiddleware(options?: {
       return await next();
     }
 
-    // Determine client identifier: installation ID or CF-Connecting-IP
+    // Determine client identifier: canonical sanitized installation ID + CF-Connecting-IP
     const clientIp = c.req.header('CF-Connecting-IP') || c.req.header('X-Forwarded-For') || 'unknown_ip';
-    const installId = c.req.header('X-App-Instance-Id') || 'anon';
+    const rawHeaderId = c.req.header('X-App-Instance-Id') || c.req.header('X-Installation-Id');
+    const installId = c.get('installationId') || (rawHeaderId ? rawHeaderId.slice(0, 64).replace(/[^a-zA-Z0-9_\-\.]/g, '') : '') || 'anon';
     const isGeneration = c.req.path.includes('/generations/');
     const limit = isGeneration ? generationLimit : generalLimit;
 

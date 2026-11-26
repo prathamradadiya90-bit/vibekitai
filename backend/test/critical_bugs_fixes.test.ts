@@ -1,5 +1,7 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { Hono } from 'hono';
+import { OpenAICompatibleProvider } from '../src/ai/openai_compatible';
+import { handleScheduledTask } from '../src/cron/nightly_stats';
 import { AdsRepository } from '../src/db/ads.repo';
 import { PurchasesRepository } from '../src/db/purchases.repo';
 import { ReferralsRepository } from '../src/db/referrals.repo';
@@ -9,6 +11,10 @@ import { validateOutboundUrl } from '../src/security/safe_fetch';
 import { installationMiddleware } from '../src/middleware/installation';
 import { bodyLimitMiddleware } from '../src/middleware/body_limit';
 import { rateLimiterMiddleware } from '../src/middleware/rate_limit';
+import { FallbackChainAIProvider, resetFallbackCircuitBreaker } from '../src/ai/fallback_chain';
+import type { AIProvider } from '../src/ai/factory';
+import { UsageRepository } from '../src/db/usage.repo';
+import { mintSessionToken, verifySessionToken } from '../src/security/session_tokens';
 
 // Mock in-memory SQLite D1Database for isolated unit testing
 class MockD1Statement {
@@ -276,5 +282,343 @@ describe('Critical Bug Fixes & Regression Test Suite', () => {
     expect(res4.status).toBe(429);
     const body = (await res4.json()) as { error: { code: string; message: string } };
     expect(body.error.code).toBe('RATE_LIMIT_EXCEEDED');
+  });
+
+  it('Bug #11: /terms serves genuine Terms of Service rather than Privacy Policy', async () => {
+    const { default: appEntry } = await import('../src/index');
+    const res = await appEntry.request('/terms', { method: 'GET' });
+    expect(res.status).toBe(200);
+    const html = await res.text();
+    expect(html).toContain('Terms of Service');
+    expect(html).toContain('Acceptance of Terms');
+  });
+
+  it('Bug #12: QuotaManager reserveCredit & refundCredit roll back cleanly on failure', async () => {
+    const qm = new QuotaManager({
+      ENVIRONMENT: 'test',
+      MAX_DAILY_FREE_CREDITS: '3',
+    } as any);
+    const id = `inst_refund_${Date.now()}`;
+
+    const bucket = await qm.reserveCredit(id);
+    expect(bucket).toBe('free');
+    expect((await qm.getQuotaStatus(id)).free_credits_remaining).toBe(2);
+
+    await qm.refundCredit(id, bucket!);
+    expect((await qm.getQuotaStatus(id)).free_credits_remaining).toBe(3);
+
+    await qm.deleteUserData(id);
+    expect((await qm.getQuotaStatus(id)).free_credits_remaining).toBe(3);
+  });
+
+  it('Bug #13: /v1/auth/attest fails closed in production without signing secret', async () => {
+    const { default: appEntry } = await import('../src/index');
+    const res = await appEntry.request(
+      '/v1/auth/attest',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-App-Instance-Id': 'prod_test_user',
+        },
+        body: JSON.stringify({ integrityToken: 'mock_token' }),
+      },
+      { ENVIRONMENT: 'production', GOOGLE_PLAY_SERVICE_ACCOUNT_JSON: undefined } as any
+    );
+    expect(res.status).toBeGreaterThanOrEqual(400);
+  });
+
+  it('Bug #14: FallbackChainAIProvider rethrows SAFETY_VIOLATION without fallback or opening circuit', async () => {
+    resetFallbackCircuitBreaker();
+    let primaryCalls = 0;
+    let fallbackCalls = 0;
+
+    const primary: AIProvider = {
+      generateReplies: async () => {
+        primaryCalls += 1;
+        if (primaryCalls <= 4) {
+          throw new Error('SAFETY_VIOLATION: Content blocked by safety policy');
+        }
+        return ['Safe reply'];
+      },
+      generateCaptions: async () => ({ captions: [], hooks: [], callToActions: [], hashtags: [] }),
+      generateBios: async () => ({ bios: [], usernames: [] }),
+      vibeCheck: async () => ({ score: 80, title: 'Ok', verdict: 'Ok', tags: [], rewrites: [] }),
+    };
+
+    const fallback: AIProvider = {
+      generateReplies: async () => {
+        fallbackCalls += 1;
+        return ['Fallback reply'];
+      },
+      generateCaptions: async () => ({ captions: [], hooks: [], callToActions: [], hashtags: [] }),
+      generateBios: async () => ({ bios: [], usernames: [] }),
+      vibeCheck: async () => ({ score: 80, title: 'Ok', verdict: 'Ok', tags: [], rewrites: [] }),
+    };
+
+    const chain = new FallbackChainAIProvider(primary, fallback);
+    const params = { message: 'unsafe', tone: 'Funny', language: 'English', length: 'short', count: 1 };
+
+    for (let i = 0; i < 4; i++) {
+      await expect(chain.generateReplies(params)).rejects.toThrow('SAFETY_VIOLATION');
+    }
+    expect(fallbackCalls).toBe(0);
+
+    // 5th clean request must still hit primary because safety errors did not trip circuit breaker
+    const res = await chain.generateReplies({ ...params, message: 'safe' });
+    expect(res).toEqual(['Safe reply']);
+    expect(primaryCalls).toBe(5);
+    expect(fallbackCalls).toBe(0);
+  });
+
+  it('Bug #15: UsageRepository.deductRewardedCreditAtomic binds exact 2 params matching SQL placeholders', async () => {
+    let capturedSql = '';
+    let capturedArgs: unknown[] = [];
+
+    const mockDb = {
+      prepare: (sql: string) => {
+        capturedSql = sql;
+        return {
+          bind: (...args: unknown[]) => {
+            capturedArgs = args;
+            return {
+              run: async () => ({ meta: { changes: 1 } }),
+            };
+          },
+        };
+      },
+    };
+
+    const repo = new UsageRepository(mockDb as any);
+    const deducted = await repo.deductRewardedCreditAtomic('inst_rew_1');
+    expect(deducted).toBe(true);
+    expect((capturedSql.match(/\?/g) || []).length).toBe(2);
+    expect(capturedArgs).toHaveLength(2);
+    expect(capturedArgs[1]).toBe('inst_rew_1');
+    expect(capturedSql.toUpperCase()).toContain('ORDER BY USAGE_DATE ASC');
+  });
+
+  it('Bug #16: POST /v1/purchases/rtdn skips subNotice missing purchaseToken or subscriptionId', async () => {
+    const { default: appEntry } = await import('../src/index');
+    const encoded = btoa(JSON.stringify({ subscriptionNotification: { notificationType: 2 } }));
+    const res = await appEntry.request(
+      '/v1/purchases/rtdn',
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: { data: encoded, messageId: 'msg_missing_fields_1' },
+        }),
+      },
+      { ENVIRONMENT: 'production' } as any
+    );
+
+    expect(res.status).toBe(200);
+    const json: any = await res.json();
+    expect(json.processed).toBe(false);
+    expect(json.reason).toBe('MISSING_FIELDS');
+  });
+
+  it('Bug #17: verifySessionToken rejects signed payloads with missing or invalid exp', async () => {
+    const secret = 'test_session_secret_value';
+    const b64u = (str: string) => btoa(str).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    const header = b64u(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));
+    const malformedPayload = b64u(JSON.stringify({ sub: 'inst_1', dev: 'dev_1' })); // Missing exp
+    const message = `${header}.${malformedPayload}`;
+    const key = await crypto.subtle.importKey(
+      'raw',
+      new TextEncoder().encode(secret),
+      { name: 'HMAC', hash: 'SHA-256' },
+      false,
+      ['sign']
+    );
+    const sigBuf = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(message));
+    const sig = b64u(String.fromCharCode(...new Uint8Array(sigBuf)));
+    const forgedWithoutExp = `${message}.${sig}`;
+
+    expect(await verifySessionToken(forgedWithoutExp, secret)).toBeNull();
+
+    const validToken = await mintSessionToken('inst_1', 'dev_1', secret, 60);
+    const verified = await verifySessionToken(validToken, secret);
+    expect(verified?.sub).toBe('inst_1');
+  });
+
+  it('Bug #18: installationMiddleware exempts external SSV and RTDN webhooks from installation tracking', async () => {
+    const queries: string[] = [];
+    const spyingDb = {
+      prepare: (sql: string) => {
+        queries.push(sql);
+        return {
+          bind: () => ({
+            first: async () => null,
+            run: async () => ({ meta: { changes: 0 } }),
+          }),
+        };
+      },
+    };
+
+    const webhookApp = new Hono<any>();
+    webhookApp.use('*', async (c, next) => {
+      c.env = { DB: spyingDb };
+      await next();
+    });
+    webhookApp.use('/v1/*', installationMiddleware());
+    webhookApp.get('/v1/ads/ssv', (c) => c.text('OK'));
+    webhookApp.post('/v1/purchases/rtdn', (c) => c.json({ ok: true }));
+
+    const ssvRes = await webhookApp.request('/v1/ads/ssv', { method: 'GET' });
+    const rtdnRes = await webhookApp.request('/v1/purchases/rtdn', { method: 'POST' });
+
+    expect(ssvRes.status).toBe(200);
+    expect(rtdnRes.status).toBe(200);
+    expect(queries).toHaveLength(0);
+  });
+
+  it('Bug #19: OpenAICompatibleProvider maps content_filter responses to SAFETY_VIOLATION', async () => {
+    const mockFetch = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          choices: [{ finish_reason: 'content_filter', message: { content: '' } }],
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } }
+      )
+    );
+    vi.stubGlobal('fetch', mockFetch);
+
+    try {
+      const provider = new OpenAICompatibleProvider(
+        'test_key',
+        'https://api.openai.com/v1',
+        'gpt-4o-mini'
+      );
+      await expect(
+        provider.generateReplies({
+          message: 'unsafe test',
+          tone: 'Funny',
+          language: 'English',
+          length: 'short',
+          count: 1,
+        })
+      ).rejects.toThrow('SAFETY_VIOLATION');
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it('Bug #20: handleScheduledTask purges expired idempotency_keys alongside rate_limit_counters', async () => {
+    const executedSqls: string[] = [];
+    const mockDb = {
+      prepare: (sql: string) => {
+        executedSqls.push(sql);
+        return {
+          bind: () => ({
+            first: async () => ({ total: 0, successes: 0, avg_latency: 0 }),
+            all: async () => ({ results: [] }),
+            run: async () => ({ meta: { changes: 1 } }),
+          }),
+          all: async () => ({ results: [] }),
+          first: async () => null,
+          run: async () => ({ meta: { changes: 0 } }),
+        };
+      },
+      batch: async () => [],
+    };
+
+    const waitPromises: Promise<unknown>[] = [];
+    const ctx = {
+      waitUntil: (p: Promise<unknown>) => {
+        waitPromises.push(p);
+      },
+    } as any;
+
+    await handleScheduledTask({} as any, { DB: mockDb, ENVIRONMENT: 'production' } as any, ctx);
+    await Promise.all(waitPromises);
+
+    expect(executedSqls.some((s) => s.includes('DELETE FROM rate_limit_counters'))).toBe(true);
+    expect(executedSqls.some((s) => s.includes('DELETE FROM idempotency_keys WHERE expires_at <='))).toBe(true);
+  });
+
+  it('Bug #21: POST /v1/ads/verify-reward limit error reflects 200 monthly credits without unlimited claim', async () => {
+    const { default: appEntry } = await import('../src/index');
+    const env = { ENVIRONMENT: 'test', MAX_DAILY_REWARDS: '1' } as any;
+    const headers = {
+      'Content-Type': 'application/json',
+      'X-App-Instance-Id': `inst_ad_cap_${Date.now()}`,
+    };
+
+    const firstRes = await appEntry.request(
+      '/v1/ads/verify-reward',
+      { method: 'POST', headers, body: JSON.stringify({ reward_id: 'r1' }) },
+      env
+    );
+    expect(firstRes.status).toBe(200);
+
+    const secondRes = await appEntry.request(
+      '/v1/ads/verify-reward',
+      { method: 'POST', headers, body: JSON.stringify({ reward_id: 'r2' }) },
+      env
+    );
+    expect(secondRes.status).toBe(429);
+    const body: any = await secondRes.json();
+    expect(body.error?.message).toContain('200 monthly');
+    expect(body.error?.message?.toLowerCase()).not.toContain('unlimited');
+  });
+});
+
+describe('Bug #22 & #23: CORS Preflight X-Timezone-Offset & Gujarati Mock Localization', () => {
+  it('allows X-Timezone-Offset and X-Installation-Id in CORS preflight for localhost:8888', async () => {
+    const { default: appEntry } = await import('../src/index');
+    const preflightRes = await appEntry.request(
+      '/v1/generations/reply',
+      {
+        method: 'OPTIONS',
+        headers: {
+          Origin: 'http://localhost:8888',
+          'Access-Control-Request-Method': 'POST',
+          'Access-Control-Request-Headers':
+            'content-type,x-app-instance-id,x-app-version,x-request-id,x-timezone-offset',
+        },
+      },
+      { ENVIRONMENT: 'development', AI_PROVIDER: 'mock' } as any
+    );
+
+    expect(preflightRes.status).toBe(204);
+    expect(preflightRes.headers.get('access-control-allow-origin')).toBe('http://localhost:8888');
+    const allowedHeaders = (preflightRes.headers.get('access-control-allow-headers') ?? '').toLowerCase();
+    expect(allowedHeaders).toContain('x-timezone-offset');
+    expect(allowedHeaders).toContain('x-installation-id');
+  });
+
+  it('localizes mockBios and mockVibeCheck in Gujarati script when language is Gujarati', async () => {
+    const { mockBios, mockVibeCheck } = await import('../src/ai/mock_outputs');
+    const gujaratiRegex = /[\u0A80-\u0AFF]/;
+
+    const bioOut = mockBios({
+      interests: 'coffee and code',
+      platform: 'Instagram',
+      vibe: 'Witty',
+      language: 'Gujarati',
+      includeUsernames: true,
+    });
+    expect(bioOut.bios.length).toBeGreaterThan(0);
+    expect(bioOut.bios.some((b) => gujaratiRegex.test(b))).toBe(true);
+    expect(bioOut.usernames.length).toBeGreaterThan(0);
+
+    const vibeFlags = mockVibeCheck({
+      text: 'hi',
+      mode: 'flags',
+      language: 'Gujarati',
+    });
+    const vibeRoast = mockVibeCheck({
+      text: 'hi',
+      mode: 'roast',
+      language: 'Gujarati',
+    });
+    expect(gujaratiRegex.test(vibeFlags.title)).toBe(true);
+    expect(gujaratiRegex.test(vibeFlags.verdict)).toBe(true);
+    expect(vibeFlags.tags.some((t) => gujaratiRegex.test(t))).toBe(true);
+    expect(vibeFlags.rewrites.some((r) => gujaratiRegex.test(r))).toBe(true);
+    expect(vibeFlags.title).not.toBe(vibeRoast.title);
+    expect(vibeFlags.verdict).not.toBe(vibeRoast.verdict);
   });
 });

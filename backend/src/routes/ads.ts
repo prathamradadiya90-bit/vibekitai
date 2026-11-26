@@ -1,15 +1,15 @@
 import { Hono } from 'hono';
-import { Env } from '../types';
+import { AppHonoEnv } from '../types';
 import { AdMobSsvQuerySchema, RewardVerifySchema } from '../schemas/validation';
 import { QuotaManager } from '../quota/quota_manager';
 import { verifyAdMobSsvSignature } from '../security/admob_ssv';
 import { AdsRepository } from '../db/ads.repo';
 
-export const adsRoute = new Hono<{ Bindings: Env }>();
+export const adsRoute = new Hono<AppHonoEnv>();
 
 // 1. Issue a cryptographically fresh single-use nonce for the client to pass in AdMob custom_data
 adsRoute.post('/ads/request-nonce', async (c) => {
-  const installationId = c.req.header('X-App-Instance-Id') || 'anonymous_default';
+  const installationId = c.get('installationId') || c.req.header('X-App-Instance-Id') || 'anonymous_default';
   const quotaManager = new QuotaManager(c.env);
   const nonce = await quotaManager.createAdNonce(installationId);
 
@@ -40,6 +40,7 @@ adsRoute.get('/ads/ssv', async (c) => {
 
   // Verify signature (or skip if dev flag explicitly set)
   let isSignatureValid = false;
+  const isDevOrTest = c.env.ENVIRONMENT === 'development' || c.env.ENVIRONMENT === 'test';
   if (c.env.SKIP_SSV_VERIFY_FOR_DEV === 'true' || c.env.ENVIRONMENT === 'test') {
     isSignatureValid = true;
   } else {
@@ -47,7 +48,8 @@ adsRoute.get('/ads/ssv', async (c) => {
       url.search.slice(1),
       keyId,
       signature,
-      c.env.ADMOB_SSV_KEY_URL
+      c.env.ADMOB_SSV_KEY_URL,
+      isDevOrTest
     );
   }
 
@@ -103,7 +105,7 @@ adsRoute.get('/ads/ssv', async (c) => {
 
 // 3. Client polling / verification endpoint: checks if reward was recorded by SSV
 adsRoute.post('/ads/verify-reward', async (c) => {
-  const installationId = c.req.header('X-App-Instance-Id') || 'anonymous_default';
+  const installationId = c.get('installationId') || c.req.header('X-App-Instance-Id') || 'anonymous_default';
   const bodyResult = RewardVerifySchema.safeParse(await c.req.json().catch(() => ({})));
 
   const quotaManager = new QuotaManager(c.env);
@@ -126,7 +128,7 @@ adsRoute.post('/ads/verify-reward', async (c) => {
           verified: false,
           error: {
             code: 'DAILY_REWARD_LIMIT_REACHED',
-            message: 'Daily rewarded ads limit reached. Upgrade to Pro for unlimited credits.',
+            message: 'Daily rewarded ads limit reached. Upgrade to Pro for 200 monthly AI credits.',
           },
           credits_remaining: updatedQuota.total_credits_remaining,
           rewarded_ads_watched_today: updatedQuota.rewarded_ads_watched_today,

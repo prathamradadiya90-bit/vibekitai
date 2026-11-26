@@ -60,11 +60,12 @@ app.use(
     origin: (origin) => {
       // Mobile app native clients do not send Origin header
       if (!origin) return '*';
-      const isLocalhost = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
+      const isLocalhost = /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/.test(origin);
       if (
         isLocalhost ||
         origin.endsWith('.vibekit.ai') ||
-        origin === 'https://vibekit.ai'
+        origin === 'https://vibekit.ai' ||
+        origin === 'https://replyvibe-api.vercel.app'
       ) {
         return origin;
       }
@@ -76,7 +77,9 @@ app.use(
       'Accept',
       'Authorization',
       'X-App-Instance-Id',
+      'X-Installation-Id',
       'X-App-Version',
+      'X-Timezone-Offset',
       'X-Idempotency-Key',
       'Idempotency-Key',
       'X-Session-Token',

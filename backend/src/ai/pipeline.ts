@@ -52,10 +52,10 @@ export async function runGeneration<TInput, TOutput>(
   }
   const input = parsed.data;
 
-  // 4. Check Quota Availability
+  // 4. Atomically Reserve Credit Before Calling Upstream AI (eliminates parallel TOCTOU overspend)
   const quotaManager = new QuotaManager(c.env);
-  const hasCredits = await quotaManager.hasAvailableCredits(installation.id);
-  if (!hasCredits) {
+  const reservedBucket = await quotaManager.reserveCredit(installation.id);
+  if (!reservedBucket) {
     throw new QuotaExceededError();
   }
 
@@ -65,38 +65,39 @@ export async function runGeneration<TInput, TOutput>(
 
   // 5. Daily Challenge Cache Check (if challenge request)
   if (challengeId && tone && language && c.env?.DB) {
-    const cached = await getCachedChallengeResponse<TOutput>(
-      c.env.DB,
-      challengeId,
-      tone,
-      language,
-      config.category
-    );
-    if (cached) {
-      const creditDeducted = await quotaManager.deductCredit(installation.id);
-      if (!creditDeducted) {
-        throw new QuotaExceededError();
-      }
-      const quota = await quotaManager.getQuotaStatus(installation.id);
-      const creditsRemaining = quota.is_pro ? quota.pro_credits_remaining : quota.total_credits_remaining;
-      const cachedResponse = config.formatResponse(cached, input, creditsRemaining, true);
+    try {
+      const cached = await getCachedChallengeResponse<TOutput>(
+        c.env.DB,
+        challengeId,
+        tone,
+        language,
+        config.category
+      );
+      if (cached) {
+        const quota = await quotaManager.getQuotaStatus(installation.id);
+        const creditsRemaining = quota.is_pro ? quota.pro_credits_remaining : quota.total_credits_remaining;
+        const cachedResponse = config.formatResponse(cached, input, creditsRemaining, true);
 
-      if (idempotencyRepo && idempotencyKey) {
-        await idempotencyRepo.storeResponse({
-          key: idempotencyKey,
-          installationId: installation.id,
-          endpoint: c.req.path,
-          requestHash: requestId,
-          responseJson: JSON.stringify(cachedResponse),
-          statusCode: 200,
-        });
-      }
+        if (idempotencyRepo && idempotencyKey) {
+          await idempotencyRepo.storeResponse({
+            key: idempotencyKey,
+            installationId: installation.id,
+            endpoint: c.req.path,
+            requestHash: requestId,
+            responseJson: JSON.stringify(cachedResponse),
+            statusCode: 200,
+          });
+        }
 
-      return c.json(cachedResponse);
+        return c.json(cachedResponse);
+      }
+    } catch (cacheErr) {
+      await quotaManager.refundCredit(installation.id, reservedBucket);
+      throw cacheErr;
     }
   }
 
-  // 4. Call AI with Fallback Chain & Repair Retry
+  // 6. Call AI with Fallback Chain & Repair Retry
   const ai = createAIProvider(c.env);
   let output: TOutput;
 
@@ -125,26 +126,25 @@ export async function runGeneration<TInput, TOutput>(
       }
     }
   } catch (err: unknown) {
+    await quotaManager.refundCredit(installation.id, reservedBucket);
     const errMessage = err instanceof Error ? err.message : 'AI generation error';
-    // Record failure in audit metadata
-    const genRepo = new GenerationsRepository(c.env?.DB);
-    await genRepo.insertMetadata({
-      id: `gen_${Date.now()}_${Math.random().toString(36).substring(7)}`,
-      requestId,
-      installationId: installation.id,
-      category: config.category,
-      tone,
-      language,
-      status: errMessage.includes('SAFETY') ? 'safety_rejected' : 'failed',
-      latencyMs: Date.now() - startTime,
-    });
+    // Record failure in audit metadata (non-fatal)
+    try {
+      const genRepo = new GenerationsRepository(c.env?.DB);
+      await genRepo.insertMetadata({
+        id: `gen_${Date.now()}_${Math.random().toString(36).substring(7)}`,
+        requestId,
+        installationId: installation.id,
+        category: config.category,
+        tone,
+        language,
+        status: errMessage.includes('SAFETY') ? 'safety_rejected' : 'failed',
+        latencyMs: Date.now() - startTime,
+      });
+    } catch (telemetryErr) {
+      console.warn('[Pipeline] Failed to record failure metadata:', telemetryErr);
+    }
     throw new ProviderError(errMessage);
-  }
-
-  // 6. Commit Credit ONLY on Success
-  const creditDeducted = await quotaManager.deductCredit(installation.id);
-  if (!creditDeducted) {
-    throw new QuotaExceededError();
   }
 
   const latencyMs = Date.now() - startTime;
@@ -161,21 +161,23 @@ export async function runGeneration<TInput, TOutput>(
     );
   }
 
-  // 8. Write Audit Metadata (Never stores prompt content or generated text)
-  const genRepo = new GenerationsRepository(c.env?.DB);
-  await genRepo.insertMetadata({
-    id: `gen_${Date.now()}_${Math.random().toString(36).substring(7)}`,
-    requestId,
-    installationId: installation.id,
-    category: config.category,
-    tone,
-    language,
-    status: 'success',
-    latencyMs,
-  });
-
-  // 9. Record spend in daily budget
-  await circuitBreaker.recordSpend(0.0001);
+  // 8. Write Audit Metadata & budget spend (Never fail a succeeded generation on telemetry writes)
+  try {
+    const genRepo = new GenerationsRepository(c.env?.DB);
+    await genRepo.insertMetadata({
+      id: `gen_${Date.now()}_${Math.random().toString(36).substring(7)}`,
+      requestId,
+      installationId: installation.id,
+      category: config.category,
+      tone,
+      language,
+      status: 'success',
+      latencyMs,
+    });
+    await circuitBreaker.recordSpend(0.0001);
+  } catch (telemetryErr) {
+    console.warn('[Pipeline] Non-fatal telemetry/budget write failed:', telemetryErr);
+  }
 
   // 10. Return Standardized Response & Cache in Idempotency Repo
   const quota = await quotaManager.getQuotaStatus(installation.id);
@@ -183,14 +185,18 @@ export async function runGeneration<TInput, TOutput>(
   const finalResponse = config.formatResponse(output, input, creditsRemaining, false);
 
   if (idempotencyRepo && idempotencyKey) {
-    await idempotencyRepo.storeResponse({
-      key: idempotencyKey,
-      installationId: installation.id,
-      endpoint: c.req.path,
-      requestHash: requestId,
-      responseJson: JSON.stringify(finalResponse),
-      statusCode: 200,
-    });
+    try {
+      await idempotencyRepo.storeResponse({
+        key: idempotencyKey,
+        installationId: installation.id,
+        endpoint: c.req.path,
+        requestHash: requestId,
+        responseJson: JSON.stringify(finalResponse),
+        statusCode: 200,
+      });
+    } catch (idempErr) {
+      console.warn('[Pipeline] Non-fatal idempotency store failed:', idempErr);
+    }
   }
 
   return c.json(finalResponse);

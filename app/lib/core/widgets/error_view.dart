@@ -47,10 +47,10 @@ class ErrorView extends StatelessWidget {
                   const SizedBox(height: AppSpacing.xs),
                   GestureDetector(
                     onTap: onRetry,
-                    child: const Text(
+                    child: Text(
                       'Tap to retry',
                       style: TextStyle(
-                        color: AppColors.primary,
+                        color: isDark ? AppColors.accentWarm : AppColors.primary,
                         fontSize: 13,
                         fontWeight: FontWeight.bold,
                       ),

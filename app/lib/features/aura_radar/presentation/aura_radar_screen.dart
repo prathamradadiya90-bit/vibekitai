@@ -287,11 +287,15 @@ class _AuraRadarScreenState extends ConsumerState<AuraRadarScreen> {
               ),
               child: Text(
                 'QUESTION ${_currentQuestionIndex + 1} OF ${_questions.length}',
-                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.primary),
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
+                  color: isDark ? AppColors.accentWarm : AppColors.primary,
+                ),
               ),
             ),
             Text(
-              '+50 XP',
+              '+20 XP',
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.bold,
@@ -308,7 +312,9 @@ class _AuraRadarScreenState extends ConsumerState<AuraRadarScreen> {
           child: LinearProgressIndicator(
             value: (_currentQuestionIndex + 1) / _questions.length,
             backgroundColor: isDark ? AppColors.surfaceCardDark : AppColors.surfaceCardLight,
-            valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primary),
+            valueColor: AlwaysStoppedAnimation<Color>(
+              isDark ? AppColors.accentWarm : AppColors.primary,
+            ),
             minHeight: 6,
           ),
         ),
@@ -414,11 +420,11 @@ class _AuraRadarScreenState extends ConsumerState<AuraRadarScreen> {
                 ),
                 child: Text(
                   res['badge'] as String,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.bold,
                     letterSpacing: 1.2,
-                    color: AppColors.primary,
+                    color: isDark ? AppColors.accentWarm : AppColors.primary,
                   ),
                 ),
               ),
@@ -491,7 +497,11 @@ class _AuraRadarScreenState extends ConsumerState<AuraRadarScreen> {
                           ),
                           Text(
                             '$pct%',
-                            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.primary),
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: isDark ? AppColors.accentWarm : AppColors.primary,
+                            ),
                           ),
                         ],
                       ),
@@ -501,7 +511,9 @@ class _AuraRadarScreenState extends ConsumerState<AuraRadarScreen> {
                         child: LinearProgressIndicator(
                           value: val,
                           backgroundColor: isDark ? Colors.white10 : Colors.black12,
-                          valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primary),
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            isDark ? AppColors.accentWarm : AppColors.primary,
+                          ),
                           minHeight: 6,
                         ),
                       ),
@@ -558,7 +570,12 @@ class _AuraRadarScreenState extends ConsumerState<AuraRadarScreen> {
 
         TextButton(
           onPressed: _resetQuiz,
-          child: const Text('Retake Quiz', style: TextStyle(color: AppColors.primary)),
+          child: Text(
+            'Retake Quiz',
+            style: TextStyle(
+              color: isDark ? AppColors.accentWarm : AppColors.primary,
+            ),
+          ),
         ),
       ],
     );

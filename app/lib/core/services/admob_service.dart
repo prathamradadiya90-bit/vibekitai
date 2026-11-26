@@ -106,11 +106,14 @@ class AdMobService {
 
   /// Preloads a rewarded ad with exponential backoff on failure
   void loadRewardedAd() {
-    if (!_isInitialized || _isRewardedAdLoading || _rewardedAd != null || _isProUser) return;
+    final unitId = AppConfig.rewardedAdUnitId;
+    if (!_isInitialized || _isRewardedAdLoading || _rewardedAd != null || _isProUser || unitId.isEmpty) {
+      return;
+    }
 
     _isRewardedAdLoading = true;
     RewardedAd.load(
-      adUnitId: AppConfig.rewardedAdUnitId,
+      adUnitId: unitId,
       request: const AdRequest(),
       rewardedAdLoadCallback: RewardedAdLoadCallback(
         onAdLoaded: (ad) {
@@ -147,7 +150,10 @@ class AdMobService {
     VoidCallback? onAdClosed,
     VoidCallback? onAdFailed,
   }) async {
-    if (_isProUser) return false;
+    if (_isProUser || AppConfig.rewardedAdUnitId.isEmpty) {
+      if (!kIsWeb && !_isProUser) onAdFailed?.call();
+      return false;
+    }
 
     if (kIsWeb) {
       debugPrint('[AdMob] Web platform detected. Simulating rewarded ad for web testing.');
@@ -231,11 +237,14 @@ class AdMobService {
 
   /// Preloads an interstitial ad with exponential backoff on failure
   void loadInterstitialAd() {
-    if (!_isInitialized || _isInterstitialLoading || _interstitialAd != null || _isProUser) return;
+    final unitId = AppConfig.interstitialAdUnitId;
+    if (!_isInitialized || _isInterstitialLoading || _interstitialAd != null || _isProUser || unitId.isEmpty) {
+      return;
+    }
 
     _isInterstitialLoading = true;
     InterstitialAd.load(
-      adUnitId: AppConfig.interstitialAdUnitId,
+      adUnitId: unitId,
       request: const AdRequest(),
       adLoadCallback: InterstitialAdLoadCallback(
         onAdLoaded: (ad) {
@@ -274,7 +283,9 @@ class AdMobService {
   Future<bool> showInterstitialIfEligible({
     VoidCallback? onDismissed,
   }) async {
-    if (_isProUser) return false;
+    if (kIsWeb || !_isInitialized || _isProUser || AppConfig.interstitialAdUnitId.isEmpty) {
+      return false;
+    }
 
     // Reset daily count if UTC day changed
     final today = DateTime.now().toUtc().toIso8601String().substring(0, 10);

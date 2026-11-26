@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
+import 'package:in_app_purchase_android/in_app_purchase_android.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../core/config/app_config.dart';
 import '../../core/constants/app_colors.dart';
@@ -130,21 +131,53 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
     final billing = ref.watch(billingServiceProvider);
     final quota = ref.watch(quotaProvider);
 
-    // Resolve real localized prices if available from Play Billing
-    String yearlyPrice = '₹699 / year (3-Day Free Trial • Save 41%)';
-    String monthlyPrice = '₹99 / month';
-    String lifetimePrice = '₹1,999 (Pay Once • Lifetime VIP)';
-    String creditPackPrice = '₹149 (50 Credits Top-Up)';
+    // Resolve live localized prices & verified trial phases from Play Billing when loaded.
+    String yearlyPrice = 'Annual auto-renewing plan (view price in Google Play)';
+    String monthlyPrice = 'Monthly auto-renewing plan (view price in Google Play)';
+    String lifetimePrice = 'One-time non-consumable purchase (view price in Google Play)';
+    String creditPackPrice = 'One-time 50 Credits pack (view price in Google Play)';
+    bool hasYearlyFreeTrial = false;
+    double? yearlyRecurringRaw;
+    double? monthlyRecurringRaw;
 
     for (final prod in billing.products) {
       if (prod.id == AppConfig.proYearlyId) {
-        yearlyPrice = '${prod.price} / year (3-Day Free Trial)';
+        String formattedRecurring = prod.price;
+        yearlyRecurringRaw = prod.rawPrice;
+        if (prod is GooglePlayProductDetails && prod.subscriptionIndex != null) {
+          final offers = prod.productDetails.subscriptionOfferDetails;
+          if (offers != null && prod.subscriptionIndex! < offers.length) {
+            final phases = offers[prod.subscriptionIndex!].pricingPhases;
+            if (phases.isNotEmpty) {
+              formattedRecurring = phases.last.formattedPrice;
+              yearlyRecurringRaw = phases.last.priceAmountMicros / 1000000.0;
+              hasYearlyFreeTrial =
+                  phases.length > 1 && phases.first.priceAmountMicros == 0;
+            }
+          }
+        }
+        yearlyPrice = hasYearlyFreeTrial
+            ? '$formattedRecurring / year (includes introductory free trial)'
+            : '$formattedRecurring / year • Auto-renews annually';
       } else if (prod.id == AppConfig.proMonthlyId) {
-        monthlyPrice = '${prod.price} / month';
+        monthlyPrice = '${prod.price} / month • Auto-renews monthly';
+        monthlyRecurringRaw = prod.rawPrice;
       } else if (prod.id == AppConfig.proLifetimeId) {
-        lifetimePrice = '${prod.price} (Lifetime VIP)';
+        lifetimePrice = '${prod.price} • One-time payment';
       } else if (prod.id == AppConfig.creditPack50Id) {
-        creditPackPrice = '${prod.price} (50 Credits)';
+        creditPackPrice = '${prod.price} • 50 AI Credits';
+      }
+    }
+
+    String? yearlySavingsLabel;
+    if (yearlyRecurringRaw != null &&
+        monthlyRecurringRaw != null &&
+        monthlyRecurringRaw > 0 &&
+        yearlyRecurringRaw < monthlyRecurringRaw * 12) {
+      final pct =
+          ((1 - (yearlyRecurringRaw / (monthlyRecurringRaw * 12))) * 100).round();
+      if (pct >= 5) {
+        yearlySavingsLabel = 'Save $pct%';
       }
     }
 
@@ -177,7 +210,10 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
         actions: [
           TextButton(
             onPressed: _isPurchasing ? null : _handleRestore,
-            child: const Text('Restore', style: TextStyle(color: AppColors.primaryLight)),
+            child: Text(
+              'Restore',
+              style: TextStyle(color: isDark ? AppColors.accentWarm : AppColors.primary),
+            ),
           ),
         ],
       ),
@@ -217,7 +253,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: const Text(
-                            'UNLIMITED CREATIVITY',
+                            'PRO CREATOR ACCESS',
                             style: TextStyle(
                               color: Colors.white,
                               fontSize: 11,
@@ -226,9 +262,6 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                             ),
                           ),
                         ),
-                        const Spacer(),
-                        const Text('⭐ 4.9 Rating',
-                            style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
                       ],
                     ),
                     const SizedBox(height: 12),
@@ -268,8 +301,11 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                           color: AppColors.primary.withOpacity(0.15),
                           borderRadius: BorderRadius.circular(10),
                         ),
-                        child: Icon(feat['icon'] as IconData,
-                            size: 20, color: AppColors.primaryLight),
+                        child: Icon(
+                          feat['icon'] as IconData,
+                          size: 20,
+                          color: isDark ? AppColors.accentWarm : AppColors.primary,
+                        ),
                       ),
                       const SizedBox(width: 14),
                       Expanded(
@@ -303,14 +339,16 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: textCol)),
               const SizedBox(height: 12),
 
-              // 1. Yearly Plan (Best Value with Trial)
+              // 1. Yearly Plan (Best Value)
               _buildPlanCard(
                 planId: AppConfig.proYearlyId,
                 title: 'Annual Creator Pass',
                 subtitle: yearlyPrice,
-                badgeText: 'BEST VALUE • 3-DAY FREE TRIAL',
+                badgeText: hasYearlyFreeTrial
+                    ? 'BEST VALUE • FREE TRIAL'
+                    : 'BEST VALUE • ANNUAL',
                 badgeGradient: AppColors.accentGradient,
-                savings: 'Save 41%',
+                savings: yearlySavingsLabel,
                 isDark: isDark,
               ),
 
@@ -356,12 +394,16 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
 
               const SizedBox(height: 24),
 
-              // Purchase Button
+              // Purchase / Subscription Management Button
               SizedBox(
                 width: double.infinity,
                 height: 52,
                 child: ElevatedButton(
-                  onPressed: _isPurchasing ? null : _handlePurchase,
+                  onPressed: _isPurchasing
+                      ? null
+                      : (quota.isPro && _selectedPlan != AppConfig.creditPack50Id
+                          ? _openPlaySubscriptions
+                          : _handlePurchase),
                   child: _isPurchasing
                       ? const SizedBox(
                           width: 20,
@@ -376,7 +418,10 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                                   ? 'Get Lifetime VIP Access'
                                   : _selectedPlan == AppConfig.creditPack50Id
                                       ? 'Purchase 50 AI Credits'
-                                      : 'Start 3-Day Free Trial',
+                                      : hasYearlyFreeTrial &&
+                                              _selectedPlan == AppConfig.proYearlyId
+                                          ? 'Start Free Trial'
+                                          : 'Subscribe Now',
                           style: const TextStyle(
                               fontSize: 16, fontWeight: FontWeight.bold),
                         ),
@@ -444,8 +489,13 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                       ),
                     ),
                     const SizedBox(height: 6),
-                    const Text('— Sarah K., Content Creator (85k followers)',
-                        style: TextStyle(fontSize: 11, color: AppColors.primaryLight)),
+                    Text(
+                      '— VibeKit Creator Community',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: isDark ? AppColors.accentWarm : AppColors.primary,
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -457,7 +507,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                 child: Column(
                   children: [
                     Text(
-                      'Payment is processed securely by Google Play Billing. Subscriptions renew automatically unless cancelled at least 24 hours prior to the end of the current billing cycle.',
+                      'Payment is charged to your Google Play account upon purchase confirmation. Auto-renewing plans (Monthly/Annual) renew automatically unless canceled at least 24 hours before the current period ends. Lifetime VIP and Credit Packs are one-time purchases.',
                       textAlign: TextAlign.center,
                       style: TextStyle(
                           fontSize: 11,
@@ -612,15 +662,15 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: Colors.green.withOpacity(0.18),
+                  color: AppColors.success.withValues(alpha: isDark ? 0.22 : 0.12),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
                   savings,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 10,
                     fontWeight: FontWeight.bold,
-                    color: Colors.greenAccent,
+                    color: isDark ? const Color(0xFF69F0AE) : AppColors.success,
                   ),
                 ),
               ),
@@ -638,18 +688,19 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
     bool isHeader = false,
     required bool isDark,
   }) {
+    final activeAccent = isDark ? AppColors.accentWarm : AppColors.primary;
     final titleCol = isHeader
-        ? AppColors.primaryLight
+        ? activeAccent
         : (isDark ? Colors.white : AppColors.textPrimaryLight);
     final freeCol = isHeader
         ? (isDark ? Colors.white70 : AppColors.textSecondaryLight)
         : (isDark ? Colors.white60 : AppColors.textMutedLight);
     final proCol = isHeader
         ? (isDark ? Colors.white70 : AppColors.textSecondaryLight)
-        : AppColors.primary;
+        : activeAccent;
     final vipCol = isHeader
         ? (isDark ? Colors.white70 : AppColors.textSecondaryLight)
-        : (isDark ? Colors.amberAccent : const Color(0xFFD97706));
+        : (isDark ? Colors.amberAccent : const Color(0xFFB45309));
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),

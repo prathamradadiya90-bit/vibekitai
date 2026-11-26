@@ -505,6 +505,15 @@ export function getAdminHtml(): string {
     let adminToken = localStorage.getItem('vibekit_admin_token') || '';
     let currentRole = 'viewer';
 
+    function escapeHtml(value) {
+      return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
     function getHeaders(isMutating = false) {
       const h = { 'Accept': 'application/json' };
       if (adminToken) h['Authorization'] = 'Bearer ' + adminToken;
@@ -661,17 +670,17 @@ export function getAdminHtml(): string {
 
       tbody.innerHTML = data.installations.map(i => \`
         <tr>
-          <td><code>\${i.id.substring(0, 16)}...</code></td>
-          <td>\${new Date(i.created_at).toLocaleDateString()}</td>
-          <td>\${new Date(i.last_active_at).toLocaleDateString()}</td>
+          <td><code>\${escapeHtml(String(i.id || '').substring(0, 16))}...</code></td>
+          <td>\${escapeHtml(new Date(i.created_at).toLocaleDateString())}</td>
+          <td>\${escapeHtml(new Date(i.last_active_at).toLocaleDateString())}</td>
           <td>\${i.is_pro ? '<span class="badge-status status-active">PRO</span>' : '<span class="badge-status">Free</span>'}</td>
-          <td>\${i.today_free_credits_used} / 3</td>
-          <td>\${i.today_ads_watched}</td>
-          <td>\${i.streak}d</td>
+          <td>\${Number(i.today_free_credits_used || 0)} / 3</td>
+          <td>\${Number(i.today_ads_watched || 0)}</td>
+          <td>\${Number(i.streak || 0)}d</td>
           <td>\${i.ban_reason ? '<span class="badge-status status-banned">Banned</span>' : '<span class="badge-status status-active">Active</span>'}</td>
           <td>
-            <button class="btn btn-secondary btn-sm" onclick="showCreditModal('\${i.id}')">Credits</button>
-            <button class="btn \${i.ban_reason ? 'btn-secondary' : 'btn-danger'} btn-sm" onclick="showBanModal('\${i.id}', \${Boolean(i.ban_reason)})">\${i.ban_reason ? 'Unban' : 'Ban'}</button>
+            <button class="btn btn-secondary btn-sm" data-inst="\${escapeHtml(i.id)}" onclick="showCreditModal(this.dataset.inst)">Credits</button>
+            <button class="btn \${i.ban_reason ? 'btn-secondary' : 'btn-danger'} btn-sm" data-inst="\${escapeHtml(i.id)}" data-banned="\${Boolean(i.ban_reason)}" onclick="showBanModal(this.dataset.inst, this.dataset.banned === 'true')">\${i.ban_reason ? 'Unban' : 'Ban'}</button>
           </td>
         </tr>
       \`).join('');
@@ -687,12 +696,12 @@ export function getAdminHtml(): string {
       }
       tbody.innerHTML = data.subscriptions.map(s => \`
         <tr>
-          <td><code>\${s.installation_id.substring(0, 16)}...</code></td>
-          <td><strong>\${s.product_id}</strong></td>
-          <td><code>\${s.order_id || 'N/A'}</code></td>
-          <td><span class="badge-status \${s.status === 'ACTIVE' ? 'status-active' : 'status-expired'}">\${s.status}</span></td>
-          <td>\${new Date(s.verified_at).toLocaleDateString()}</td>
-          <td>\${s.expires_at ? new Date(s.expires_at).toLocaleDateString() : 'Lifetime / Active'}</td>
+          <td><code>\${escapeHtml(String(s.installation_id || '').substring(0, 16))}...</code></td>
+          <td><strong>\${escapeHtml(s.product_id)}</strong></td>
+          <td><code>\${escapeHtml(s.order_id || 'N/A')}</code></td>
+          <td><span class="badge-status \${s.status === 'ACTIVE' ? 'status-active' : 'status-expired'}">\${escapeHtml(s.status)}</span></td>
+          <td>\${escapeHtml(new Date(s.verified_at).toLocaleDateString())}</td>
+          <td>\${escapeHtml(s.expires_at ? new Date(s.expires_at).toLocaleDateString() : 'Lifetime / Active')}</td>
         </tr>
       \`).join('');
     }
@@ -711,10 +720,10 @@ export function getAdminHtml(): string {
       const tbody = document.getElementById('configHistoryTableBody');
       tbody.innerHTML = (data.history || []).map(h => \`
         <tr>
-          <td>v\${h.version}</td>
-          <td>\${h.updated_by}</td>
-          <td>\${new Date(h.created_at).toLocaleString()}</td>
-          <td><button class="btn btn-secondary btn-sm" onclick="revertConfigVersion(\${h.version})">Revert</button></td>
+          <td>v\${Number(h.version)}</td>
+          <td>\${escapeHtml(h.updated_by)}</td>
+          <td>\${escapeHtml(new Date(h.created_at).toLocaleString())}</td>
+          <td><button class="btn btn-secondary btn-sm" onclick="revertConfigVersion(\${Number(h.version)})">Revert</button></td>
         </tr>
       \`).join('');
     }
@@ -769,21 +778,24 @@ export function getAdminHtml(): string {
         tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">No feedback submitted.</td></tr>';
         return;
       }
-      tbody.innerHTML = data.feedback.map(f => \`
+      tbody.innerHTML = data.feedback.map(f => {
+        const isResolved = String(f.status || '').toUpperCase() === 'RESOLVED';
+        return \`
         <tr>
-          <td>\${new Date(f.created_at).toLocaleDateString()}</td>
-          <td><code>\${(f.installation_id || 'anonymous').substring(0, 16)}...</code></td>
-          <td>\${f.message}</td>
-          <td><span class="badge-status \${f.status === 'RESOLVED' ? 'status-active' : 'status-expired'}">\${f.status || 'OPEN'}</span></td>
+          <td>\${escapeHtml(new Date(f.created_at).toLocaleDateString())}</td>
+          <td><code>\${escapeHtml(String(f.installation_id || 'anonymous').substring(0, 16))}...</code></td>
+          <td>\${escapeHtml(f.message)}</td>
+          <td><span class="badge-status \${isResolved ? 'status-active' : 'status-expired'}">\${escapeHtml(String(f.status || 'OPEN').toUpperCase())}</span></td>
           <td>
-            \${f.status !== 'RESOLVED' ? \`<button class="btn btn-secondary btn-sm" onclick="resolveFeedback('\${f.id}')">Resolve</button>\` : '✓ Resolved'}
+            \${!isResolved ? \`<button class="btn btn-secondary btn-sm" data-id="\${escapeHtml(f.id)}" onclick="resolveFeedback(this.dataset.id)">Resolve</button>\` : '✓ Resolved'}
           </td>
         </tr>
-      \`).join('');
+      \`;
+      }).join('');
     }
 
     async function resolveFeedback(id) {
-      const res = await apiFetch('/v1/admin/feedback/' + id + '/resolve', { method: 'POST', body: JSON.stringify({}) });
+      const res = await apiFetch('/v1/admin/feedback/' + encodeURIComponent(id) + '/resolve', { method: 'POST', body: JSON.stringify({}) });
       if (res) loadFeedback();
     }
 
@@ -797,10 +809,10 @@ export function getAdminHtml(): string {
       }
       tbody.innerHTML = data.flaggedIps.map(a => \`
         <tr>
-          <td><code>\${a.ip_hash}</code></td>
-          <td><strong>\${a.request_count}</strong> requests</td>
-          <td>\${a.window_start}</td>
-          <td>\${new Date(a.updated_at).toLocaleTimeString()}</td>
+          <td><code>\${escapeHtml(a.ip_hash)}</code></td>
+          <td><strong>\${Number(a.request_count)}</strong> requests</td>
+          <td>\${escapeHtml(a.window_start)}</td>
+          <td>\${escapeHtml(new Date(a.updated_at).toLocaleTimeString())}</td>
         </tr>
       \`).join('');
     }
@@ -815,11 +827,11 @@ export function getAdminHtml(): string {
       }
       tbody.innerHTML = data.auditLogs.map(l => \`
         <tr>
-          <td>\${new Date(l.created_at).toLocaleString()}</td>
-          <td>\${l.admin_email}</td>
-          <td><strong>\${l.action}</strong></td>
-          <td><code>\${(l.target_id || '-').substring(0, 24)}</code></td>
-          <td><pre style="font-size:0.75rem; max-width:300px; overflow:hidden; text-overflow:ellipsis;">\${l.details_json}</pre></td>
+          <td>\${escapeHtml(new Date(l.created_at).toLocaleString())}</td>
+          <td>\${escapeHtml(l.admin_email)}</td>
+          <td><strong>\${escapeHtml(l.action)}</strong></td>
+          <td><code>\${escapeHtml(String(l.target_id || '-').substring(0, 24))}</code></td>
+          <td><pre style="font-size:0.75rem; max-width:300px; overflow:hidden; text-overflow:ellipsis;">\${escapeHtml(l.details_json)}</pre></td>
         </tr>
       \`).join('');
     }
@@ -850,7 +862,7 @@ export function getAdminHtml(): string {
         const delta = parseInt(document.getElementById('modalCreditDelta').value, 10);
         const reason = document.getElementById('modalCreditReason').value.trim();
         if (!reason) { alert('Reason required'); return; }
-        const res = await apiFetch('/v1/admin/installations/' + instId + '/grant-credits', {
+        const res = await apiFetch('/v1/admin/installations/' + encodeURIComponent(instId) + '/grant-credits', {
           method: 'POST',
           body: JSON.stringify({ creditsDelta: delta, reason })
         });
@@ -872,7 +884,7 @@ export function getAdminHtml(): string {
       \`, async () => {
         const reason = document.getElementById('modalBanReason').value.trim();
         if (!reason) { alert('Reason required'); return; }
-        const res = await apiFetch('/v1/admin/installations/' + instId + '/ban', {
+        const res = await apiFetch('/v1/admin/installations/' + encodeURIComponent(instId) + '/ban', {
           method: 'POST',
           body: JSON.stringify({ banned: !currentlyBanned, reason })
         });

@@ -17,6 +17,7 @@ import '../../core/widgets/tone_chips.dart';
 import '../../models/generation_models.dart';
 import '../../models/history_item.dart';
 import '../../core/services/achievement_service.dart';
+import '../streaks/providers/streak_provider.dart';
 
 class ReplyStudioScreen extends ConsumerStatefulWidget {
   final String? initialPrompt;
@@ -74,6 +75,10 @@ class _ReplyStudioScreenState extends ConsumerState<ReplyStudioScreen> {
     if (widget.initialTone != null && _tones.contains(widget.initialTone)) {
       _selectedTone = widget.initialTone!;
     }
+    final savedLang = ref.read(languageProvider);
+    if (_languages.contains(savedLang)) {
+      _selectedLanguage = savedLang;
+    }
   }
 
   @override
@@ -127,6 +132,7 @@ class _ReplyStudioScreenState extends ConsumerState<ReplyStudioScreen> {
         _showOutOfCreditsDialog();
       } else if (success) {
         HapticFeedback.lightImpact();
+        ref.read(streakProvider.notifier).recordAction('generate');
         ref.read(reviewServiceProvider).checkAndPromptReview(context);
         final prefs = ref.read(preferencesServiceProvider);
         await prefs.recordToneUsed(_selectedTone);
@@ -173,6 +179,7 @@ class _ReplyStudioScreenState extends ConsumerState<ReplyStudioScreen> {
     );
 
     HapticFeedback.selectionClick();
+    ref.read(historyRevisionProvider.notifier).state++;
     if (mounted) {
       setState(() {
         if (isFav) {
@@ -242,6 +249,7 @@ class _ReplyStudioScreenState extends ConsumerState<ReplyStudioScreen> {
                       fontSize: 15,
                     ),
                     decoration: InputDecoration(
+                      filled: false,
                       hintText: 'Paste the message you want to reply to...',
                       hintStyle: TextStyle(
                         color: isDark ? AppColors.textMutedDark : AppColors.textSecondaryLight,

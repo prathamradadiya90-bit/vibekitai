@@ -28,7 +28,7 @@ void main() {
 
   group('Modern Meme & Card Maker Tests', () {
     test('CardTemplates contains signature brand palettes and backward-compatible templates', () {
-      final templates = CardTemplates.all;
+      const templates = CardTemplates.all;
       expect(templates.length, greaterThanOrEqualTo(11));
 
       final names = templates.map((t) => t.name).toList();

@@ -153,6 +153,14 @@ class BillingService extends ChangeNotifier {
         onSubscriptionStateChanged?.call(SubscriptionState.pending);
         onBillingMessage?.call(
             'Payment is pending approval. Your Pro access will activate automatically once confirmed.');
+      } else if (purchase.status == PurchaseStatus.canceled) {
+        debugPrint('Purchase canceled by user for: ${purchase.productID}');
+        _subscriptionState = SubscriptionState.inactive;
+        notifyListeners();
+        onSubscriptionStateChanged?.call(SubscriptionState.inactive);
+        if (purchase.pendingCompletePurchase && _iap != null) {
+          await _iap.completePurchase(purchase);
+        }
       } else if (purchase.status == PurchaseStatus.error) {
         debugPrint('Purchase failed with error: ${purchase.error}');
         _subscriptionState = SubscriptionState.error;

@@ -58,20 +58,22 @@ function createSingleProvider(
   model: string | undefined,
   env: Env
 ): AIProvider {
+  const allowLocalhostInDev = env.ENVIRONMENT === 'development' || env.ENVIRONMENT === 'test';
+
   if (apiKey && (providerType === 'groq' || (!providerType && baseUrl?.includes('groq')))) {
-    return new OpenAICompatibleProvider(apiKey, baseUrl || 'https://api.groq.com/openai/v1', model || 'llama-3.3-70b-versatile');
+    return new OpenAICompatibleProvider(apiKey, baseUrl || 'https://api.groq.com/openai/v1', model || 'llama-3.3-70b-versatile', allowLocalhostInDev);
   }
 
   if (apiKey && (providerType === 'openrouter' || baseUrl?.includes('openrouter'))) {
-    return new OpenAICompatibleProvider(apiKey, baseUrl || 'https://openrouter.ai/api/v1', model || 'meta-llama/llama-3.3-70b-instruct:free');
+    return new OpenAICompatibleProvider(apiKey, baseUrl || 'https://openrouter.ai/api/v1', model || 'meta-llama/llama-3.3-70b-instruct:free', allowLocalhostInDev);
   }
 
   if (apiKey && (providerType === 'openai' || baseUrl?.includes('openai.com'))) {
-    return new OpenAICompatibleProvider(apiKey, baseUrl || 'https://api.openai.com/v1', model || 'gpt-4o-mini');
+    return new OpenAICompatibleProvider(apiKey, baseUrl || 'https://api.openai.com/v1', model || 'gpt-4o-mini', allowLocalhostInDev);
   }
 
   if (apiKey && baseUrl) {
-    return new OpenAICompatibleProvider(apiKey, baseUrl, model || 'llama-3.3-70b-versatile');
+    return new OpenAICompatibleProvider(apiKey, baseUrl, model || 'llama-3.3-70b-versatile', allowLocalhostInDev);
   }
 
   return new GeminiProvider(env);

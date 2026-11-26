@@ -12,9 +12,10 @@ const configCache = new Map<string, { data: any; version: number; expiresAt: num
 const CONFIG_CACHE_TTL_MS = 60_000; // 60s
 
 export class RemoteConfigRepository {
-  constructor(private db: D1Database) {}
+  constructor(private db?: D1Database) {}
 
   public async getLatestConfig<T = any>(key: string): Promise<{ value: T; version: number; updated_by: string } | null> {
+    if (!this.db) return null;
     const cached = configCache.get(key);
     const now = Date.now();
     if (cached && cached.expiresAt > now) {
@@ -44,6 +45,7 @@ export class RemoteConfigRepository {
   }
 
   public async saveConfig(key: string, value: any, updatedBy: string): Promise<{ version: number }> {
+    if (!this.db) throw new Error('Database not configured');
     // Find highest version
     const latest = await this.db
       .prepare('SELECT MAX(version) as max_version FROM remote_config_versions WHERE config_key = ?')
@@ -68,6 +70,7 @@ export class RemoteConfigRepository {
   }
 
   public async revertToVersion(key: string, targetVersion: number, revertedBy: string): Promise<{ version: number }> {
+    if (!this.db) throw new Error('Database not configured');
     const targetRow = await this.db
       .prepare('SELECT value_json FROM remote_config_versions WHERE config_key = ? AND version = ?')
       .bind(key, targetVersion)
@@ -82,6 +85,7 @@ export class RemoteConfigRepository {
   }
 
   public async getHistory(key: string, limit: number = 20): Promise<RemoteConfigVersionRecord[]> {
+    if (!this.db) return [];
     const rows = await this.db
       .prepare(
         `SELECT id, config_key, value_json, version, updated_by, created_at

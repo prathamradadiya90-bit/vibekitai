@@ -1,10 +1,10 @@
 import { Hono } from 'hono';
-import { Env } from '../types';
+import { AppHonoEnv } from '../types';
 import { StreakCheckinSchema, MilestoneClaimSchema } from '../schemas/validation';
 import { QuotaManager } from '../quota/quota_manager';
 import { StreaksRepository } from '../db/streaks.repo';
 
-export const streakRoute = new Hono<{ Bindings: Env }>();
+export const streakRoute = new Hono<AppHonoEnv>();
 
 // Action XP Values
 const ACTION_XP: Record<string, number> = {
@@ -36,7 +36,7 @@ function getDayDiff(date1Str: string, date2Str: string): number {
 streakRoute.get('/streak', handleGetStreak);
 streakRoute.get('/streaks', handleGetStreak);
 async function handleGetStreak(c: any) {
-  const installationId = c.req.header('X-App-Instance-Id') || 'anonymous_default';
+  const installationId = c.get('installationId') || c.req.header('X-App-Instance-Id') || 'anonymous_default';
   const offsetHeader = c.req.header('X-Timezone-Offset');
   const offsetMinutes = offsetHeader ? parseInt(offsetHeader, 10) : 0;
   const todayLocal = getLocalDateString(isNaN(offsetMinutes) ? 0 : offsetMinutes);
@@ -92,7 +92,7 @@ async function handleGetStreak(c: any) {
 streakRoute.post('/streak/checkin', handleCheckin);
 streakRoute.post('/streaks/checkin', handleCheckin);
 async function handleCheckin(c: any) {
-  const installationId = c.req.header('X-App-Instance-Id') || 'anonymous_default';
+  const installationId = c.get('installationId') || c.req.header('X-App-Instance-Id') || 'anonymous_default';
   const bodyResult = StreakCheckinSchema.safeParse(await c.req.json().catch(() => ({})));
 
   if (!bodyResult.success) {
@@ -135,6 +135,7 @@ async function handleCheckin(c: any) {
   let newLongest = streak.longest_streak;
   let freezeUsed = false;
   let effectiveXp = xpAwarded;
+  let effectiveCheckinDate = todayLocal;
 
   if (streak.last_checkin_date === todayLocal) {
     // Already checked in today: check if XP for this action was already awarded today
@@ -151,8 +152,11 @@ async function handleCheckin(c: any) {
     newLongest = 1;
   } else {
     const diff = getDayDiff(todayLocal, streak.last_checkin_date);
-    if (diff <= 0) {
-      // Same local day or clock/timezone adjustment: maintain streak
+    if (diff < 0) {
+      // Clock / west-moving timezone shift: keep later check-in date and preserve streak
+      newStreak = streak.current_streak;
+      effectiveCheckinDate = streak.last_checkin_date;
+    } else if (diff === 0) {
       newStreak = streak.current_streak;
     } else if (diff === 1) {
       newStreak += 1;
@@ -171,7 +175,7 @@ async function handleCheckin(c: any) {
     installationId,
     newStreak,
     newLongest,
-    todayLocal,
+    todayLocal: effectiveCheckinDate,
     freezeCount: streak.freeze_count,
     freezeUsed,
     nowIso,
@@ -190,7 +194,7 @@ async function handleCheckin(c: any) {
 
 // 3. POST /v1/streak/claim-milestone - Claim milestone rewards
 streakRoute.post('/streak/claim-milestone', async (c) => {
-  const installationId = c.req.header('X-App-Instance-Id') || 'anonymous_default';
+  const installationId = c.get('installationId') || c.req.header('X-App-Instance-Id') || 'anonymous_default';
   const bodyResult = MilestoneClaimSchema.safeParse(await c.req.json().catch(() => ({})));
 
   if (!bodyResult.success) {
@@ -281,7 +285,7 @@ streakRoute.post('/streak/claim-milestone', async (c) => {
 
 // 4. POST /v1/streak/earn-freeze - Free users earn 1 freeze via rewarded ad
 streakRoute.post('/streak/earn-freeze', async (c) => {
-  const installationId = c.req.header('X-App-Instance-Id') || 'anonymous_default';
+  const installationId = c.get('installationId') || c.req.header('X-App-Instance-Id') || 'anonymous_default';
   if (!c.env.DB) {
     return c.json({ success: true, freeze_count: 1 });
   }

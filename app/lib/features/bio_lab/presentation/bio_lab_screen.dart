@@ -12,6 +12,7 @@ import '../../../core/widgets/language_picker.dart';
 import '../../../core/widgets/loading_shimmer.dart';
 import '../../../core/widgets/primary_button.dart';
 import '../../../core/widgets/quota_badge.dart';
+import '../../../core/widgets/report_ai_dialog.dart';
 import '../../../core/widgets/result_card.dart';
 import '../../../core/widgets/tone_chips.dart';
 import '../../../models/generation_models.dart';
@@ -30,6 +31,7 @@ class _BioLabScreenState extends ConsumerState<BioLabScreen> {
   final TextEditingController _interestsController = TextEditingController();
   final int _maxChars = 300;
   final Set<String> _favoritedTexts = {};
+  bool _handlesReported = false;
 
   String _selectedPlatform = 'Instagram';
   String _selectedVibe = 'Aesthetic';
@@ -61,6 +63,15 @@ class _BioLabScreenState extends ConsumerState<BioLabScreen> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    final savedLang = ref.read(languageProvider);
+    if (_languages.contains(savedLang)) {
+      _selectedLanguage = savedLang;
+    }
+  }
+
+  @override
   void dispose() {
     _interestsController.dispose();
     super.dispose();
@@ -78,6 +89,7 @@ class _BioLabScreenState extends ConsumerState<BioLabScreen> {
       return;
     }
 
+    setState(() => _handlesReported = false);
     final req = BioRequest(
       interests: interests,
       platform: _selectedPlatform,
@@ -137,6 +149,7 @@ class _BioLabScreenState extends ConsumerState<BioLabScreen> {
     );
 
     HapticFeedback.selectionClick();
+    ref.read(historyRevisionProvider.notifier).state++;
     if (mounted) {
       setState(() {
         if (isFav) {
@@ -202,6 +215,7 @@ class _BioLabScreenState extends ConsumerState<BioLabScreen> {
                     maxLength: _maxChars,
                     style: TextStyle(color: textCol, fontSize: 15),
                     decoration: InputDecoration(
+                      filled: false,
                       hintText: 'Describe yourself, interests, role (e.g. Flutter dev, coffee enthusiast, traveler)...',
                       hintStyle: TextStyle(color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight),
                       border: InputBorder.none,
@@ -355,13 +369,40 @@ class _BioLabScreenState extends ConsumerState<BioLabScreen> {
 
               if (genState.result!.usernames.isNotEmpty) ...[
                 const SizedBox(height: AppSpacing.md),
-                Text(
-                  'Username & Handle Ideas',
-                  style: TextStyle(
-                    color: textCol,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'Username & Handle Ideas',
+                        style: TextStyle(
+                          color: textCol,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      tooltip: _handlesReported ? 'Reported' : 'Report content',
+                      onPressed: _handlesReported
+                          ? null
+                          : () async {
+                              final reported = await showReportAiContentDialog(
+                                context,
+                                category: 'bio_usernames',
+                                content: genState.result!.usernames.join(', '),
+                              );
+                              if (reported && mounted) {
+                                setState(() => _handlesReported = true);
+                              }
+                            },
+                      icon: Icon(
+                        _handlesReported ? Icons.flag_rounded : Icons.flag_outlined,
+                        size: 18,
+                        color: _handlesReported ? AppColors.accentPink : textSecCol,
+                      ),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: AppSpacing.sm),
                 Wrap(

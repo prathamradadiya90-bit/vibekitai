@@ -7,6 +7,7 @@
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
     "test": "vitest run",
+    "test:live": "node -e \"const cp = require('child_process'); process.exit(cp.spawnSync('npx', ['vitest', 'run', 'test/live_api_precision.test.ts'], { stdio: 'inherit', shell: true, env: { ...process.env, RUN_LIVE_API_TESTS: 'true' } }).status ?? 1)\"",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

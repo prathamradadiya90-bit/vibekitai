@@ -6,16 +6,20 @@ import { AccountBannedError } from '../errors/app_error';
 
 export const installationMiddleware = (): MiddlewareHandler<AppHonoEnv> => {
   return async (c, next) => {
-    // Exempt admin routes and health checks from mobile installation tracking
+    // Exempt admin routes, health checks, and external billing/ad webhooks from mobile installation tracking
     if (
       c.req.path.startsWith('/v1/admin') ||
       c.req.path === '/v1/health' ||
-      c.req.path === '/health'
+      c.req.path === '/health' ||
+      c.req.path === '/v1/ads/ssv' ||
+      c.req.path === '/v1/purchases/rtdn'
     ) {
       return await next();
     }
 
-    const rawInstanceId = c.req.header('X-App-Instance-Id')?.trim();
+    const rawInstanceId =
+      c.req.header('X-App-Instance-Id')?.trim() ||
+      c.req.header('X-Installation-Id')?.trim();
     const sanitizedId = rawInstanceId
       ? rawInstanceId.slice(0, 64).replace(/[^a-zA-Z0-9_\-\.]/g, '')
       : '';

@@ -13,9 +13,11 @@ import '../../core/widgets/error_view.dart';
 import '../../core/widgets/loading_shimmer.dart';
 import '../../core/widgets/primary_button.dart';
 import '../../core/widgets/quota_badge.dart';
+import '../../core/widgets/report_ai_dialog.dart';
 import '../../models/generation_models.dart';
 import '../../models/history_item.dart';
 import '../../core/services/achievement_service.dart';
+import '../streaks/providers/streak_provider.dart';
 
 enum StudioTab {
   reply('reply', '💬 Reply', 'Smart response to any text or DM'),
@@ -57,6 +59,7 @@ class _StudioScreenState extends ConsumerState<StudioScreen> {
   late StudioTab _activeTab;
   final TextEditingController _textController = TextEditingController();
   final Set<String> _favoritedTexts = {};
+  final Set<String> _reportedContents = {};
 
   // Mode/Tone state per tab
   String _replyTone = 'Funny';
@@ -179,6 +182,10 @@ class _StudioScreenState extends ConsumerState<StudioScreen> {
   void initState() {
     super.initState();
     _activeTab = StudioTab.fromId(widget.initialTabId);
+    final savedLang = ref.read(languageProvider);
+    if (_languages.contains(savedLang)) {
+      _selectedLanguage = savedLang;
+    }
 
     if (widget.initialPrompt != null && widget.initialPrompt!.isNotEmpty) {
       _textController.text = widget.initialPrompt!;
@@ -219,9 +226,14 @@ class _StudioScreenState extends ConsumerState<StudioScreen> {
 
   void _switchTab(StudioTab tab) {
     if (_activeTab == tab) return;
+    final currentText = _textController.text.trim();
+    final isCurrentSampleOrEmpty = currentText.isEmpty ||
+        (_sampleChips[_activeTab]?.any((s) => s['text']!.trim() == currentText) ?? false);
     setState(() {
       _activeTab = tab;
-      _textController.text = _sampleChips[tab]?.first['text'] ?? '';
+      if (isCurrentSampleOrEmpty) {
+        _textController.text = _sampleChips[tab]?.first['text'] ?? '';
+      }
     });
   }
 
@@ -239,6 +251,7 @@ class _StudioScreenState extends ConsumerState<StudioScreen> {
       category: category,
       title: text.length > 35 ? '${text.substring(0, 35)}...' : text,
     );
+    ref.read(historyRevisionProvider.notifier).state++;
     if (mounted) {
       HapticFeedback.selectionClick();
       setState(() {
@@ -375,13 +388,33 @@ class _StudioScreenState extends ConsumerState<StudioScreen> {
         break;
     }
 
-    if (mounted && success) {
-      HapticFeedback.lightImpact();
-      ref.read(reviewServiceProvider).checkAndPromptReview(context);
-      final prefs = ref.read(preferencesServiceProvider);
-      await prefs.recordLanguageUsed(_selectedLanguage);
-      if (mounted) {
-        await ref.read(achievementServiceProvider).checkAndUnlockAchievements(context: context);
+    if (mounted) {
+      final isQuotaExceeded = switch (_activeTab) {
+        StudioTab.reply => ref.read(replyGenerationProvider).isQuotaExceeded,
+        StudioTab.vibeCheck => ref.read(vibeCheckGenerationProvider).isQuotaExceeded,
+        StudioTab.caption => ref.read(captionGenerationProvider).isQuotaExceeded,
+        StudioTab.bio => ref.read(bioGenerationProvider).isQuotaExceeded,
+      };
+      if (isQuotaExceeded) {
+        context.push('/paywall');
+        return;
+      }
+      if (success) {
+        HapticFeedback.lightImpact();
+        ref.read(streakProvider.notifier).recordAction('generate');
+        final activeOption = switch (_activeTab) {
+          StudioTab.reply => _replyTone,
+          StudioTab.vibeCheck => _vibeMode,
+          StudioTab.caption => _captionVibe,
+          StudioTab.bio => _bioVibe,
+        };
+        final prefs = ref.read(preferencesServiceProvider);
+        await prefs.recordToneUsed(activeOption);
+        await prefs.recordLanguageUsed(_selectedLanguage);
+        if (mounted) {
+          ref.read(reviewServiceProvider).checkAndPromptReview(context);
+          await ref.read(achievementServiceProvider).checkAndUnlockAchievements(context: context);
+        }
       }
     }
   }
@@ -572,6 +605,7 @@ class _StudioScreenState extends ConsumerState<StudioScreen> {
                         maxLength: 500,
                         style: theme.textTheme.bodyMedium,
                         decoration: InputDecoration(
+                          filled: false,
                           hintText: _getInputPlaceholder(),
                           hintStyle: TextStyle(
                             color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
@@ -987,16 +1021,19 @@ class _StudioScreenState extends ConsumerState<StudioScreen> {
                     height: 60,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      border: Border.all(color: AppColors.primary, width: 3),
-                      color: AppColors.primary.withOpacity(0.1),
+                      border: Border.all(
+                        color: isDark ? AppColors.accentWarm : AppColors.primary,
+                        width: 3,
+                      ),
+                      color: (isDark ? AppColors.accentWarm : AppColors.primary).withOpacity(0.1),
                     ),
                     alignment: Alignment.center,
                     child: Text(
                       '${res.score}',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 22,
                         fontWeight: FontWeight.w900,
-                        color: AppColors.primary,
+                        color: isDark ? AppColors.accentWarm : AppColors.primary,
                       ),
                     ),
                   ),
@@ -1007,10 +1044,10 @@ class _StudioScreenState extends ConsumerState<StudioScreen> {
                       children: [
                         Text(
                           res.title,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w800,
-                            color: AppColors.primary,
+                            color: isDark ? AppColors.accentWarm : AppColors.primary,
                           ),
                         ),
                         const SizedBox(height: 4),
@@ -1021,6 +1058,21 @@ class _StudioScreenState extends ConsumerState<StudioScreen> {
                           ),
                         ),
                       ],
+                    ),
+                  ),
+                  IconButton(
+                    tooltip: _reportedContents.contains(res.verdict) ? 'Reported' : 'Report content',
+                    onPressed: _reportedContents.contains(res.verdict)
+                        ? null
+                        : () => _reportContent('${res.title}: ${res.verdict}', 'studio_vibe_check_verdict'),
+                    icon: Icon(
+                      _reportedContents.contains(res.verdict)
+                          ? Icons.flag_rounded
+                          : Icons.flag_outlined,
+                      size: 18,
+                      color: _reportedContents.contains(res.verdict)
+                          ? AppColors.accentPink
+                          : (isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight),
                     ),
                   ),
                 ],
@@ -1047,6 +1099,15 @@ class _StudioScreenState extends ConsumerState<StudioScreen> {
               return _buildOutputCard(
                 context: context,
                 title: 'Caption ${e.key + 1}',
+                content: e.value,
+                isDark: isDark,
+                theme: theme,
+              );
+            }),
+            ...res.hooks.asMap().entries.map((e) {
+              return _buildOutputCard(
+                context: context,
+                title: 'Reel Hook ${e.key + 1}',
                 content: e.value,
                 isDark: isDark,
                 theme: theme,
@@ -1092,6 +1153,17 @@ class _StudioScreenState extends ConsumerState<StudioScreen> {
     }
   }
 
+  Future<void> _reportContent(String content, String category) async {
+    final reported = await showReportAiContentDialog(
+      context,
+      category: category,
+      content: content,
+    );
+    if (reported && mounted) {
+      setState(() => _reportedContents.add(content));
+    }
+  }
+
   Widget _buildOutputCard({
     required BuildContext context,
     required String title,
@@ -1117,15 +1189,15 @@ class _StudioScreenState extends ConsumerState<StudioScreen> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
-                  color: AppColors.primary.withOpacity(0.12),
+                  color: (isDark ? AppColors.accentWarm : AppColors.primary).withOpacity(0.14),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
                   title,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w700,
-                    color: AppColors.primary,
+                    color: isDark ? AppColors.accentWarm : AppColors.primary,
                   ),
                 ),
               ),
@@ -1140,71 +1212,100 @@ class _StudioScreenState extends ConsumerState<StudioScreen> {
             ),
           ),
           const SizedBox(height: 10),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              TextButton.icon(
-                onPressed: () => _toggleFavorite(content),
-                icon: Icon(
-                  _favoritedTexts.contains(content)
-                      ? Icons.favorite_rounded
-                      : Icons.favorite_border_rounded,
-                  size: 15,
-                  color: _favoritedTexts.contains(content) ? AppColors.accentPink : null,
-                ),
-                label: Text(
-                  _favoritedTexts.contains(content) ? 'Saved' : 'Save',
-                  style: TextStyle(
-                    fontSize: 12,
+          Align(
+            alignment: Alignment.centerRight,
+            child: Wrap(
+              alignment: WrapAlignment.end,
+              spacing: 4,
+              runSpacing: 2,
+              children: [
+                TextButton.icon(
+                  onPressed: () => _toggleFavorite(content),
+                  icon: Icon(
+                    _favoritedTexts.contains(content)
+                        ? Icons.favorite_rounded
+                        : Icons.favorite_border_rounded,
+                    size: 15,
                     color: _favoritedTexts.contains(content) ? AppColors.accentPink : null,
                   ),
-                ),
-                style: TextButton.styleFrom(
-                  foregroundColor: isDark ? AppColors.textPrimaryDark : AppColors.primary,
-                ),
-              ),
-              const SizedBox(width: 4),
-              TextButton.icon(
-                onPressed: () {
-                  Clipboard.setData(ClipboardData(text: content));
-                  HapticFeedback.lightImpact();
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Copied to clipboard!'),
-                      duration: Duration(seconds: 2),
-                      behavior: SnackBarBehavior.floating,
+                  label: Text(
+                    _favoritedTexts.contains(content) ? 'Saved' : 'Save',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: _favoritedTexts.contains(content) ? AppColors.accentPink : null,
                     ),
-                  );
-                },
-                icon: const Icon(Icons.copy_rounded, size: 15),
-                label: const Text('Copy', style: TextStyle(fontSize: 12)),
-                style: TextButton.styleFrom(
-                  foregroundColor: isDark ? AppColors.textPrimaryDark : AppColors.primary,
+                  ),
+                  style: TextButton.styleFrom(
+                    foregroundColor: isDark ? AppColors.textPrimaryDark : AppColors.primary,
+                    visualDensity: VisualDensity.compact,
+                  ),
                 ),
-              ),
-              const SizedBox(width: 4),
-              TextButton.icon(
-                onPressed: () {
-                  context.push('/card-maker', extra: {'text': content});
-                },
-                icon: const Icon(Icons.style_outlined, size: 15),
-                label: const Text('Card', style: TextStyle(fontSize: 12)),
-                style: TextButton.styleFrom(
-                  foregroundColor: isDark ? AppColors.textPrimaryDark : AppColors.primary,
+                TextButton.icon(
+                  onPressed: () {
+                    Clipboard.setData(ClipboardData(text: content));
+                    HapticFeedback.lightImpact();
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Copied to clipboard!'),
+                        duration: Duration(seconds: 2),
+                        behavior: SnackBarBehavior.floating,
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.copy_rounded, size: 15),
+                  label: const Text('Copy', style: TextStyle(fontSize: 12)),
+                  style: TextButton.styleFrom(
+                    foregroundColor: isDark ? AppColors.textPrimaryDark : AppColors.primary,
+                    visualDensity: VisualDensity.compact,
+                  ),
                 ),
-              ),
-              const SizedBox(width: 4),
-              TextButton.icon(
-                onPressed: () {
-                  Share.share(content);
-                },
-                icon: const Icon(Icons.share_outlined, size: 15),
-                label: const Text('Share', style: TextStyle(fontSize: 12)),
-                style: TextButton.styleFrom(
-                  foregroundColor: isDark ? AppColors.textPrimaryDark : AppColors.primary,
+                TextButton.icon(
+                  onPressed: () {
+                    context.push('/card-maker', extra: {'text': content});
+                  },
+                  icon: const Icon(Icons.style_outlined, size: 15),
+                  label: const Text('Card', style: TextStyle(fontSize: 12)),
+                  style: TextButton.styleFrom(
+                    foregroundColor: isDark ? AppColors.textPrimaryDark : AppColors.primary,
+                    visualDensity: VisualDensity.compact,
+                  ),
                 ),
-              ),
-            ],
+                TextButton.icon(
+                  onPressed: () {
+                    Share.share(content);
+                  },
+                  icon: const Icon(Icons.share_outlined, size: 15),
+                  label: const Text('Share', style: TextStyle(fontSize: 12)),
+                  style: TextButton.styleFrom(
+                    foregroundColor: isDark ? AppColors.textPrimaryDark : AppColors.primary,
+                    visualDensity: VisualDensity.compact,
+                  ),
+                ),
+                TextButton.icon(
+                  onPressed: _reportedContents.contains(content)
+                      ? null
+                      : () => _reportContent(content, 'studio_${_activeTab.id}'),
+                  icon: Icon(
+                    _reportedContents.contains(content)
+                        ? Icons.flag_rounded
+                        : Icons.flag_outlined,
+                    size: 15,
+                    color: _reportedContents.contains(content) ? AppColors.accentPink : null,
+                  ),
+                  label: Text(
+                    _reportedContents.contains(content) ? 'Reported' : 'Report',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: _reportedContents.contains(content) ? AppColors.accentPink : null,
+                    ),
+                  ),
+                  style: TextButton.styleFrom(
+                    foregroundColor: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                    visualDensity: VisualDensity.compact,
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),

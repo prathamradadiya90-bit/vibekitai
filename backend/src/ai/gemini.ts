@@ -53,17 +53,11 @@ export class GeminiProvider {
     }
 
     const prompt = buildReplyPrompt(params);
-    let result: GenerationResult | null = null;
-    try {
-      result = await this.callGeminiApi(prompt.system, prompt.user, 'reply');
-    } catch (err: any) {
-      console.warn('Gemini API call failed, using graceful fallback:', err?.message || err);
-      return mockReplies(params);
-    }
+    const result = await this.callGeminiWithSafety(prompt.system, prompt.user, 'reply');
     const suggestions = humanizeList(result?.suggestions, params.count);
     if (suggestions.length > 0) return suggestions;
 
-    return mockReplies(params);
+    throw new Error('Gemini returned empty reply suggestions.');
   }
 
   async generateCaptions(params: {
@@ -85,13 +79,7 @@ export class GeminiProvider {
     }
 
     const prompt = buildCaptionPrompt(params);
-    let result: GenerationResult | null = null;
-    try {
-      result = await this.callGeminiApi(prompt.system, prompt.user, 'caption');
-    } catch (err: any) {
-      console.warn('Gemini API call failed, using graceful fallback:', err?.message || err);
-      return mockCaptions(params);
-    }
+    const result = await this.callGeminiWithSafety(prompt.system, prompt.user, 'caption');
     const captions = humanizeList(result?.captions, 3);
     if (result && captions.length > 0) {
       return {
@@ -102,7 +90,7 @@ export class GeminiProvider {
       };
     }
 
-    return mockCaptions(params);
+    throw new Error('Gemini returned empty captions.');
   }
 
   async generateBios(params: {
@@ -120,13 +108,7 @@ export class GeminiProvider {
     }
 
     const prompt = buildBioPrompt(params);
-    let result: GenerationResult | null = null;
-    try {
-      result = await this.callGeminiApi(prompt.system, prompt.user, 'bio');
-    } catch (err: any) {
-      console.warn('Gemini API call failed, using graceful fallback:', err?.message || err);
-      return mockBios(params);
-    }
+    const result = await this.callGeminiWithSafety(prompt.system, prompt.user, 'bio');
     const bios = humanizeList(result?.bios, 3);
     if (result && bios.length > 0) {
       return {
@@ -135,7 +117,7 @@ export class GeminiProvider {
       };
     }
 
-    return mockBios(params);
+    throw new Error('Gemini returned empty bios.');
   }
 
   async vibeCheck(params: {
@@ -154,14 +136,7 @@ export class GeminiProvider {
     }
 
     const prompt = buildVibeCheckPrompt(params);
-
-    let result: GenerationResult | null = null;
-    try {
-      result = await this.callGeminiApi(prompt.system, prompt.user, 'vibe_check');
-    } catch (err: any) {
-      console.warn('Gemini API call failed, using graceful fallback:', err?.message || err);
-      return mockVibeCheck(params);
-    }
+    const result = await this.callGeminiWithSafety(prompt.system, prompt.user, 'vibe_check');
     if (result && typeof result.score === 'number' && Array.isArray(result.rewrites) && result.rewrites.length > 0) {
       return {
         score: Math.min(100, Math.max(0, Math.round(result.score))),
@@ -174,7 +149,24 @@ export class GeminiProvider {
       };
     }
 
-    return mockVibeCheck(params);
+    throw new Error('Gemini returned invalid vibe check payload.');
+  }
+
+  private async callGeminiWithSafety(
+    systemInstruction: string,
+    prompt: string,
+    task: TaskKind
+  ): Promise<GenerationResult | null> {
+    try {
+      return await this.callGeminiApi(systemInstruction, prompt, task);
+    } catch (err: any) {
+      const msg = String(err?.message || err);
+      if (msg.toUpperCase().includes('SAFETY')) {
+        throw err;
+      }
+      // Propagate real upstream failures so FallbackChainAIProvider & pipeline credit-refund work properly
+      throw err instanceof Error ? err : new Error(msg);
+    }
   }
 
   private async callGeminiApi(systemInstruction: string, prompt: string, task: TaskKind): Promise<GenerationResult | null> {

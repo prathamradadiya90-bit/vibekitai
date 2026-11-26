@@ -163,7 +163,7 @@ class _HelpSupportScreenState extends ConsumerState<HelpSupportScreen> {
           ],
         ),
       ),
-    );
+    ).whenComplete(() => controller.dispose());
   }
 
   @override
@@ -257,26 +257,31 @@ class _HelpSupportScreenState extends ConsumerState<HelpSupportScreen> {
                           color: AppColors.primary.withOpacity(0.2),
                           shape: BoxShape.circle,
                         ),
-                        child: const Icon(Icons.headset_mic_rounded,
-                            color: AppColors.primaryLight, size: 22),
+                        child: Icon(
+                          Icons.headset_mic_rounded,
+                          color: isDark ? AppColors.accentWarm : AppColors.primary,
+                          size: 22,
+                        ),
                       ),
                       const SizedBox(width: 12),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Need Direct Help?',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 15,
-                              color: textCol,
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Need Direct Help?',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 15,
+                                color: textCol,
+                              ),
                             ),
-                          ),
-                          Text(
-                            'Our support team is ready to assist you.',
-                            style: TextStyle(fontSize: 12, color: textMutedCol),
-                          ),
-                        ],
+                            Text(
+                              'Our support team is ready to assist you.',
+                              style: TextStyle(fontSize: 12, color: textMutedCol),
+                            ),
+                          ],
+                        ),
                       ),
                     ],
                   ),
@@ -302,8 +307,10 @@ class _HelpSupportScreenState extends ConsumerState<HelpSupportScreen> {
                       Expanded(
                         child: OutlinedButton.icon(
                           style: OutlinedButton.styleFrom(
-                            foregroundColor: AppColors.primary,
-                            side: const BorderSide(color: AppColors.primary),
+                            foregroundColor: isDark ? AppColors.accentWarm : AppColors.primary,
+                            side: BorderSide(
+                              color: isDark ? AppColors.accentWarm : AppColors.primary,
+                            ),
                             padding: const EdgeInsets.symmetric(vertical: 10),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12),
@@ -382,9 +389,9 @@ class _HelpSupportScreenState extends ConsumerState<HelpSupportScreen> {
                       ),
                       subtitle: Text(
                         faq['category']!,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 11,
-                          color: AppColors.primaryLight,
+                          color: isDark ? AppColors.accentWarm : AppColors.primary,
                         ),
                       ),
                       children: [
@@ -426,7 +433,11 @@ class _HelpSupportScreenState extends ConsumerState<HelpSupportScreen> {
                   ListTile(
                     contentPadding: EdgeInsets.zero,
                     dense: true,
-                    leading: const Icon(Icons.shield_outlined, size: 20, color: AppColors.primaryLight),
+                    leading: Icon(
+                      Icons.shield_outlined,
+                      size: 20,
+                      color: isDark ? AppColors.accentWarm : AppColors.primary,
+                    ),
                     title: const Text('Privacy Policy'),
                     trailing: const Icon(Icons.chevron_right_rounded, size: 20),
                     onTap: () => context.push('/privacy-policy'),
@@ -435,7 +446,11 @@ class _HelpSupportScreenState extends ConsumerState<HelpSupportScreen> {
                   ListTile(
                     contentPadding: EdgeInsets.zero,
                     dense: true,
-                    leading: const Icon(Icons.description_outlined, size: 20, color: AppColors.primaryLight),
+                    leading: Icon(
+                      Icons.description_outlined,
+                      size: 20,
+                      color: isDark ? AppColors.accentWarm : AppColors.primary,
+                    ),
                     title: const Text('Terms of Service'),
                     trailing: const Icon(Icons.chevron_right_rounded, size: 20),
                     onTap: () => context.push('/terms-of-service'),
@@ -444,7 +459,11 @@ class _HelpSupportScreenState extends ConsumerState<HelpSupportScreen> {
                   ListTile(
                     contentPadding: EdgeInsets.zero,
                     dense: true,
-                    leading: const Icon(Icons.auto_awesome_outlined, size: 20, color: AppColors.primaryLight),
+                    leading: Icon(
+                      Icons.auto_awesome_outlined,
+                      size: 20,
+                      color: isDark ? AppColors.accentWarm : AppColors.primary,
+                    ),
                     title: const Text('AI Processing & Accuracy Disclosure'),
                     trailing: const Icon(Icons.chevron_right_rounded, size: 20),
                     onTap: () => context.push('/ai-disclosure'),

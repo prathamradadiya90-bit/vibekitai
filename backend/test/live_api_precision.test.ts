@@ -1,12 +1,13 @@
 import { describe, it, expect } from 'vitest';
 
 const BASE_URL = 'http://127.0.0.1:8787';
+const RUN_LIVE_API_TESTS = (globalThis as any).process?.env?.RUN_LIVE_API_TESTS === 'true';
 
 function getFreshUserId(prefix = 'user'): string {
   return `${prefix}_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
 }
 
-describe('Exhaustive Live API Precision & Quality Audit', { timeout: 15000 }, () => {
+describe.skipIf(!RUN_LIVE_API_TESTS)('Exhaustive Live API Precision & Quality Audit', { timeout: 15000 }, () => {
 
   // Helper fetcher
   async function api(path: string, options: RequestInit = {}, userId?: string) {

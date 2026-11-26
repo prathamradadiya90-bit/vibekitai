@@ -98,7 +98,10 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                       child: Text(
                         'Skip',
                         style: TextStyle(
-                          color: AppColors.accentWarm.withOpacity(0.8),
+                          color: (Theme.of(context).brightness == Brightness.dark
+                                  ? AppColors.accentWarm
+                                  : AppColors.primary)
+                              .withOpacity(0.85),
                           fontSize: 13,
                           fontWeight: FontWeight.w600,
                         ),
@@ -695,10 +698,10 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                         ),
                       ),
                       const SizedBox(height: 8),
-                      const Text(
-                        '#ViralHooks #ContentStrategy #CreatorTips #ReplyVibeAI',
+                      Text(
+                        '#ViralHooks #ContentStrategy #CreatorTips #VibeKitAI',
                         style: TextStyle(
-                          color: AppColors.accentWarm,
+                          color: isDark ? AppColors.accentWarm : AppColors.primary,
                           fontSize: 11,
                           fontWeight: FontWeight.w500,
                         ),
@@ -849,13 +852,13 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                   ),
                 ),
                 const SizedBox(height: 20),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
+                Wrap(
+                  alignment: WrapAlignment.center,
+                  spacing: 6,
+                  runSpacing: 6,
                   children: [
                     _buildPillTag(context, '🎨 8 Presets'),
-                    const SizedBox(width: 6),
                     _buildPillTag(context, '🌐 हिंदी & ગુજરાતી'),
-                    const SizedBox(width: 6),
                     _buildPillTag(context, '⚡ 100% Offline'),
                   ],
                 ),
@@ -965,8 +968,8 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                   context: context,
                   icon: Icons.lock_rounded,
                   color: const Color(0xFF66BB6A),
-                  title: 'Zero Chat Retention',
-                  desc: 'Your inputs are processed in-memory and never saved to a database.',
+                  title: 'No Account Required',
+                  desc: 'Prompts are transmitted over HTTPS without saving personal chat logs.',
                 ),
                 Divider(height: 20, color: context.borderCol),
                 _buildTrustRow(

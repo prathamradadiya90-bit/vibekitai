@@ -11,9 +11,9 @@ class ShareService {
   /// Builds a viral Google Play referral link tied to the user's installation id.
   static String buildReferralLink(String? installationId) {
     if (installationId == null || installationId.isEmpty) {
-      return 'https://play.google.com/store/apps/details?id=com.vibekit.vibekit_ai';
+      return 'https://play.google.com/store/apps/details?id=${AppConfig.androidPackageId}';
     }
-    return 'https://play.google.com/store/apps/details?id=com.vibekit.vibekit_ai&referrer=ref_$installationId';
+    return 'https://play.google.com/store/apps/details?id=${AppConfig.androidPackageId}&referrer=ref_$installationId';
   }
 
   /// Appends viral referral footer to shared text.

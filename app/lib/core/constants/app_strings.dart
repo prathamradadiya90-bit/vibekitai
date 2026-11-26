@@ -19,7 +19,7 @@ class AppStrings {
   // Quota & Billing
   static const String outOfCreditsTitle = 'Daily Credits Exhausted';
   static const String outOfCreditsMessage =
-      'You have used all daily free credits. Watch a short video to earn +3 credits or upgrade to Pro for unlimited generation.';
+      'You have used all daily free credits. Watch a short video to earn +3 credits or upgrade to Pro for 200 monthly AI credits.';
   static const String watchAdButton = 'Watch Video (+3 Credits)';
   static const String upgradeProButton = 'Unlock ReplyVibe Pro';
   static const String freeCreditsBadge = 'Free Credits';

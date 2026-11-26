@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/config/app_config.dart';
+import '../../../core/constants/app_colors.dart';
 import '../../../core/providers/app_providers.dart';
 import '../../../core/services/share_service.dart';
 import '../../../core/services/analytics_service.dart';
@@ -99,10 +101,12 @@ class _ReferralModalState extends ConsumerState<ReferralModal> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+    final activeAccent = isDark ? AppColors.accentWarm : AppColors.primary;
+    final successColor = isDark ? const Color(0xFF69F0AE) : AppColors.success;
 
     return Container(
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1E1E2E) : Colors.white,
+        color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
       ),
       padding: EdgeInsets.only(
@@ -132,10 +136,10 @@ class _ReferralModalState extends ConsumerState<ReferralModal> {
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF6C5CE7).withAlpha(40),
+                    color: AppColors.accent.withValues(alpha: 0.18),
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(Icons.group_add_rounded, color: Color(0xFF6C5CE7), size: 28),
+                  child: Icon(Icons.group_add_rounded, color: activeAccent, size: 28),
                 ),
                 const SizedBox(width: 14),
                 Expanded(
@@ -166,10 +170,13 @@ class _ReferralModalState extends ConsumerState<ReferralModal> {
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
-                    colors: [const Color(0xFF6C5CE7).withAlpha(30), const Color(0xFFA29BFE).withAlpha(30)],
+                    colors: [
+                      AppColors.accent.withValues(alpha: 0.16),
+                      activeAccent.withValues(alpha: 0.12),
+                    ],
                   ),
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: const Color(0xFF6C5CE7).withAlpha(60)),
+                  border: Border.all(color: AppColors.accent.withValues(alpha: 0.35)),
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -177,7 +184,7 @@ class _ReferralModalState extends ConsumerState<ReferralModal> {
                     Column(
                       children: [
                         Text('$_totalReferred / $_maxReferrals',
-                            style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold, color: const Color(0xFF6C5CE7))),
+                            style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold, color: activeAccent)),
                         const Text('Friends Joined', style: TextStyle(fontSize: 12)),
                       ],
                     ),
@@ -185,7 +192,7 @@ class _ReferralModalState extends ConsumerState<ReferralModal> {
                     Column(
                       children: [
                         Text('+$_creditsEarned',
-                            style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold, color: const Color(0xFF00B894))),
+                            style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold, color: successColor)),
                         const Text('Credits Earned', style: TextStyle(fontSize: 12)),
                       ],
                     ),
@@ -199,42 +206,46 @@ class _ReferralModalState extends ConsumerState<ReferralModal> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 decoration: BoxDecoration(
-                  color: isDark ? const Color(0xFF282A36) : const Color(0xFFF1F2F6),
+                  color: isDark ? AppColors.surfaceElevatedDark : AppColors.surfaceCardLight,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Row(
                   children: [
                     Expanded(
                       child: Text(
-                        _referralCode.isEmpty ? 'Loading...' : _referralCode,
+                        _referralCode.isEmpty ? 'Unavailable right now' : _referralCode,
                         style: const TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1),
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
                     IconButton(
                       icon: const Icon(Icons.copy_rounded, size: 20),
-                      onPressed: () => ShareService.copyToClipboard(
-                        context,
-                        _referralCode,
-                        message: 'Referral code copied!',
-                      ),
+                      onPressed: _referralCode.isEmpty
+                          ? null
+                          : () => ShareService.copyToClipboard(
+                                context,
+                                _referralCode,
+                                message: 'Referral code copied!',
+                              ),
                     ),
                   ],
                 ),
               ),
               const SizedBox(height: 12),
               ElevatedButton.icon(
-                onPressed: () {
-                  AnalyticsService.instance.logEvent('referral_shared');
-                  final link = ShareService.buildReferralLink(_referralCode);
-                  ShareService.shareText(
-                    'Hey! Try VibeKit AI to create awesome replies, captions, and profile bios. Use my referral code: $_referralCode for +2 bonus credits!\n\nDownload: $link',
-                  );
-                },
+                onPressed: _referralCode.isEmpty
+                    ? null
+                    : () {
+                        AnalyticsService.instance.logEvent('referral_shared');
+                        final link = ShareService.buildReferralLink(_referralCode);
+                        ShareService.shareText(
+                          'Hey! Try ${AppConfig.appName} to create awesome replies, captions, and profile bios. Use my referral code: $_referralCode for +2 bonus credits!\n\nDownload: $link',
+                        );
+                      },
                 icon: const Icon(Icons.share_rounded),
                 label: const Text('Share Invite Link'),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF6C5CE7),
+                  backgroundColor: AppColors.primary,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
@@ -255,7 +266,7 @@ class _ReferralModalState extends ConsumerState<ReferralModal> {
                         hintText: "Enter friend's code",
                         isDense: true,
                         filled: true,
-                        fillColor: isDark ? const Color(0xFF282A36) : const Color(0xFFF1F2F6),
+                        fillColor: isDark ? AppColors.surfaceElevatedDark : AppColors.surfaceCardLight,
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
                           borderSide: BorderSide.none,
@@ -267,7 +278,7 @@ class _ReferralModalState extends ConsumerState<ReferralModal> {
                   ElevatedButton(
                     onPressed: _isClaiming ? null : _claimReferral,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF00B894),
+                      backgroundColor: AppColors.success,
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),

@@ -8,6 +8,7 @@ class NotificationService {
   bool get isInitialized => _isInitialized;
 
   Future<void> init() async {
+    if (kIsWeb) return;
     try {
       const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
       const initSettings = InitializationSettings(android: androidSettings);
@@ -27,7 +28,7 @@ class NotificationService {
   }
 
   Future<bool> requestPermission() async {
-    if (!_isInitialized) return false;
+    if (kIsWeb || !_isInitialized) return false;
     try {
       final androidPlatform = _plugin.resolvePlatformSpecificImplementation<
           AndroidFlutterLocalNotificationsPlugin>();
@@ -44,7 +45,7 @@ class NotificationService {
     required String body,
     int id = 1001,
   }) async {
-    if (!_isInitialized) return;
+    if (kIsWeb || !_isInitialized) return;
 
     const androidDetails = AndroidNotificationDetails(
       'streak_reminders',
@@ -56,11 +57,19 @@ class NotificationService {
     );
 
     const details = NotificationDetails(android: androidDetails);
-    await _plugin.show(id, title, body, details);
+    try {
+      await _plugin.show(id, title, body, details);
+    } catch (e) {
+      debugPrint('NotificationService show error: $e');
+    }
   }
 
   Future<void> cancelAll() async {
-    if (!_isInitialized) return;
-    await _plugin.cancelAll();
+    if (kIsWeb || !_isInitialized) return;
+    try {
+      await _plugin.cancelAll();
+    } catch (e) {
+      debugPrint('NotificationService cancelAll error: $e');
+    }
   }
 }

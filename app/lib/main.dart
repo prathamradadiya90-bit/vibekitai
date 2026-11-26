@@ -1,4 +1,6 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'core/config/app_config.dart';
 import 'core/providers/app_providers.dart';
@@ -51,6 +53,9 @@ class VibeKitApp extends ConsumerStatefulWidget {
 }
 
 class _VibeKitAppState extends ConsumerState<VibeKitApp> {
+  static const MethodChannel _shareChannel =
+      MethodChannel('com.vibekit.vibekit_ai/share_intent');
+
   late final _router =
       createRouter(initialOnboardingDone: widget.initialOnboardingDone);
 
@@ -73,7 +78,34 @@ class _VibeKitAppState extends ConsumerState<VibeKitApp> {
       // Asynchronous non-blocking SDK initializations
       billing.init();
       adMob.init();
+
+      // Consume incoming Android ACTION_SEND text share intents (cold start & warm start)
+      _initAndroidShareTarget();
     });
+  }
+
+  Future<void> _initAndroidShareTarget() async {
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) return;
+    _shareChannel.setMethodCallHandler((call) async {
+      if (call.method == 'onSharedText' && call.arguments is String) {
+        _openSharedTextInStudio(call.arguments as String);
+      }
+    });
+    try {
+      final initialText = await _shareChannel.invokeMethod<String>('getInitialSharedText');
+      if (initialText != null && initialText.trim().isNotEmpty) {
+        _openSharedTextInStudio(initialText);
+      }
+    } catch (_) {
+      // Ignored cleanly in test / non-Android plugin contexts
+    }
+  }
+
+  void _openSharedTextInStudio(String sharedText) {
+    final trimmed = sharedText.trim();
+    if (trimmed.isEmpty) return;
+    ref.read(preferencesServiceProvider).setOnboardingCompleted(true);
+    _router.go('/studio?tab=reply&prompt=${Uri.encodeComponent(trimmed)}');
   }
 
   @override

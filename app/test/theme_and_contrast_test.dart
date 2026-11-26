@@ -9,10 +9,12 @@ import 'package:vibekit_ai/core/theme/app_theme.dart';
 import 'package:vibekit_ai/core/widgets/error_view.dart';
 import 'package:vibekit_ai/core/widgets/loading_shimmer.dart';
 import 'package:vibekit_ai/core/widgets/quota_badge.dart';
+import 'package:vibekit_ai/core/widgets/report_ai_dialog.dart';
 import 'package:vibekit_ai/core/widgets/result_card.dart';
 import 'package:vibekit_ai/core/widgets/tone_chips.dart';
 import 'package:vibekit_ai/features/onboarding/onboarding_screen.dart';
 import 'package:vibekit_ai/features/paywall/paywall_screen.dart';
+import 'package:vibekit_ai/features/studio/studio_screen.dart';
 
 void main() {
   group('Theme Contrast & Accessibility Verification Tests', () {
@@ -157,6 +159,67 @@ void main() {
         expect(find.text('Annual Creator Pass'), findsOneWidget);
         expect(find.text('Tier Comparison Matrix'), findsOneWidget);
         expect(find.text('What Creators Say'), findsOneWidget);
+        expect(find.text('⭐ 4.9 Rating'), findsNothing);
+        expect(find.text('UNLIMITED CREATIVITY'), findsNothing);
+        expect(find.textContaining('Sarah K.'), findsNothing);
+      }
+    });
+
+    testWidgets('Shared AI content report sheet renders all moderation options and submits cleanly', (tester) async {
+      await tester.pumpWidget(
+        ProviderScope(
+          child: MaterialApp(
+            theme: AppTheme.lightTheme,
+            home: Builder(
+              builder: (ctx) => Scaffold(
+                body: Center(
+                  child: ElevatedButton(
+                    onPressed: () => showReportAiContentDialog(
+                      ctx,
+                      category: 'studio_reply',
+                      content: 'Sample AI suggestion',
+                    ),
+                    child: const Text('Open Report'),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await tester.tap(find.text('Open Report'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Report AI Content'), findsOneWidget);
+      expect(find.text('Hate speech, harassment or bullying'), findsOneWidget);
+      expect(find.text('Submit Report'), findsOneWidget);
+
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+      expect(find.text('Report AI Content'), findsNothing);
+    });
+
+    testWidgets('StudioScreen renders all four creator modes across Light & Dark themes', (tester) async {
+      SharedPreferences.setMockInitialValues({'cached_credits': 3, 'cached_is_pro': false});
+      final prefs = await PreferencesService.create();
+
+      for (final theme in [AppTheme.lightTheme, AppTheme.darkTheme]) {
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              preferencesServiceProvider.overrideWithValue(prefs),
+            ],
+            child: MaterialApp(
+              theme: theme,
+              home: const StudioScreen(),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        expect(find.text('AI Studio'), findsOneWidget);
+        expect(find.text('💬 Reply'), findsOneWidget);
+        expect(find.text('🔥 Vibe Check'), findsOneWidget);
       }
     });
 

@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/config/app_config.dart';
 import '../../core/constants/app_colors.dart';
-import '../../core/constants/app_spacing.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/services/share_service.dart';
 import '../../core/widgets/app_bottom_nav.dart';
@@ -86,6 +85,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       await prefs.clearAll();
 
       ref.read(quotaProvider.notifier).reset();
+      ref.read(streakProvider.notifier).reset();
+      await ref.read(languageProvider.notifier).setLanguage('English');
+      ref.read(historyRevisionProvider.notifier).state++;
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -263,6 +265,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     required bool isSelected,
     required VoidCallback onTap,
   }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final activeAccent = isDark ? AppColors.accentWarm : AppColors.primary;
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(14),
@@ -273,13 +277,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: isSelected ? AppColors.primary : AppColors.primary.withValues(alpha: 0.1),
+                color: isSelected ? activeAccent : activeAccent.withValues(alpha: 0.12),
                 shape: BoxShape.circle,
               ),
               child: Icon(
                 icon,
                 size: 18,
-                color: isSelected ? Colors.white : AppColors.primary,
+                color: isSelected
+                    ? (isDark ? AppColors.backgroundDark : Colors.white)
+                    : activeAccent,
               ),
             ),
             const SizedBox(width: 14),
@@ -299,7 +305,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               ),
             ),
             if (isSelected)
-              const Icon(Icons.check_circle_rounded, color: AppColors.primary, size: 20),
+              Icon(Icons.check_circle_rounded, color: activeAccent, size: 20),
           ],
         ),
       ),
@@ -349,11 +355,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                             style: TextStyle(
                               fontSize: 15,
                               fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                              color: isSelected ? AppColors.primary : null,
+                              color: isSelected
+                                  ? (isDark ? AppColors.accentWarm : AppColors.primary)
+                                  : null,
                             ),
                           ),
                           if (isSelected)
-                            const Icon(Icons.check_circle_rounded, color: AppColors.primary, size: 20),
+                            Icon(
+                              Icons.check_circle_rounded,
+                              color: isDark ? AppColors.accentWarm : AppColors.primary,
+                              size: 20,
+                            ),
                         ],
                       ),
                     ),
@@ -399,6 +411,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           TextButton(
             onPressed: () async {
               await prefs.setCustomApiUrl(null);
+              ref.invalidate(apiClientProvider);
               if (dialogContext.mounted) Navigator.pop(dialogContext);
               setState(() {});
             },
@@ -407,9 +420,32 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ElevatedButton(
             onPressed: () async {
               final newUrl = controller.text.trim();
-              if (newUrl.isNotEmpty) {
-                await prefs.setCustomApiUrl(newUrl);
+              if (newUrl.isEmpty) {
+                await prefs.setCustomApiUrl(null);
+                ref.invalidate(apiClientProvider);
+                if (dialogContext.mounted) Navigator.pop(dialogContext);
+                setState(() {});
+                return;
               }
+              final parsed = Uri.tryParse(newUrl);
+              final isValidScheme = AppConfig.isDev
+                  ? (parsed != null &&
+                      (parsed.scheme == 'http' || parsed.scheme == 'https'))
+                  : (parsed != null && parsed.scheme == 'https');
+              if (!isValidScheme || parsed.host.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      AppConfig.isDev
+                          ? 'Please enter a valid http:// or https:// URL.'
+                          : 'Release builds require a valid https:// URL.',
+                    ),
+                  ),
+                );
+                return;
+              }
+              await prefs.setCustomApiUrl(newUrl);
+              ref.invalidate(apiClientProvider);
               if (dialogContext.mounted) Navigator.pop(dialogContext);
               setState(() {});
             },
@@ -535,7 +571,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                             const SizedBox(height: 3),
                             Text(
                               quota.isPro
-                                  ? 'Unlimited creations • Watermark-free'
+                                  ? '200 monthly AI credits • Ad-free & watermark-free'
                                   : 'Standard Member • Free Tier',
                               style: TextStyle(
                                 fontSize: 12,

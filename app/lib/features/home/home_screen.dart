@@ -26,6 +26,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   ChallengeModel? _todaysChallenge;
   List<HistoryItem> _recentCreations = [];
   int _sparkIndex = 0;
+  bool _isStartingRewardedAd = false;
 
   static const List<Map<String, String>> _viralSparks = [
     {
@@ -165,6 +166,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     }
   }
 
+  Future<void> _reloadRecentCreations() async {
+    try {
+      final db = ref.read(localDatabaseProvider);
+      final recent = await db.getItems(limit: 5);
+      if (mounted) {
+        setState(() => _recentCreations = recent);
+      }
+    } catch (_) {}
+  }
+
   String _getGreeting() {
     final hour = DateTime.now().hour;
     if (hour < 12) return 'Good morning';
@@ -173,72 +184,92 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   Future<void> _watchRewardedAd() async {
-    final adMob = ref.read(adMobServiceProvider);
-    final quotaNotifier = ref.read(quotaProvider.notifier);
-    final apiClient = ref.read(apiClientProvider);
-    final instId = ref.read(preferencesServiceProvider).getAppInstanceId();
-
-    final nonce = await apiClient.requestAdNonce();
-    final rewardId = 'rew_${DateTime.now().millisecondsSinceEpoch}';
-    final customData = jsonEncode({
-      'userId': instId,
-      if (nonce != null) 'nonce': nonce,
-      'rewardId': rewardId,
-      'timestamp': DateTime.now().millisecondsSinceEpoch,
-    });
-
-    final showed = await adMob.showRewardedAd(
-      userId: instId,
-      customData: customData,
-      onRewardEarned: (reward) async {
-        final verified = await quotaNotifier.grantRewardCredit(
-          nonce: nonce,
-          rewardId: rewardId,
+    if (_isStartingRewardedAd) return;
+    if (!ref.read(quotaProvider).canWatchRewardedAd) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Daily rewarded ads limit reached.'),
+            behavior: SnackBarBehavior.floating,
+          ),
         );
-        if (mounted) {
-          if (verified) {
+      }
+      return;
+    }
+    _isStartingRewardedAd = true;
+    try {
+      final adMob = ref.read(adMobServiceProvider);
+      final quotaNotifier = ref.read(quotaProvider.notifier);
+      final apiClient = ref.read(apiClientProvider);
+      final instId = ref.read(preferencesServiceProvider).getAppInstanceId();
+
+      final nonce = await apiClient.requestAdNonce();
+      final rewardId = 'rew_${DateTime.now().millisecondsSinceEpoch}';
+      final customData = jsonEncode({
+        'userId': instId,
+        if (nonce != null) 'nonce': nonce,
+        'rewardId': rewardId,
+        'timestamp': DateTime.now().millisecondsSinceEpoch,
+      });
+
+      bool failureNotified = false;
+      final showed = await adMob.showRewardedAd(
+        userId: instId,
+        customData: customData,
+        onRewardEarned: (reward) async {
+          final verified = await quotaNotifier.grantRewardCredit(
+            nonce: nonce,
+            rewardId: rewardId,
+          );
+          if (mounted) {
+            if (verified) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('🎉 +3 Bonus AI Credits unlocked!'),
+                  backgroundColor: AppColors.success,
+                  behavior: SnackBarBehavior.floating,
+                ),
+              );
+            } else {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Could not verify reward. Please try again.'),
+                  backgroundColor: AppColors.error,
+                  behavior: SnackBarBehavior.floating,
+                ),
+              );
+            }
+          }
+        },
+        onAdFailed: () {
+          failureNotified = true;
+          if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
-                content: Text('🎉 +3 Bonus AI Credits unlocked!'),
-                backgroundColor: AppColors.success,
-                behavior: SnackBarBehavior.floating,
-              ),
-            );
-          } else {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Could not verify reward. Please try again.'),
-                backgroundColor: AppColors.error,
+                content: Text('Ad is loading. Please try again in a moment.'),
                 behavior: SnackBarBehavior.floating,
               ),
             );
           }
-        }
-      },
-      onAdFailed: () {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Ad not ready yet. Please try again in a moment.'),
-              behavior: SnackBarBehavior.floating,
-            ),
-          );
-        }
-      },
-    );
-
-    if (!showed && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Ad is loading. Please try again in a moment.'),
-          behavior: SnackBarBehavior.floating,
-        ),
+        },
       );
+
+      if (!showed && !failureNotified && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Ad is loading. Please try again in a moment.'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } finally {
+      _isStartingRewardedAd = false;
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    ref.listen<int>(historyRevisionProvider, (_, __) => _reloadRecentCreations());
     final quota = ref.watch(quotaProvider);
     final streak = ref.watch(streakProvider);
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -1137,6 +1168,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     ],
                   ),
                 ),
+
+                const SizedBox(height: 12),
 
                 const AdaptiveBannerWidget(),
 

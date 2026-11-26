@@ -270,30 +270,38 @@ class _AchievementsScreenState extends ConsumerState<AchievementsScreen> {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Text(
-                                ach.title,
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 15,
-                                  color: ach.isUnlocked ? textCol : subtitleCol,
+                              Expanded(
+                                child: Text(
+                                  ach.title,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 15,
+                                    color: ach.isUnlocked ? textCol : subtitleCol,
+                                  ),
                                 ),
                               ),
-                              if (ach.isUnlocked)
+                              if (ach.isUnlocked) ...[
+                                const SizedBox(width: 8),
                                 Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                                   decoration: BoxDecoration(
-                                    color: Colors.green.withOpacity(0.2),
+                                    color: isDark
+                                        ? Colors.green.withOpacity(0.2)
+                                        : AppColors.success.withOpacity(0.12),
                                     borderRadius: BorderRadius.circular(10),
                                   ),
-                                  child: const Text(
+                                  child: Text(
                                     'UNLOCKED ✓',
                                     style: TextStyle(
-                                      color: Colors.greenAccent,
+                                      color: isDark ? Colors.greenAccent : AppColors.success,
                                       fontWeight: FontWeight.bold,
                                       fontSize: 10,
                                     ),
                                   ),
                                 ),
+                              ],
                             ],
                           ),
                           const SizedBox(height: 4),
@@ -308,45 +316,53 @@ class _AchievementsScreenState extends ConsumerState<AchievementsScreen> {
                           const SizedBox(height: 10),
                           Row(
                             children: [
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                decoration: BoxDecoration(
-                                  color: AppColors.primary.withOpacity(0.15),
-                                  borderRadius: BorderRadius.circular(6),
-                                ),
-                                child: Text(
-                                  '+${ach.xpReward} XP',
-                                  style: const TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.bold,
-                                    color: AppColors.primaryLight,
-                                  ),
+                              Expanded(
+                                child: Wrap(
+                                  spacing: 6,
+                                  runSpacing: 4,
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: AppColors.primary.withOpacity(0.15),
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                      child: Text(
+                                        '+${ach.xpReward} XP',
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.bold,
+                                          color: isDark ? AppColors.primaryLight : AppColors.primary,
+                                        ),
+                                      ),
+                                    ),
+                                    if (ach.bonusCredits > 0)
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                        decoration: BoxDecoration(
+                                          color: Colors.amber.withOpacity(0.15),
+                                          borderRadius: BorderRadius.circular(6),
+                                        ),
+                                        child: Text(
+                                          '+${ach.bonusCredits} AI Credit',
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.bold,
+                                            color: isDark ? Colors.amberAccent : const Color(0xFF9A6700),
+                                          ),
+                                        ),
+                                      ),
+                                  ],
                                 ),
                               ),
-                              if (ach.bonusCredits > 0) ...[
-                                const SizedBox(width: 6),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                  decoration: BoxDecoration(
-                                    color: Colors.amber.withOpacity(0.15),
-                                    borderRadius: BorderRadius.circular(6),
-                                  ),
-                                  child: Text(
-                                    '+${ach.bonusCredits} AI Credit',
-                                    style: const TextStyle(
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.amberAccent,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                              const Spacer(),
+                              const SizedBox(width: 8),
                               Text(
                                 ach.progressText,
                                 style: TextStyle(
                                   fontSize: 11,
-                                  color: ach.isUnlocked ? Colors.greenAccent : (isDark ? Colors.white54 : AppColors.textMutedLight),
+                                  color: ach.isUnlocked
+                                      ? (isDark ? Colors.greenAccent : AppColors.success)
+                                      : (isDark ? Colors.white54 : AppColors.textMutedLight),
                                   fontWeight: FontWeight.w600,
                                 ),
                               ),

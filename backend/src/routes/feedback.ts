@@ -1,12 +1,12 @@
 import { Hono } from 'hono';
-import { Env } from '../types';
+import { AppHonoEnv } from '../types';
 import { FeedbackSchema } from '../schemas/validation';
 import { FeedbackRepository } from '../db/feedback.repo';
 
-export const feedbackRoute = new Hono<{ Bindings: Env }>();
+export const feedbackRoute = new Hono<AppHonoEnv>();
 
 feedbackRoute.post('/feedback', async (c) => {
-  const installationId = c.req.header('X-App-Instance-Id') || 'anonymous_default';
+  const installationId = c.get('installationId') || c.req.header('X-App-Instance-Id') || 'anonymous_default';
   const bodyResult = FeedbackSchema.safeParse(await c.req.json());
 
   if (!bodyResult.success) {

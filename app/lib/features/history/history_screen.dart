@@ -46,6 +46,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
   }
 
   void _onSearchChanged(String _) {
+    setState(() {});
     _debounceTimer?.cancel();
     _debounceTimer = Timer(const Duration(milliseconds: 300), () {
       if (mounted) _loadItems();
@@ -81,12 +82,14 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
   Future<void> _deleteItem(String id) async {
     final db = ref.read(localDatabaseProvider);
     await db.deleteItem(id);
+    ref.read(historyRevisionProvider.notifier).state++;
     _loadItems();
   }
 
   Future<void> _toggleFavorite(HistoryItem item) async {
     final db = ref.read(localDatabaseProvider);
     await db.toggleFavorite(item.id, !item.isFavorite);
+    ref.read(historyRevisionProvider.notifier).state++;
     _loadItems();
   }
 
@@ -115,6 +118,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
     if (confirmed == true) {
       final db = ref.read(localDatabaseProvider);
       await db.clearAll();
+      ref.read(historyRevisionProvider.notifier).state++;
       _loadItems();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -254,35 +258,44 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Row(
-                                    mainAxisAlignment:
-                                        MainAxisAlignment.spaceBetween,
                                     children: [
-                                      Row(
-                                        children: [
-                                          Icon(typeIcon,
-                                              size: 14, color: typeColor),
-                                          const SizedBox(width: 6),
-                                          Text(
-                                            item.category.toUpperCase(),
-                                            style: TextStyle(
-                                              fontSize: 11,
-                                              fontWeight: FontWeight.bold,
-                                              color: typeColor,
+                                      Expanded(
+                                        child: Row(
+                                          children: [
+                                            Icon(typeIcon,
+                                                size: 14, color: typeColor),
+                                            const SizedBox(width: 6),
+                                            Flexible(
+                                              child: Text(
+                                                item.category.toUpperCase(),
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                                style: TextStyle(
+                                                  fontSize: 11,
+                                                  fontWeight: FontWeight.bold,
+                                                  color: typeColor,
+                                                ),
+                                              ),
                                             ),
-                                          ),
-                                          const SizedBox(width: 8),
-                                          Text(
-                                            '• $formattedDate',
-                                            style: TextStyle(
-                                              fontSize: 11,
-                                              color: isDark ? AppColors.textMutedDark : AppColors.textSecondaryLight,
+                                            const SizedBox(width: 6),
+                                            Text(
+                                              '• $formattedDate',
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: TextStyle(
+                                                fontSize: 11,
+                                                color: isDark ? AppColors.textMutedDark : AppColors.textSecondaryLight,
+                                              ),
                                             ),
-                                          ),
-                                        ],
+                                          ],
+                                        ),
                                       ),
                                       Row(
+                                        mainAxisSize: MainAxisSize.min,
                                         children: [
                                           IconButton(
+                                            padding: const EdgeInsets.all(6),
+                                            constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
                                             icon: Icon(
                                               item.isFavorite
                                                   ? Icons.favorite
@@ -298,6 +311,8 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                                                 _toggleFavorite(item),
                                           ),
                                           IconButton(
+                                            padding: const EdgeInsets.all(6),
+                                            constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
                                             icon: Icon(Icons.copy_rounded,
                                                 size: 18,
                                                 color: isDark ? Colors.white70 : AppColors.textSecondaryLight),
@@ -307,6 +322,8 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                                                     context, item.content),
                                           ),
                                           IconButton(
+                                            padding: const EdgeInsets.all(6),
+                                            constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
                                             icon: Icon(
                                                 Icons.share_rounded,
                                                 size: 18,
@@ -325,6 +342,8 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                                             },
                                           ),
                                           IconButton(
+                                            padding: const EdgeInsets.all(6),
+                                            constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
                                             icon: const Icon(
                                                 Icons.delete_outline_rounded,
                                                 size: 18,

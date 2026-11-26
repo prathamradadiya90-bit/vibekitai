@@ -5,6 +5,7 @@ import '../config/app_config.dart';
 import '../storage/preferences_service.dart';
 import '../storage/local_database.dart';
 import '../network/api_client.dart';
+import '../network/api_exception.dart';
 import '../services/admob_service.dart';
 import '../services/billing_service.dart';
 import '../services/review_service.dart';
@@ -45,6 +46,9 @@ final analyticsServiceProvider = Provider<AnalyticsService>((ref) {
   return AnalyticsService.instance;
 });
 
+/// Incremented whenever LocalDatabase history items are added, modified, or cleared.
+final historyRevisionProvider = StateProvider<int>((ref) => 0);
+
 // Quota State Notifier
 class QuotaNotifier extends StateNotifier<QuotaModel> {
   final ApiClient _apiClient;
@@ -54,10 +58,15 @@ class QuotaNotifier extends StateNotifier<QuotaModel> {
     // Check and perform daily local reset immediately on initialization
     final didReset = _prefs.checkAndPerformDailyLocalReset();
     final cachedCredits = _prefs.getCachedCredits();
+    final cachedRewarded = _prefs.getCachedRewardedCredits().clamp(0, cachedCredits);
+    final cachedFree = didReset
+        ? AppConfig.defaultDailyCredits
+        : (cachedCredits - cachedRewarded).clamp(0, 999);
 
     state = state.copyWith(
       totalCreditsRemaining: cachedCredits,
-      freeCreditsRemaining: didReset ? 3 : cachedCredits,
+      freeCreditsRemaining: cachedFree,
+      rewardedCreditsRemaining: cachedRewarded,
       isPro: _prefs.getCachedIsPro(),
       rewardedAdsWatchedToday: didReset ? 0 : state.rewardedAdsWatchedToday,
     );
@@ -67,15 +76,18 @@ class QuotaNotifier extends StateNotifier<QuotaModel> {
   Future<void> refresh() async {
     try {
       if (_prefs.checkAndPerformDailyLocalReset()) {
+        final rewarded = _prefs.getCachedRewardedCredits();
         state = state.copyWith(
-          totalCreditsRemaining: 3,
-          freeCreditsRemaining: 3,
+          totalCreditsRemaining: AppConfig.defaultDailyCredits + rewarded,
+          freeCreditsRemaining: AppConfig.defaultDailyCredits,
+          rewardedCreditsRemaining: rewarded,
           rewardedAdsWatchedToday: 0,
         );
       }
       final quota = await _apiClient.getUsage();
       state = quota;
       await _prefs.setCachedCredits(quota.totalCreditsRemaining);
+      await _prefs.setCachedRewardedCredits(quota.rewardedCreditsRemaining);
       await _prefs.setCachedIsPro(quota.isPro);
     } catch (_) {
       // Retain cached state on network failure
@@ -98,6 +110,7 @@ class QuotaNotifier extends StateNotifier<QuotaModel> {
         rewardedCreditsRemaining: rewarded,
       );
       _prefs.setCachedCredits(newTotal);
+      _prefs.setCachedRewardedCredits(rewarded);
     }
   }
 
@@ -118,6 +131,7 @@ class QuotaNotifier extends StateNotifier<QuotaModel> {
       rewardedCreditsRemaining: rewarded,
     );
     _prefs.setCachedCredits(remaining);
+    _prefs.setCachedRewardedCredits(rewarded);
   }
 
   void reset() {
@@ -131,9 +145,10 @@ class QuotaNotifier extends StateNotifier<QuotaModel> {
   }
 
   Future<bool> grantRewardCredit({String? nonce, String? transactionId, String? rewardId}) async {
+    if (!state.canWatchRewardedAd) return false;
     final effectiveRewardId = rewardId ?? 'rew_${DateTime.now().millisecondsSinceEpoch}';
 
-    // Poll up to 4 times with progressive backoff to allow Google AdMob SSV webhook to arrive at Cloudflare
+    // Poll up to 4 times with progressive backoff to allow Google AdMob SSV webhook to arrive
     for (int attempt = 0; attempt < 4; attempt++) {
       if (attempt > 0) {
         await Future.delayed(Duration(milliseconds: 1000 * attempt));
@@ -146,26 +161,34 @@ class QuotaNotifier extends StateNotifier<QuotaModel> {
           adNetwork: 'admob',
         );
         if (res['verified'] == true) {
+          final creditsAdded = (res['credits_added'] as num?)?.toInt() ?? 3;
           final remaining = (res['credits_remaining'] as num?)?.toInt() ??
-              (state.totalCreditsRemaining + 3);
+              (state.totalCreditsRemaining + creditsAdded);
           final watched = (res['rewarded_ads_watched_today'] as num?)?.toInt() ??
               (state.rewardedAdsWatchedToday + 1);
+          final computedRewarded = (remaining - state.freeCreditsRemaining).clamp(0, 9999);
           final updated = state.copyWith(
             totalCreditsRemaining: remaining,
-            rewardedCreditsRemaining: state.rewardedCreditsRemaining + 3,
+            rewardedCreditsRemaining: computedRewarded,
             rewardedAdsWatchedToday: watched,
           );
           state = updated;
           await _prefs.setCachedCredits(remaining);
+          await _prefs.setCachedRewardedCredits(updated.rewardedCreditsRemaining);
           return true;
         }
+      } on ApiException catch (e) {
+        // Authoritative client/quota rejection (e.g. daily ad limit reached) must fail immediately
+        if (e.statusCode == 400 || e.statusCode == 403 || e.statusCode == 429) {
+          return false;
+        }
       } catch (_) {
-        // Verification attempt failed; continue polling
+        // Network error; retry polling
       }
     }
 
-    // Dev or Web mode fallback
-    if (AppConfig.isDev || kIsWeb) {
+    // Dev or Web mode fallback when backend is unreachable (still respects daily ad limit)
+    if ((AppConfig.isDev || kIsWeb) && state.canWatchRewardedAd) {
       final updated = state.copyWith(
         totalCreditsRemaining: state.totalCreditsRemaining + 3,
         rewardedCreditsRemaining: state.rewardedCreditsRemaining + 3,
@@ -173,6 +196,7 @@ class QuotaNotifier extends StateNotifier<QuotaModel> {
       );
       state = updated;
       await _prefs.setCachedCredits(updated.totalCreditsRemaining);
+      await _prefs.setCachedRewardedCredits(updated.rewardedCreditsRemaining);
       return true;
     }
     return false;

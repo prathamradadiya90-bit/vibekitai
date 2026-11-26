@@ -190,14 +190,18 @@ class ApiClient {
       final res = await _get(ApiEndpoints.usage);
       final quota = QuotaModel.fromJson(res);
       await _prefs.setCachedCredits(quota.totalCreditsRemaining);
+      await _prefs.setCachedRewardedCredits(quota.rewardedCreditsRemaining);
       await _prefs.setCachedIsPro(quota.isPro);
       return quota;
     } catch (e) {
       debugPrint('ApiClient.getUsage error ($e). Returning cached quota.');
+      final totalCached = _prefs.getCachedCredits();
+      final rewardedCached = _prefs.getCachedRewardedCredits().clamp(0, totalCached);
+      final freeCached = (totalCached - rewardedCached).clamp(0, 999);
       return QuotaModel(
-        freeCreditsRemaining: _prefs.getCachedCredits(),
-        rewardedCreditsRemaining: 0,
-        totalCreditsRemaining: _prefs.getCachedCredits(),
+        freeCreditsRemaining: freeCached,
+        rewardedCreditsRemaining: rewardedCached,
+        totalCreditsRemaining: totalCached,
         isPro: _prefs.getCachedIsPro(),
         proCreditsRemaining: _prefs.getCachedIsPro() ? 200 : 0,
         proCycleResetsAt: null,
@@ -208,97 +212,87 @@ class ApiClient {
     }
   }
 
-  /// Generates 3 replies with selected tone and language
-  Future<ReplyResponse> generateReply(ReplyRequest request) async {
+  Future<T> _runGenerationWithFallback<T>({
+    required String endpoint,
+    required Map<String, dynamic> body,
+    required T Function(Map<String, dynamic> json) fromJson,
+    required int Function(T result) getCreditsRemaining,
+    required T Function(int newCredits) fallbackBuilder,
+    required String logTag,
+  }) async {
     try {
-      final res = await _post(ApiEndpoints.generateReply, request.toJson());
-      final reply = ReplyResponse.fromJson(res);
-      await _prefs.setCachedCredits(reply.creditsRemaining);
-      return reply;
+      final res = await _post(endpoint, body);
+      final parsed = fromJson(res);
+      await _prefs.setCachedCredits(getCreditsRemaining(parsed));
+      return parsed;
     } on ApiException catch (e) {
-      if (e.code == 'QUOTA_EXCEEDED' || e.statusCode == 429) rethrow;
-      debugPrint('ApiClient.generateReply network error ($e). Using smart fallback.');
+      // Never mask quota, client validation, auth, ban, or safety errors with offline fallback
+      final isClientOrPolicyError = e.statusCode == 400 ||
+          e.statusCode == 401 ||
+          e.statusCode == 403 ||
+          e.statusCode == 429 ||
+          e.code == 'QUOTA_EXCEEDED' ||
+          e.code == 'ACCOUNT_BANNED' ||
+          e.code == 'VALIDATION_ERROR' ||
+          e.message.toUpperCase().contains('SAFETY');
+      if (isClientOrPolicyError) rethrow;
+      debugPrint('ApiClient.$logTag server/network error ($e). Using smart fallback.');
       final current = _prefs.getCachedCredits();
       final newCredits = (current - 1).clamp(0, 999);
       await _prefs.setCachedCredits(newCredits);
-      return OfflineFallback.getFallbackReplies(request, newCredits);
+      return fallbackBuilder(newCredits);
     } catch (e) {
-      debugPrint('ApiClient.generateReply unexpected error ($e). Using smart fallback.');
+      debugPrint('ApiClient.$logTag unexpected error ($e). Using smart fallback.');
       final current = _prefs.getCachedCredits();
       final newCredits = (current - 1).clamp(0, 999);
       await _prefs.setCachedCredits(newCredits);
-      return OfflineFallback.getFallbackReplies(request, newCredits);
+      return fallbackBuilder(newCredits);
     }
   }
+
+  /// Generates 3 replies with selected tone and language
+  Future<ReplyResponse> generateReply(ReplyRequest request) =>
+      _runGenerationWithFallback<ReplyResponse>(
+        endpoint: ApiEndpoints.generateReply,
+        body: request.toJson(),
+        fromJson: ReplyResponse.fromJson,
+        getCreditsRemaining: (r) => r.creditsRemaining,
+        fallbackBuilder: (c) => OfflineFallback.getFallbackReplies(request, c),
+        logTag: 'generateReply',
+      );
 
   /// Generates social captions, hooks, CTAs, and hashtags
-  Future<CaptionResponse> generateCaption(CaptionRequest request) async {
-    try {
-      final res = await _post(ApiEndpoints.generateCaption, request.toJson());
-      final caption = CaptionResponse.fromJson(res);
-      await _prefs.setCachedCredits(caption.creditsRemaining);
-      return caption;
-    } on ApiException catch (e) {
-      if (e.code == 'QUOTA_EXCEEDED' || e.statusCode == 429) rethrow;
-      debugPrint('ApiClient.generateCaption network error ($e). Using smart fallback.');
-      final current = _prefs.getCachedCredits();
-      final newCredits = (current - 1).clamp(0, 999);
-      await _prefs.setCachedCredits(newCredits);
-      return OfflineFallback.getFallbackCaptions(request, newCredits);
-    } catch (e) {
-      debugPrint('ApiClient.generateCaption unexpected error ($e). Using smart fallback.');
-      final current = _prefs.getCachedCredits();
-      final newCredits = (current - 1).clamp(0, 999);
-      await _prefs.setCachedCredits(newCredits);
-      return OfflineFallback.getFallbackCaptions(request, newCredits);
-    }
-  }
+  Future<CaptionResponse> generateCaption(CaptionRequest request) =>
+      _runGenerationWithFallback<CaptionResponse>(
+        endpoint: ApiEndpoints.generateCaption,
+        body: request.toJson(),
+        fromJson: CaptionResponse.fromJson,
+        getCreditsRemaining: (r) => r.creditsRemaining,
+        fallbackBuilder: (c) => OfflineFallback.getFallbackCaptions(request, c),
+        logTag: 'generateCaption',
+      );
 
   /// Generates profile bios and usernames
-  Future<BioResponse> generateBio(BioRequest request) async {
-    try {
-      final res = await _post(ApiEndpoints.generateBio, request.toJson());
-      final bio = BioResponse.fromJson(res);
-      await _prefs.setCachedCredits(bio.creditsRemaining);
-      return bio;
-    } on ApiException catch (e) {
-      if (e.code == 'QUOTA_EXCEEDED' || e.statusCode == 429) rethrow;
-      debugPrint('ApiClient.generateBio network error ($e). Using smart fallback.');
-      final current = _prefs.getCachedCredits();
-      final newCredits = (current - 1).clamp(0, 999);
-      await _prefs.setCachedCredits(newCredits);
-      return OfflineFallback.getFallbackBios(request, newCredits);
-    } catch (e) {
-      debugPrint('ApiClient.generateBio unexpected error ($e). Using smart fallback.');
-      final current = _prefs.getCachedCredits();
-      final newCredits = (current - 1).clamp(0, 999);
-      await _prefs.setCachedCredits(newCredits);
-      return OfflineFallback.getFallbackBios(request, newCredits);
-    }
-  }
+  Future<BioResponse> generateBio(BioRequest request) =>
+      _runGenerationWithFallback<BioResponse>(
+        endpoint: ApiEndpoints.generateBio,
+        body: request.toJson(),
+        fromJson: BioResponse.fromJson,
+        getCreditsRemaining: (r) => r.creditsRemaining,
+        fallbackBuilder: (c) => OfflineFallback.getFallbackBios(request, c),
+        logTag: 'generateBio',
+      );
 
   /// Analyzes text vibe, rates score, critiques, and suggests leveled-up rewrites
-  Future<VibeCheckResponse> checkVibe(VibeCheckRequest request) async {
-    try {
-      final res = await _post(ApiEndpoints.vibeCheck, request.toJson());
-      final vibe = VibeCheckResponse.fromJson(res);
-      await _prefs.setCachedCredits(vibe.creditsRemaining);
-      return vibe;
-    } on ApiException catch (e) {
-      if (e.code == 'QUOTA_EXCEEDED' || e.statusCode == 429) rethrow;
-      debugPrint('ApiClient.checkVibe network error ($e). Using smart fallback.');
-      final current = _prefs.getCachedCredits();
-      final newCredits = (current - 1).clamp(0, 999);
-      await _prefs.setCachedCredits(newCredits);
-      return OfflineFallback.getFallbackVibeCheck(request, newCredits);
-    } catch (e) {
-      debugPrint('ApiClient.checkVibe unexpected error ($e). Using smart fallback.');
-      final current = _prefs.getCachedCredits();
-      final newCredits = (current - 1).clamp(0, 999);
-      await _prefs.setCachedCredits(newCredits);
-      return OfflineFallback.getFallbackVibeCheck(request, newCredits);
-    }
-  }
+  Future<VibeCheckResponse> checkVibe(VibeCheckRequest request) =>
+      _runGenerationWithFallback<VibeCheckResponse>(
+        endpoint: ApiEndpoints.vibeCheck,
+        body: request.toJson(),
+        fromJson: VibeCheckResponse.fromJson,
+        getCreditsRemaining: (r) => r.creditsRemaining,
+        fallbackBuilder: (c) => OfflineFallback.getFallbackVibeCheck(request, c),
+        logTag: 'checkVibe',
+      );
 
   /// Submits Play Store purchase token for server-side verification
   Future<Map<String, dynamic>> verifyPurchase({

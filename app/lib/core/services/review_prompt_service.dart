@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../config/app_config.dart';
 import '../constants/app_colors.dart';
 import 'analytics_service.dart';
 
@@ -173,8 +174,8 @@ class ReviewPromptService {
   }
 
   Future<void> _launchPlayStore() async {
-    const marketUrl = 'market://details?id=com.vibekit.ai';
-    const webUrl = 'https://play.google.com/store/apps/details?id=com.vibekit.ai';
+    const marketUrl = 'market://details?id=${AppConfig.androidPackageId}';
+    const webUrl = 'https://play.google.com/store/apps/details?id=${AppConfig.androidPackageId}';
 
     final marketUri = Uri.parse(marketUrl);
     final webUri = Uri.parse(webUrl);

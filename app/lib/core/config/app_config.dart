@@ -43,52 +43,61 @@ class AppConfig {
   static const String prodRewardedAdUnitId = 'ca-app-pub-2168884661772447/3469897059';
   static const String prodInterstitialAdUnitId = '';
 
-  // Active AdMob Unit IDs
+  // Active AdMob Unit IDs. Release builds strictly avoid falling back to Google Test Ad IDs.
   static String get bannerAdUnitId {
     const fromEnv = String.fromEnvironment('ADMOB_BANNER_ID');
     if (fromEnv.isNotEmpty) return fromEnv;
-    if (prodBannerAdUnitId.isNotEmpty && !kDebugMode) return prodBannerAdUnitId;
+    if (!kDebugMode) return prodBannerAdUnitId;
     return testBannerAdUnitId;
   }
 
   static String get rewardedAdUnitId {
     const fromEnv = String.fromEnvironment('ADMOB_REWARDED_ID');
     if (fromEnv.isNotEmpty) return fromEnv;
-    if (prodRewardedAdUnitId.isNotEmpty && !kDebugMode) return prodRewardedAdUnitId;
+    if (!kDebugMode) return prodRewardedAdUnitId;
     return testRewardedAdUnitId;
   }
 
   static String get interstitialAdUnitId {
     const fromEnv = String.fromEnvironment('ADMOB_INTERSTITIAL_ID');
     if (fromEnv.isNotEmpty) return fromEnv;
-    if (prodInterstitialAdUnitId.isNotEmpty && !kDebugMode) return prodInterstitialAdUnitId;
+    if (!kDebugMode) return prodInterstitialAdUnitId;
     return testInterstitialAdUnitId;
   }
 
   /// Verifies adherence to Google AdMob policy on environment separation:
-  /// Test IDs in debug, production IDs via build flags in release.
+  /// Test IDs in debug, production IDs (via --dart-define or direct constants) in release.
   static void validateAdEnvironment() {
     const isRelease = kReleaseMode;
-    final hasBanner = const String.fromEnvironment('ADMOB_BANNER_ID').isNotEmpty;
-    final hasRewarded = const String.fromEnvironment('ADMOB_REWARDED_ID').isNotEmpty;
-    final hasInterstitial = const String.fromEnvironment('ADMOB_INTERSTITIAL_ID').isNotEmpty;
+    final hasBanner = const String.fromEnvironment('ADMOB_BANNER_ID').isNotEmpty ||
+        prodBannerAdUnitId.isNotEmpty;
+    final hasRewarded = const String.fromEnvironment('ADMOB_REWARDED_ID').isNotEmpty ||
+        prodRewardedAdUnitId.isNotEmpty;
+    final hasInterstitial =
+        const String.fromEnvironment('ADMOB_INTERSTITIAL_ID').isNotEmpty ||
+            prodInterstitialAdUnitId.isNotEmpty;
 
     if (isRelease) {
       if (!hasBanner || !hasRewarded || !hasInterstitial) {
         debugPrint(
-          '[AdMob Safety Assertion] Release mode active with Google Test IDs. '
-          'Provide real production IDs via --dart-define before publishing to Google Play.',
+          '[AdMob Safety Notice] Release mode has unconfigured optional ad unit(s) '
+          '(banner=$hasBanner, rewarded=$hasRewarded, interstitial=$hasInterstitial). '
+          'Unconfigured placements are disabled in release.',
         );
       }
     } else {
-      if (hasBanner || hasRewarded || hasInterstitial) {
+      if (const String.fromEnvironment('ADMOB_BANNER_ID').isNotEmpty ||
+          const String.fromEnvironment('ADMOB_REWARDED_ID').isNotEmpty ||
+          const String.fromEnvironment('ADMOB_INTERSTITIAL_ID').isNotEmpty) {
         debugPrint(
-          '[AdMob Safety Warning] Debug build is using custom ad unit IDs. '
+          '[AdMob Safety Warning] Debug build has custom --dart-define ad unit IDs. '
           'Use official test IDs during local testing to prevent policy violations.',
         );
       }
     }
   }
+
+  static const String androidPackageId = 'com.vibekit.vibekit_ai';
 
   // Feature limits
   static const int maxInputCharacters = 500;
@@ -99,5 +108,5 @@ class AppConfig {
 
   // Deep Link for Google Play Subscriptions management
   static const String playSubscriptionsUrl =
-      'https://play.google.com/store/account/subscriptions?package=com.vibekit.vibekit_ai';
+      'https://play.google.com/store/account/subscriptions?package=$androidPackageId';
 }

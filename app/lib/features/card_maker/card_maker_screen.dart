@@ -5,7 +5,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:uuid/uuid.dart';
 import '../../core/constants/app_colors.dart';
-import '../../core/constants/app_spacing.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/services/card_export_service.dart';
 import '../../core/services/share_service.dart';
@@ -131,9 +130,9 @@ class _CardMakerScreenState extends ConsumerState<CardMakerScreen> {
     HapticFeedback.lightImpact();
     final random = Random();
     final prompt = _viralIdeaPrompts[random.nextInt(_viralIdeaPrompts.length)];
-    final availableTemplates = CardTemplates.all;
+    const availableTemplates = CardTemplates.all;
     final template = availableTemplates[random.nextInt(availableTemplates.length)];
-    final styles = CardStyle.values;
+    const styles = CardStyle.values;
     final style = styles[random.nextInt(styles.length)];
 
     setState(() {
@@ -202,6 +201,7 @@ class _CardMakerScreenState extends ConsumerState<CardMakerScreen> {
             extraData: filePath ?? 'web_export',
           ),
         );
+        ref.read(historyRevisionProvider.notifier).state++;
         final instId = ref.read(preferencesServiceProvider).getAppInstanceId();
         await ShareService.shareImage(
           filePath ?? '',
@@ -249,6 +249,7 @@ class _CardMakerScreenState extends ConsumerState<CardMakerScreen> {
         extraData: filePath,
       ),
     );
+    ref.read(historyRevisionProvider.notifier).state++;
 
     HapticFeedback.selectionClick();
     if (mounted) {
@@ -451,12 +452,12 @@ class _CardMakerScreenState extends ConsumerState<CardMakerScreen> {
             InkWell(
               onTap: _shuffleInspiration,
               borderRadius: BorderRadius.circular(12),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+              child: const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
                 child: Row(
                   children: [
                     Icon(Icons.refresh_rounded, size: 13, color: AppColors.accent),
-                    const SizedBox(width: 3),
+                    SizedBox(width: 3),
                     Text(
                       'More ideas',
                       style: TextStyle(
@@ -502,7 +503,7 @@ class _CardMakerScreenState extends ConsumerState<CardMakerScreen> {
                       children: [
                         Text(
                           '#${item['category']}',
-                          style: TextStyle(
+                          style: const TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.bold,
                             color: AppColors.accent,
@@ -658,7 +659,7 @@ class _CardMakerScreenState extends ConsumerState<CardMakerScreen> {
               ),
             ),
             if (!isPro)
-              Text(
+              const Text(
                 '👑 Pro unlocked templates',
                 style: TextStyle(fontSize: 11, color: AppColors.accent),
               ),
@@ -850,7 +851,7 @@ class _CardMakerScreenState extends ConsumerState<CardMakerScreen> {
                       ),
                       Text(
                         '${_fontSize.toInt()}pt',
-                        style: TextStyle(
+                        style: const TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.bold,
                           color: AppColors.accent,
@@ -863,7 +864,7 @@ class _CardMakerScreenState extends ConsumerState<CardMakerScreen> {
                     min: 14.0,
                     max: 34.0,
                     divisions: 10,
-                    activeColor: AppColors.primary,
+                    activeColor: isDark ? AppColors.accentWarm : AppColors.primary,
                     onChanged: (val) => setState(() => _fontSize = val),
                   ),
                 ],
@@ -886,6 +887,7 @@ class _CardMakerScreenState extends ConsumerState<CardMakerScreen> {
         Row(
           children: _aspectRatios.map((ar) {
             final isSelected = _aspectRatio == ar['ratio'];
+            final selectedAccent = isDark ? AppColors.accentWarm : AppColors.primary;
             return Expanded(
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 3),
@@ -896,24 +898,31 @@ class _CardMakerScreenState extends ConsumerState<CardMakerScreen> {
                   },
                   style: OutlinedButton.styleFrom(
                     side: BorderSide(
-                      color: isSelected ? AppColors.primary : (isDark ? AppColors.borderDark : AppColors.borderLight),
+                      color: isSelected
+                          ? selectedAccent
+                          : (isDark ? AppColors.borderDark : AppColors.borderLight),
                       width: isSelected ? 1.5 : 1,
                     ),
-                    backgroundColor: isSelected ? AppColors.primary.withValues(alpha: 0.12) : null,
+                    backgroundColor:
+                        isSelected ? selectedAccent.withValues(alpha: 0.14) : null,
                     padding: const EdgeInsets.symmetric(vertical: 8),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(ar['icon'] as IconData, size: 16, color: isSelected ? AppColors.primary : null),
+                      Icon(
+                        ar['icon'] as IconData,
+                        size: 16,
+                        color: isSelected ? selectedAccent : null,
+                      ),
                       const SizedBox(height: 2),
                       Text(
                         ar['name'] as String,
                         style: TextStyle(
                           fontSize: 11,
                           fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                          color: isSelected ? AppColors.primary : null,
+                          color: isSelected ? selectedAccent : null,
                         ),
                       ),
                     ],

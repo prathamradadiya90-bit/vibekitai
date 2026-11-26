@@ -89,10 +89,10 @@ export class UsageRepository {
          WHERE id = (
            SELECT id FROM daily_usage
            WHERE installation_id = ? AND rewarded_credits_earned > 0
-           ORDER BY usage_date DESC LIMIT 1
+           ORDER BY usage_date ASC LIMIT 1
          )`
       )
-      .bind(nowIso, installationId, installationId)
+      .bind(nowIso, installationId)
       .run();
 
     return (result.meta.changes ?? 0) > 0;

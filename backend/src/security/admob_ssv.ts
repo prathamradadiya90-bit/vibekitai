@@ -9,7 +9,10 @@ let cachedKeys: GoogleKey[] | null = null;
 let keysFetchedAt = 0;
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 
-export async function getAdMobPublicKeys(keyUrl?: string): Promise<GoogleKey[]> {
+export async function getAdMobPublicKeys(
+  keyUrl?: string,
+  allowLocalhostInDev: boolean = false
+): Promise<GoogleKey[]> {
   const now = Date.now();
   if (cachedKeys && now - keysFetchedAt < CACHE_TTL_MS) {
     return cachedKeys;
@@ -19,7 +22,7 @@ export async function getAdMobPublicKeys(keyUrl?: string): Promise<GoogleKey[]> 
   try {
     const res = await safeFetch(url, {
       headers: { Accept: 'application/json' },
-    }, true);
+    }, allowLocalhostInDev);
     if (!res.ok) {
       throw new Error(`Failed to fetch AdMob public keys: HTTP ${res.status}`);
     }
@@ -85,9 +88,10 @@ export async function verifyAdMobSsvSignature(
   queryString: string,
   keyId: string,
   signature: string,
-  keyUrl?: string
+  keyUrl?: string,
+  allowLocalhostInDev: boolean = false
 ): Promise<boolean> {
-  const keys = await getAdMobPublicKeys(keyUrl);
+  const keys = await getAdMobPublicKeys(keyUrl, allowLocalhostInDev);
   const matchedKey = keys.find((k) => String(k.keyId) === String(keyId));
 
   if (!matchedKey) {

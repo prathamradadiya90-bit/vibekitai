@@ -33,7 +33,14 @@ authRoute.post('/auth/attest', async (c) => {
   }
 
   const deviceHash = await sha256Hex(parsed.data.integrityToken || installation.id);
-  const secret = c.env.ADMIN_SECRET || 'vibekit_default_session_secret_rotate_in_prod';
+  const isDevOrTest = c.env.ENVIRONMENT === 'development' || c.env.ENVIRONMENT === 'test';
+  const secret =
+    c.env.SESSION_SECRET ||
+    c.env.ADMIN_SECRET ||
+    (isDevOrTest ? 'vibekit_default_session_secret_rotate_in_prod' : '');
+  if (!secret) {
+    throw new AuthError('Server session signing is not configured in production.');
+  }
   const sessionToken = await mintSessionToken(installation.id, deviceHash, secret, 900);
 
   return c.json({

@@ -1,7 +1,9 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
+import '../config/app_config.dart';
 import '../constants/app_colors.dart';
 import '../constants/app_spacing.dart';
 import '../providers/app_providers.dart';
@@ -29,7 +31,7 @@ class _AdaptiveBannerWidgetState extends ConsumerState<AdaptiveBannerWidget> {
   }
 
   void _loadBanner() {
-    if (!mounted) return;
+    if (!mounted || kIsWeb || AppConfig.bannerAdUnitId.isEmpty) return;
     final isPro = ref.read(quotaProvider).isPro;
     if (isPro) return;
 
@@ -79,6 +81,15 @@ class _AdaptiveBannerWidgetState extends ConsumerState<AdaptiveBannerWidget> {
 
   @override
   Widget build(BuildContext context) {
+    ref.listen<bool>(quotaProvider.select((q) => q.isPro), (prev, next) {
+      if (next && _bannerAd != null) {
+        _bannerAd?.dispose();
+        _bannerAd = null;
+        if (mounted) setState(() => _isLoaded = false);
+      } else if (prev == true && !next && _bannerAd == null) {
+        _loadBanner();
+      }
+    });
     final isPro = ref.watch(quotaProvider.select((q) => q.isPro));
     if (isPro || _loadFailed || !_isLoaded || _bannerAd == null) {
       return const SizedBox.shrink(); // Policy requirement: No blank whitespace on no-fill

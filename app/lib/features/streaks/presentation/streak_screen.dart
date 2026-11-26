@@ -33,6 +33,7 @@ class StreakScreen extends ConsumerWidget {
     final textCol = isDark ? Colors.white : AppColors.textPrimaryLight;
     final textSecCol = isDark ? Colors.white.withOpacity(0.6) : AppColors.textSecondaryLight;
     final borderCol = isDark ? Colors.white.withOpacity(0.08) : AppColors.borderLight;
+    final activeAccent = isDark ? AppColors.accentWarm : AppColors.primary;
 
     return Scaffold(
       backgroundColor: isDark ? AppColors.backgroundDark : AppColors.backgroundLight,
@@ -58,11 +59,7 @@ class StreakScreen extends ConsumerWidget {
             Container(
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Color(0xFF31102F), Color(0xFF1E1B4B)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
+                gradient: AppColors.primaryGradient,
                 borderRadius: BorderRadius.circular(24),
                 border: Border.all(color: Colors.orange.withOpacity(0.3), width: 1.5),
                 boxShadow: kIsWeb
@@ -163,10 +160,10 @@ class StreakScreen extends ConsumerWidget {
                       ),
                       Text(
                         '${streak.totalXp} XP Total',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w600,
-                          color: AppColors.primary,
+                          color: activeAccent,
                         ),
                       ),
                     ],
@@ -178,7 +175,7 @@ class StreakScreen extends ConsumerWidget {
                       value: progressToNextLevel,
                       minHeight: 10,
                       backgroundColor: isDark ? Colors.white.withOpacity(0.1) : Colors.black.withOpacity(0.06),
-                      valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primary),
+                      valueColor: AlwaysStoppedAnimation<Color>(activeAccent),
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -241,8 +238,8 @@ class StreakScreen extends ConsumerWidget {
                   if (!quota.isPro && streak.freezeCount < 2)
                     ElevatedButton(
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.cyan.withOpacity(0.3),
-                        foregroundColor: Colors.cyanAccent,
+                        backgroundColor: AppColors.info.withValues(alpha: isDark ? 0.28 : 0.14),
+                        foregroundColor: activeAccent,
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                         elevation: 0,
                         shape: RoundedRectangleBorder(
@@ -265,12 +262,12 @@ class StreakScreen extends ConsumerWidget {
             const SizedBox(height: 24),
 
             // 4. Milestone Rewards
-            const Text(
+            Text(
               'Milestone Rewards',
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
-                color: Colors.white,
+                color: textCol,
               ),
             ),
             const SizedBox(height: 12),
@@ -443,12 +440,12 @@ class StreakScreen extends ConsumerWidget {
             ),
           ),
           if (isClaimed)
-            const Text(
+            Text(
               'Claimed ✓',
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.bold,
-                color: Colors.greenAccent,
+                color: isDark ? const Color(0xFF69F0AE) : AppColors.success,
               ),
             )
           else if (isUnlocked)
@@ -477,7 +474,7 @@ class StreakScreen extends ConsumerWidget {
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.bold,
-                color: Colors.white.withOpacity(0.4),
+                color: textSecCol,
               ),
             ),
         ],

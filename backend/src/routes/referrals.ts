@@ -1,14 +1,15 @@
 import { Hono } from 'hono';
-import { Env } from '../types';
+import { AppHonoEnv } from '../types';
 import { ReferralClaimSchema } from '../schemas/validation';
 import { verifyPlayIntegrityToken } from '../security/play_integrity';
 import { ReferralsRepository } from '../db/referrals.repo';
 
-export const referralsRoute = new Hono<{ Bindings: Env }>();
+export const referralsRoute = new Hono<AppHonoEnv>();
 
 referralsRoute.post('/referrals/claim', async (c) => {
-  const installationId = c.req.header('X-App-Instance-Id') || c.req.header('x-installation-id');
-  if (!installationId) {
+  const rawHeader = c.req.header('X-App-Instance-Id') || c.req.header('x-installation-id');
+  const installationId = c.get('installationId');
+  if (!rawHeader || !installationId || installationId === 'anonymous_default') {
     return c.json({ error: { code: 'UNAUTHORIZED', message: 'Missing installation ID' } }, 401);
   }
 
@@ -74,8 +75,9 @@ referralsRoute.post('/referrals/claim', async (c) => {
 });
 
 referralsRoute.get('/referrals/stats', async (c) => {
-  const installationId = c.req.header('X-App-Instance-Id') || c.req.header('x-installation-id');
-  if (!installationId) {
+  const rawHeader = c.req.header('X-App-Instance-Id') || c.req.header('x-installation-id');
+  const installationId = c.get('installationId');
+  if (!rawHeader || !installationId || installationId === 'anonymous_default') {
     return c.json({ error: { code: 'UNAUTHORIZED', message: 'Missing installation ID' } }, 401);
   }
 

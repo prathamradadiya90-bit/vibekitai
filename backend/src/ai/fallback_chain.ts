@@ -29,10 +29,14 @@ export class FallbackChainAIProvider implements AIProvider {
     sharedCircuitOpenUntil = 0;
   }
 
-  private recordFailure(error: any): void {
+  private isSafetyOrPolicyError(error: any): boolean {
     const errMessage = (error?.message || String(error)).toUpperCase();
+    return errMessage.includes('SAFETY_VIOLATION') || errMessage.includes('SAFETY');
+  }
+
+  private recordFailure(error: any): void {
     // Prompt safety violations are user input validation errors, not provider outages
-    if (errMessage.includes('SAFETY_VIOLATION') || errMessage.includes('SAFETY')) {
+    if (this.isSafetyOrPolicyError(error)) {
       return;
     }
 
@@ -44,6 +48,31 @@ export class FallbackChainAIProvider implements AIProvider {
     }
   }
 
+  private async runWithFallback<T>(
+    runPrimary: () => Promise<T>,
+    runFallback?: () => Promise<T>
+  ): Promise<T> {
+    if (!runFallback) {
+      return runPrimary();
+    }
+
+    if (this.isCircuitOpen()) {
+      return runFallback();
+    }
+
+    try {
+      const result = await runPrimary();
+      this.recordSuccess();
+      return result;
+    } catch (err) {
+      if (this.isSafetyOrPolicyError(err)) {
+        throw err;
+      }
+      this.recordFailure(err);
+      return runFallback();
+    }
+  }
+
   async generateReplies(params: {
     message: string;
     tone: string;
@@ -51,22 +80,10 @@ export class FallbackChainAIProvider implements AIProvider {
     length: string;
     count: number;
   }): Promise<string[]> {
-    if (!this.fallback) {
-      return this.primary.generateReplies(params);
-    }
-
-    if (this.isCircuitOpen()) {
-      return this.fallback.generateReplies(params);
-    }
-
-    try {
-      const result = await this.primary.generateReplies(params);
-      this.recordSuccess();
-      return result;
-    } catch (err) {
-      this.recordFailure(err);
-      return this.fallback.generateReplies(params);
-    }
+    return this.runWithFallback(
+      () => this.primary.generateReplies(params),
+      this.fallback ? () => this.fallback!.generateReplies(params) : undefined
+    );
   }
 
   async generateCaptions(params: {
@@ -83,22 +100,10 @@ export class FallbackChainAIProvider implements AIProvider {
     callToActions: string[];
     hashtags: string[];
   }> {
-    if (!this.fallback) {
-      return this.primary.generateCaptions(params);
-    }
-
-    if (this.isCircuitOpen()) {
-      return this.fallback.generateCaptions(params);
-    }
-
-    try {
-      const result = await this.primary.generateCaptions(params);
-      this.recordSuccess();
-      return result;
-    } catch (err) {
-      this.recordFailure(err);
-      return this.fallback.generateCaptions(params);
-    }
+    return this.runWithFallback(
+      () => this.primary.generateCaptions(params),
+      this.fallback ? () => this.fallback!.generateCaptions(params) : undefined
+    );
   }
 
   async generateBios(params: {
@@ -111,22 +116,10 @@ export class FallbackChainAIProvider implements AIProvider {
     bios: string[];
     usernames: string[];
   }> {
-    if (!this.fallback) {
-      return this.primary.generateBios(params);
-    }
-
-    if (this.isCircuitOpen()) {
-      return this.fallback.generateBios(params);
-    }
-
-    try {
-      const result = await this.primary.generateBios(params);
-      this.recordSuccess();
-      return result;
-    } catch (err) {
-      this.recordFailure(err);
-      return this.fallback.generateBios(params);
-    }
+    return this.runWithFallback(
+      () => this.primary.generateBios(params),
+      this.fallback ? () => this.fallback!.generateBios(params) : undefined
+    );
   }
 
   async vibeCheck(params: {
@@ -140,21 +133,9 @@ export class FallbackChainAIProvider implements AIProvider {
     tags: string[];
     rewrites: string[];
   }> {
-    if (!this.fallback) {
-      return this.primary.vibeCheck(params);
-    }
-
-    if (this.isCircuitOpen()) {
-      return this.fallback.vibeCheck(params);
-    }
-
-    try {
-      const result = await this.primary.vibeCheck(params);
-      this.recordSuccess();
-      return result;
-    } catch (err) {
-      this.recordFailure(err);
-      return this.fallback.vibeCheck(params);
-    }
+    return this.runWithFallback(
+      () => this.primary.vibeCheck(params),
+      this.fallback ? () => this.fallback!.vibeCheck(params) : undefined
+    );
   }
 }

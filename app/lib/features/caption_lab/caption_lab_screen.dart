@@ -17,6 +17,7 @@ import '../../core/widgets/tone_chips.dart';
 import '../../models/generation_models.dart';
 import '../../models/history_item.dart';
 import '../../core/services/achievement_service.dart';
+import '../streaks/providers/streak_provider.dart';
 
 class CaptionLabScreen extends ConsumerStatefulWidget {
   final String? initialPrompt;
@@ -84,6 +85,10 @@ class _CaptionLabScreenState extends ConsumerState<CaptionLabScreen> {
     if (widget.initialTone != null && _tones.contains(widget.initialTone)) {
       _selectedTone = widget.initialTone!;
     }
+    final savedLang = ref.read(languageProvider);
+    if (_languages.contains(savedLang)) {
+      _selectedLanguage = savedLang;
+    }
   }
 
   @override
@@ -143,6 +148,7 @@ class _CaptionLabScreenState extends ConsumerState<CaptionLabScreen> {
         _showOutOfCreditsDialog();
       } else if (success) {
         HapticFeedback.lightImpact();
+        ref.read(streakProvider.notifier).recordAction('generate');
         ref.read(reviewServiceProvider).checkAndPromptReview(context);
         final prefs = ref.read(preferencesServiceProvider);
         await prefs.recordToneUsed(_selectedTone);
@@ -189,6 +195,7 @@ class _CaptionLabScreenState extends ConsumerState<CaptionLabScreen> {
     );
 
     HapticFeedback.selectionClick();
+    ref.read(historyRevisionProvider.notifier).state++;
     if (mounted) {
       setState(() {
         if (isFav) {
@@ -258,6 +265,7 @@ class _CaptionLabScreenState extends ConsumerState<CaptionLabScreen> {
                       fontSize: 15,
                     ),
                     decoration: InputDecoration(
+                      filled: false,
                       hintText: 'What is your photo, reel, or status about? (e.g. Goa trip with friends, new cafe launch)...',
                       hintStyle: TextStyle(
                         color: isDark ? AppColors.textMutedDark : AppColors.textSecondaryLight,
@@ -394,10 +402,10 @@ class _CaptionLabScreenState extends ConsumerState<CaptionLabScreen> {
             const SizedBox(height: AppSpacing.md),
 
             // 3. Tone Selector
-            const Text(
+            Text(
               'Select Vibe',
               style: TextStyle(
-                color: AppColors.textSecondaryDark,
+                color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
               ),
@@ -417,10 +425,10 @@ class _CaptionLabScreenState extends ConsumerState<CaptionLabScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
+                      Text(
                         'Language',
                         style: TextStyle(
-                          color: AppColors.textSecondaryDark,
+                          color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
                           fontSize: 13,
                           fontWeight: FontWeight.w600,
                         ),
@@ -569,10 +577,10 @@ class _CaptionLabScreenState extends ConsumerState<CaptionLabScreen> {
             // 9. Results
             if (genState.result != null && !genState.isGenerating) ...[
               // Captions
-              const Text(
+              Text(
                 'Captions',
                 style: TextStyle(
-                  color: Colors.white,
+                  color: isDark ? Colors.white : AppColors.textPrimaryLight,
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
                 ),
@@ -595,10 +603,10 @@ class _CaptionLabScreenState extends ConsumerState<CaptionLabScreen> {
               // Hooks
               if (genState.result!.hooks.isNotEmpty) ...[
                 const SizedBox(height: AppSpacing.md),
-                const Text(
+                Text(
                   'Reel & Video Hooks',
                   style: TextStyle(
-                    color: Colors.white,
+                    color: isDark ? Colors.white : AppColors.textPrimaryLight,
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
                   ),

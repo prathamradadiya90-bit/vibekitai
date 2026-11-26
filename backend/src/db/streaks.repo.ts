@@ -98,8 +98,7 @@ export class StreaksRepository {
     xpAwarded: number;
   }): Promise<void> {
     const xpId = `xp_${Date.now()}_${Math.random().toString(36).substring(7)}`;
-
-    await this.db.batch([
+    const statements: D1PreparedStatement[] = [
       this.db
         .prepare(
           `UPDATE streaks
@@ -121,14 +120,20 @@ export class StreaksRepository {
           params.nowIso,
           params.installationId
         ),
+    ];
 
-      this.db
-        .prepare(
-          `INSERT INTO xp_events (id, installation_id, action_type, xp_points, created_at)
-           VALUES (?, ?, ?, ?, ?)`
-        )
-        .bind(xpId, params.installationId, params.action, params.xpAwarded, params.nowIso),
-    ]);
+    if (params.xpAwarded > 0) {
+      statements.push(
+        this.db
+          .prepare(
+            `INSERT INTO xp_events (id, installation_id, action_type, xp_points, created_at)
+             VALUES (?, ?, ?, ?, ?)`
+          )
+          .bind(xpId, params.installationId, params.action, params.xpAwarded, params.nowIso)
+      );
+    }
+
+    await this.db.batch(statements);
   }
 
   async claimMilestone(params: {

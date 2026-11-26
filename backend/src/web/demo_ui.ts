@@ -313,17 +313,27 @@ export function getWebDemoHtml(): string {
   </div>
 
   <div class="phone-container">
+    <div style="padding: 12px 20px 0;">
+      <label for="demoLanguage">Language</label>
+      <select id="demoLanguage" style="margin-bottom: 4px;">
+        <option value="English">English</option>
+        <option value="Hindi">Hindi</option>
+        <option value="Hinglish">Hinglish</option>
+        <option value="Gujarati">Gujarati</option>
+      </select>
+    </div>
+
     <div class="nav-tabs">
-      <button class="tab-btn active" onclick="switchTab('replies')">
+      <button class="tab-btn active" data-tab="replies" onclick="switchTab('replies')">
         <span>💬</span> Replies
       </button>
-      <button class="tab-btn" onclick="switchTab('studio')">
+      <button class="tab-btn" data-tab="studio" onclick="switchTab('studio')">
         <span>✨</span> Studio
       </button>
-      <button class="tab-btn" onclick="switchTab('roast')">
+      <button class="tab-btn" data-tab="roast" onclick="switchTab('roast')">
         <span>🔥</span> Roast
       </button>
-      <button class="tab-btn" onclick="switchTab('card')">
+      <button class="tab-btn" data-tab="card" onclick="switchTab('card')">
         <span>🎨</span> Card
       </button>
     </div>
@@ -434,7 +444,8 @@ export function getWebDemoHtml(): string {
     function switchTab(tab) {
       document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
       document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-      event.currentTarget.classList.add('active');
+      const activeBtn = document.querySelector('.tab-btn[data-tab="' + tab + '"]');
+      if (activeBtn) activeBtn.classList.add('active');
       document.getElementById('tab-' + tab).classList.add('active');
     }
 
@@ -460,13 +471,16 @@ export function getWebDemoHtml(): string {
       resContainer.innerHTML = '';
 
       try {
+        const language = (document.getElementById('demoLanguage') && document.getElementById('demoLanguage').value) || 'English';
         const res = await fetch('/v1/generations/reply', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'X-Installation-Id': INSTALL_ID },
-          body: JSON.stringify({ message: input, tone: tone, language: 'English', length: 'medium', count: 3 })
+          body: JSON.stringify({ message: input, tone: tone, language: language, length: 'medium', count: 3 })
         });
         const data = await res.json();
-        if (data.suggestions && data.suggestions.length) {
+        if (!res.ok) {
+          resContainer.innerHTML = '<div class="result-card" style="color: #f87171;">' + escapeHtml(data?.error?.message || 'Generation failed') + '</div>';
+        } else if (data.suggestions && data.suggestions.length) {
           resContainer.innerHTML = data.suggestions.map(s => \`
             <div class="result-card">
               <div class="result-text">\${escapeHtml(s)}</div>
@@ -500,22 +514,29 @@ export function getWebDemoHtml(): string {
       resContainer.innerHTML = '';
 
       try {
+        const language = (document.getElementById('demoLanguage') && document.getElementById('demoLanguage').value) || 'English';
         const res = await fetch('/v1/generations/caption', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'X-Installation-Id': INSTALL_ID },
-          body: JSON.stringify({ topic: topic, platform: platform, tone: tone, language: 'English', length: 'medium', include_hooks: true, include_hashtags: true })
+          body: JSON.stringify({ topic: topic, platform: platform, tone: tone, language: language, length: 'medium', include_hooks: true, include_hashtags: true })
         });
         const data = await res.json();
-        if (data.captions && data.captions.length) {
+        if (!res.ok) {
+          resContainer.innerHTML = '<div class="result-card" style="color: #f87171;">' + escapeHtml(data?.error?.message || 'Generation failed') + '</div>';
+        } else if (data.captions && data.captions.length) {
+          const allTags = (data.hashtags || []).map(h => h.startsWith('#') ? h : '#' + h).join(' ');
           resContainer.innerHTML = data.captions.map((c, i) => \`
             <div class="result-card">
               <div class="result-text">\${escapeHtml(c)}</div>
-              \${data.hashtags && data.hashtags[i] ? '<div style="font-size:12px; color:#a78bfa; margin-bottom:8px;">' + escapeHtml(data.hashtags[i]) + '</div>' : ''}
+              \${i === 0 && allTags ? '<div style="font-size:12px; color:#a78bfa; margin-bottom:8px;">' + escapeHtml(allTags) + '</div>' : ''}
               <div class="card-actions">
+                <button class="action-btn" onclick="sendToCard('\${escapeJs(c)}')">🎨 Put on Card</button>
                 <button class="action-btn" onclick="copyText('\${escapeJs(c)}')">📋 Copy</button>
               </div>
             </div>
           \`).join('');
+        } else {
+          resContainer.innerHTML = '<div class="result-card">No captions returned. Try another topic!</div>';
         }
       } catch (err) {
         resContainer.innerHTML = '<div class="result-card" style="color: #f87171;">Error: ' + err.message + '</div>';
@@ -536,33 +557,38 @@ export function getWebDemoHtml(): string {
       resContainer.innerHTML = '';
 
       try {
+        const language = (document.getElementById('demoLanguage') && document.getElementById('demoLanguage').value) || 'English';
         const res = await fetch('/v1/generations/vibe-check', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'X-Installation-Id': INSTALL_ID },
-          body: JSON.stringify({ text: text, mode: 'roast', language: 'English' })
+          body: JSON.stringify({ text: text, mode: 'roast', language: language })
         });
         const data = await res.json();
-        const score = data.score || 42;
-        resContainer.innerHTML = \`
-          <div class="result-card" style="text-align: center;">
-            <div class="score-circle" style="--score: \${score};" data-score="\${score}"></div>
-            <div style="font-size: 16px; font-weight: 800; margin-bottom: 4px;">\${escapeHtml(data.title || 'Vibe Check Result')}</div>
-            <div style="font-size: 13px; color: #f87171; margin-bottom: 12px; font-style: italic;">"\${escapeHtml(data.verdict || '')}"</div>
-            \${data.tags ? data.tags.map(t => '<span class="chip" style="pointer-events:none; margin:2px;">#' + escapeHtml(t) + '</span>').join(' ') : ''}
-          </div>
-          \${data.rewrites ? \`
-            <div style="font-size: 13px; font-weight: 700; margin: 16px 0 8px 4px; color: #a78bfa;">UPGRADED REWRITES:</div>
-            \${data.rewrites.map(rw => \`
-              <div class="result-card">
-                <div class="result-text">\${escapeHtml(rw)}</div>
-                <div class="card-actions">
-                  <button class="action-btn" onclick="sendToCard('\${escapeJs(rw)}')">🎨 Put on Card</button>
-                  <button class="action-btn" onclick="copyText('\${escapeJs(rw)}')">📋 Copy</button>
+        if (!res.ok) {
+          resContainer.innerHTML = '<div class="result-card" style="color: #f87171;">' + escapeHtml(data?.error?.message || 'Analysis failed') + '</div>';
+        } else {
+          const score = data.score ?? 42;
+          resContainer.innerHTML = \`
+            <div class="result-card" style="text-align: center;">
+              <div class="score-circle" style="--score: \${Number(score)};" data-score="\${Number(score)}"></div>
+              <div style="font-size: 16px; font-weight: 800; margin-bottom: 4px;">\${escapeHtml(data.title || 'Vibe Check Result')}</div>
+              <div style="font-size: 13px; color: #f87171; margin-bottom: 12px; font-style: italic;">"\${escapeHtml(data.verdict || '')}"</div>
+              \${data.tags ? data.tags.map(t => '<span class="chip" style="pointer-events:none; margin:2px;">' + escapeHtml(String(t).startsWith('#') ? t : '#' + t) + '</span>').join(' ') : ''}
+            </div>
+            \${data.rewrites ? \`
+              <div style="font-size: 13px; font-weight: 700; margin: 16px 0 8px 4px; color: #a78bfa;">UPGRADED REWRITES:</div>
+              \${data.rewrites.map(rw => \`
+                <div class="result-card">
+                  <div class="result-text">\${escapeHtml(rw)}</div>
+                  <div class="card-actions">
+                    <button class="action-btn" onclick="sendToCard('\${escapeJs(rw)}')">🎨 Put on Card</button>
+                    <button class="action-btn" onclick="copyText('\${escapeJs(rw)}')">📋 Copy</button>
+                  </div>
                 </div>
-              </div>
-            \`).join('')}
-          \` : ''}
-        \`;
+              \`).join('')}
+            \` : ''}
+          \`;
+        }
       } catch (err) {
         resContainer.innerHTML = '<div class="result-card" style="color: #f87171;">Error: ' + err.message + '</div>';
       } finally {

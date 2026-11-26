@@ -122,28 +122,36 @@ class _ChallengeScreenState extends ConsumerState<ChallengeScreen> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 8, vertical: 3),
-                              decoration: BoxDecoration(
-                                color: color.withOpacity(0.15),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Row(
-                                children: [
-                                  Icon(icon, size: 14, color: color),
-                                  const SizedBox(width: 6),
-                                  Text(
-                                    item.tag.toUpperCase(),
-                                    style: TextStyle(
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.bold,
-                                      color: color,
+                            Flexible(
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 8, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: color.withOpacity(0.15),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(icon, size: 14, color: color),
+                                    const SizedBox(width: 6),
+                                    Flexible(
+                                      child: Text(
+                                        item.tag.toUpperCase(),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.bold,
+                                          color: color,
+                                        ),
+                                      ),
                                     ),
-                                  ),
-                                ],
+                                  ],
+                                ),
                               ),
                             ),
+                            const SizedBox(width: 8),
                             Text(
                               'Tone: ${item.tone}',
                               style: TextStyle(
@@ -172,7 +180,7 @@ class _ChallengeScreenState extends ConsumerState<ChallengeScreen> {
                             onPressed: () => _startChallenge(item),
                             icon:
                                 const Icon(Icons.play_arrow_rounded, size: 18),
-                            label: const Text('Accept Challenge (+120 XP)',
+                            label: const Text('Accept Challenge (+25 XP)',
                                 style: TextStyle(
                                     fontSize: 13, fontWeight: FontWeight.bold)),
                             style: ElevatedButton.styleFrom(

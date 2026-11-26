@@ -129,31 +129,28 @@ class CardCanvas extends StatelessWidget {
     return Column(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        FittedBox(
-          fit: BoxFit.scaleDown,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: template.accentColor.withValues(alpha: 0.18),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  Icons.format_quote_rounded,
-                  size: 20,
-                  color: template.accentColor,
-                ),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: template.accentColor.withValues(alpha: 0.18),
+                shape: BoxShape.circle,
               ),
-              const SizedBox(width: 8),
-              Icon(
-                Icons.auto_awesome,
-                size: 15,
-                color: template.accentColor.withValues(alpha: 0.5),
+              child: Icon(
+                Icons.format_quote_rounded,
+                size: 20,
+                color: template.accentColor,
               ),
-            ],
-          ),
+            ),
+            const SizedBox(width: 8),
+            Icon(
+              Icons.auto_awesome,
+              size: 15,
+              color: template.accentColor.withValues(alpha: 0.5),
+            ),
+          ],
         ),
         Expanded(
           child: Center(
@@ -414,35 +411,36 @@ class CardCanvas extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // Header
-        FittedBox(
-          fit: BoxFit.scaleDown,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                children: [
-                  Icon(Icons.push_pin_rounded, size: 15, color: template.accentColor),
-                  const SizedBox(width: 5),
-                  Text(
-                    'Memo',
-                    style: GoogleFonts.plusJakartaSans(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                      color: template.textColor,
-                    ),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.push_pin_rounded, size: 15, color: template.accentColor),
+                const SizedBox(width: 5),
+                Text(
+                  'Memo',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: template.textColor,
                   ),
-                ],
-              ),
-              const SizedBox(width: 12),
-              Text(
+                ),
+              ],
+            ),
+            const SizedBox(width: 12),
+            Flexible(
+              child: Text(
                 authorClean,
+                overflow: TextOverflow.ellipsis,
                 style: TextStyle(
                   fontSize: 11,
                   color: template.textColor.withValues(alpha: 0.6),
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
         const SizedBox(height: 8),
         Divider(color: template.textColor.withValues(alpha: 0.15), height: 1),

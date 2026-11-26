@@ -42,7 +42,7 @@ void main() {
       expect(notifier.state.canGenerate, isFalse);
 
       // Verify cached value stored in preferences is 0
-      expect(await prefs.getCachedCredits(), equals(0));
+      expect(prefs.getCachedCredits(), equals(0));
 
       // Simulate overnight date change: last reset was 2026-11-20, user opens app on 2026-11-21
       await prefs.setLastCreditResetDate('2026-11-20');
@@ -87,6 +87,22 @@ void main() {
       notifier.syncCredits(0);
       expect(notifier.state.totalCreditsRemaining, equals(0));
       expect(notifier.state.canGenerate, isFalse);
+    });
+
+    test('Midnight reset preserves carried-over rewarded credits', () async {
+      SharedPreferences.setMockInitialValues({
+        'cached_credits': 2,
+        'cached_rewarded_credits': 2,
+        'rewarded_ads_watched_today': 2,
+        'last_credit_reset_date': '2026-01-01',
+      });
+
+      final prefs = await PreferencesService.create();
+      final didReset = prefs.checkAndPerformDailyLocalReset(defaultDailyCredits: 3);
+
+      expect(didReset, isTrue);
+      expect(prefs.getCachedCredits(), equals(5));
+      expect(prefs.getCachedRewardedCredits(), equals(2));
     });
   });
 }

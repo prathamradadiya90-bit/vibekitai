@@ -13,9 +13,11 @@ import '../../core/widgets/error_view.dart';
 import '../../core/widgets/loading_shimmer.dart';
 import '../../core/widgets/primary_button.dart';
 import '../../core/widgets/quota_badge.dart';
+import '../../core/widgets/report_ai_dialog.dart';
 import '../../models/generation_models.dart';
 import '../../models/history_item.dart';
 import '../../core/services/achievement_service.dart';
+import '../streaks/providers/streak_provider.dart';
 
 class VibeCheckScreen extends ConsumerStatefulWidget {
   final String? initialText;
@@ -30,6 +32,18 @@ class _VibeCheckScreenState extends ConsumerState<VibeCheckScreen> {
   final TextEditingController _textController = TextEditingController();
   final int _maxChars = 600;
   final Set<String> _favoritedTexts = {};
+  final Set<String> _reportedContents = {};
+
+  Future<void> _reportContent(String content, String category) async {
+    final reported = await showReportAiContentDialog(
+      context,
+      category: category,
+      content: content,
+    );
+    if (reported && mounted) {
+      setState(() => _reportedContents.add(content));
+    }
+  }
 
   Future<void> _toggleFavorite(String text) async {
     final db = ref.read(localDatabaseProvider);
@@ -41,6 +55,7 @@ class _VibeCheckScreenState extends ConsumerState<VibeCheckScreen> {
     );
     if (mounted) {
       HapticFeedback.selectionClick();
+      ref.read(historyRevisionProvider.notifier).state++;
       setState(() {
         if (newFav) {
           _favoritedTexts.add(text);
@@ -124,6 +139,10 @@ class _VibeCheckScreenState extends ConsumerState<VibeCheckScreen> {
     _textController.text = (widget.initialText != null && widget.initialText!.isNotEmpty)
         ? widget.initialText!
         : _sampleDrafts.first['text']!;
+    final savedLang = ref.read(languageProvider);
+    if (_languages.contains(savedLang)) {
+      _selectedLanguage = savedLang;
+    }
   }
 
   @override
@@ -181,6 +200,7 @@ class _VibeCheckScreenState extends ConsumerState<VibeCheckScreen> {
         _showOutOfCreditsDialog();
       } else if (success) {
         HapticFeedback.lightImpact();
+        ref.read(streakProvider.notifier).recordAction('generate');
         ref.read(reviewServiceProvider).checkAndPromptReview(context);
         final prefs = ref.read(preferencesServiceProvider);
         await prefs.recordToneUsed(_selectedMode);
@@ -384,6 +404,7 @@ class _VibeCheckScreenState extends ConsumerState<VibeCheckScreen> {
                         maxLength: _maxChars,
                         style: theme.textTheme.bodyMedium,
                         decoration: InputDecoration(
+                          filled: false,
                           hintText: 'Paste your draft text, DM, email, or bio here...',
                           hintStyle: TextStyle(
                             color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
@@ -675,6 +696,33 @@ class _VibeCheckScreenState extends ConsumerState<VibeCheckScreen> {
                   }).toList(),
                 ),
               ],
+              const SizedBox(height: 8),
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton.icon(
+                  onPressed: _reportedContents.contains(result.verdict)
+                      ? null
+                      : () => _reportContent('${result.title}: ${result.verdict}', 'vibe_check_verdict'),
+                  icon: Icon(
+                    _reportedContents.contains(result.verdict)
+                        ? Icons.flag_rounded
+                        : Icons.flag_outlined,
+                    size: 15,
+                    color: _reportedContents.contains(result.verdict) ? AppColors.accentPink : null,
+                  ),
+                  label: Text(
+                    _reportedContents.contains(result.verdict) ? 'Reported' : 'Report AI Verdict',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: _reportedContents.contains(result.verdict) ? AppColors.accentPink : null,
+                    ),
+                  ),
+                  style: TextButton.styleFrom(
+                    foregroundColor: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                    visualDensity: VisualDensity.compact,
+                  ),
+                ),
+              ),
             ],
           ),
         ),
@@ -683,7 +731,11 @@ class _VibeCheckScreenState extends ConsumerState<VibeCheckScreen> {
         // Section Title: Leveled-Up Rewrites
         Row(
           children: [
-            const Icon(Icons.auto_fix_high, size: 18, color: AppColors.primary),
+            Icon(
+              Icons.auto_fix_high,
+              size: 18,
+              color: isDark ? AppColors.accentWarm : AppColors.primary,
+            ),
             const SizedBox(width: 6),
             Text(
               'Leveled-Up Rewrites',
@@ -722,10 +774,10 @@ class _VibeCheckScreenState extends ConsumerState<VibeCheckScreen> {
                       ),
                       child: Text(
                         'Option ${index + 1}',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w700,
-                          color: AppColors.primary,
+                          color: isDark ? AppColors.accentWarm : AppColors.primary,
                         ),
                       ),
                     ),
@@ -740,75 +792,100 @@ class _VibeCheckScreenState extends ConsumerState<VibeCheckScreen> {
                   ),
                 ),
                 const SizedBox(height: 12),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    // Favorite Action
-                    TextButton.icon(
-                      onPressed: () => _toggleFavorite(rewrite),
-                      icon: Icon(
-                        _favoritedTexts.contains(rewrite)
-                            ? Icons.favorite_rounded
-                            : Icons.favorite_border_rounded,
-                        size: 15,
-                        color: _favoritedTexts.contains(rewrite) ? AppColors.accentPink : null,
-                      ),
-                      label: Text(
-                        _favoritedTexts.contains(rewrite) ? 'Saved' : 'Save',
-                        style: TextStyle(
-                          fontSize: 12,
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: Wrap(
+                    alignment: WrapAlignment.end,
+                    spacing: 4,
+                    runSpacing: 4,
+                    children: [
+                      // Favorite Action
+                      TextButton.icon(
+                        onPressed: () => _toggleFavorite(rewrite),
+                        icon: Icon(
+                          _favoritedTexts.contains(rewrite)
+                              ? Icons.favorite_rounded
+                              : Icons.favorite_border_rounded,
+                          size: 15,
                           color: _favoritedTexts.contains(rewrite) ? AppColors.accentPink : null,
                         ),
-                      ),
-                      style: TextButton.styleFrom(
-                        foregroundColor: isDark ? AppColors.textPrimaryDark : AppColors.primary,
-                      ),
-                    ),
-                    const SizedBox(width: 4),
-                    // Copy Action
-                    TextButton.icon(
-                      onPressed: () {
-                        Clipboard.setData(ClipboardData(text: rewrite));
-                        HapticFeedback.lightImpact();
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Copied to clipboard!'),
-                            duration: Duration(seconds: 2),
-                            behavior: SnackBarBehavior.floating,
+                        label: Text(
+                          _favoritedTexts.contains(rewrite) ? 'Saved' : 'Save',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: _favoritedTexts.contains(rewrite) ? AppColors.accentPink : null,
                           ),
-                        );
-                      },
-                      icon: const Icon(Icons.copy_rounded, size: 15),
-                      label: const Text('Copy', style: TextStyle(fontSize: 12)),
-                      style: TextButton.styleFrom(
-                        foregroundColor: isDark ? AppColors.textPrimaryDark : AppColors.primary,
+                        ),
+                        style: TextButton.styleFrom(
+                          foregroundColor: isDark ? AppColors.textPrimaryDark : AppColors.primary,
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 4),
-                    // Make Card Action
-                    TextButton.icon(
-                      onPressed: () {
-                        context.push('/card-maker', extra: {'text': rewrite});
-                      },
-                      icon: const Icon(Icons.style_outlined, size: 15),
-                      label: const Text('Card', style: TextStyle(fontSize: 12)),
-                      style: TextButton.styleFrom(
-                        foregroundColor: isDark ? AppColors.textPrimaryDark : AppColors.primary,
+                      // Copy Action
+                      TextButton.icon(
+                        onPressed: () {
+                          Clipboard.setData(ClipboardData(text: rewrite));
+                          HapticFeedback.lightImpact();
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Copied to clipboard!'),
+                              duration: Duration(seconds: 2),
+                              behavior: SnackBarBehavior.floating,
+                            ),
+                          );
+                        },
+                        icon: const Icon(Icons.copy_rounded, size: 15),
+                        label: const Text('Copy', style: TextStyle(fontSize: 12)),
+                        style: TextButton.styleFrom(
+                          foregroundColor: isDark ? AppColors.textPrimaryDark : AppColors.primary,
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 4),
-                    // Share Action
-                    TextButton.icon(
-                      onPressed: () {
-                        Share.share(rewrite);
-                      },
-                      icon: const Icon(Icons.share_outlined, size: 15),
-                      label: const Text('Share', style: TextStyle(fontSize: 12)),
-                      style: TextButton.styleFrom(
-                        foregroundColor: isDark ? AppColors.textPrimaryDark : AppColors.primary,
+                      // Make Card Action
+                      TextButton.icon(
+                        onPressed: () {
+                          context.push('/card-maker', extra: {'text': rewrite});
+                        },
+                        icon: const Icon(Icons.style_outlined, size: 15),
+                        label: const Text('Card', style: TextStyle(fontSize: 12)),
+                        style: TextButton.styleFrom(
+                          foregroundColor: isDark ? AppColors.textPrimaryDark : AppColors.primary,
+                        ),
                       ),
-                    ),
-                  ],
+                      // Share Action
+                      TextButton.icon(
+                        onPressed: () {
+                          Share.share(rewrite);
+                        },
+                        icon: const Icon(Icons.share_outlined, size: 15),
+                        label: const Text('Share', style: TextStyle(fontSize: 12)),
+                        style: TextButton.styleFrom(
+                          foregroundColor: isDark ? AppColors.textPrimaryDark : AppColors.primary,
+                        ),
+                      ),
+                      // Report Action (Google Play Generative AI Policy)
+                      TextButton.icon(
+                        onPressed: _reportedContents.contains(rewrite)
+                            ? null
+                            : () => _reportContent(rewrite, 'vibe_check_rewrite'),
+                        icon: Icon(
+                          _reportedContents.contains(rewrite)
+                              ? Icons.flag_rounded
+                              : Icons.flag_outlined,
+                          size: 15,
+                          color: _reportedContents.contains(rewrite) ? AppColors.accentPink : null,
+                        ),
+                        label: Text(
+                          _reportedContents.contains(rewrite) ? 'Reported' : 'Report',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: _reportedContents.contains(rewrite) ? AppColors.accentPink : null,
+                          ),
+                        ),
+                        style: TextButton.styleFrom(
+                          foregroundColor: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),

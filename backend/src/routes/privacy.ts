@@ -1,8 +1,8 @@
 import { Hono } from 'hono';
-import { Env } from '../types';
+import { AppHonoEnv } from '../types';
 import { QuotaManager } from '../quota/quota_manager';
 
-export const privacyRoute = new Hono<{ Bindings: Env }>();
+export const privacyRoute = new Hono<AppHonoEnv>();
 
 const privacyHtml = `<!DOCTYPE html>
 <html lang="en">
@@ -29,18 +29,19 @@ const privacyHtml = `<!DOCTYPE html>
     <p>Last updated: October 2026</p>
     
     <h2>1. Overview & Privacy-First Architecture</h2>
-    <p>VibeKit AI ("we", "our") is engineered with an uncompromising privacy architecture. We do not require account registration, passwords, email addresses, or phone numbers to use the application.</p>
+    <p>ReplyVibe AI (also known as VibeKit AI) is engineered with a privacy-first architecture. We do not require account registration, passwords, email addresses, or phone numbers to use the application.</p>
 
     <h2>2. Data Collection and Usage</h2>
     <ul>
-      <li><strong>Device / Pseudonymous Installation ID:</strong> An anonymous UUID generated on your device is used strictly to account for daily free AI quota allowances (3 daily requests), prevent automated service abuse, and synchronize active subscriptions.</li>
-      <li><strong>Transient AI Processing:</strong> Text inputs entered to generate replies, captions, or cards are transmitted securely via TLS 1.3 to our edge processing workers and enterprise AI inference endpoints (Google Gemini / Groq). Under our production commercial tier, prompts are processed transiently in volatile RAM and are never stored in our database, written to persistent disk, or used to train third-party foundation models.</li>
-      <li><strong>Card & Meme Studio:</strong> 100% offline. Visual cards and memes are rendered locally on your device hardware canvas via Flutter. Image exports never touch our servers.</li>
+      <li><strong>Device / Pseudonymous Installation ID:</strong> An anonymous UUID generated on your device is used strictly to manage daily AI credit allowances, streaks, referrals, subscriptions, and abuse prevention.</li>
+      <li><strong>Transient AI Processing &amp; Retry Cache:</strong> Text inputs entered in Studio features are transmitted via HTTPS to our backend and AI inference providers (Google Gemini and configured fallback models). We do not store persistent chat transcripts; short-lived idempotency retry responses automatically expire and are purged within 24 hours.</li>
+      <li><strong>Operational Telemetry &amp; Safety Reports:</strong> Non-text generation metadata (category, tone, latency, status) and voluntary user-submitted feedback or flagged AI content reports are stored to maintain reliability and safety moderation.</li>
+      <li><strong>Card &amp; Meme Studio:</strong> 100% offline. Visual cards and memes are rendered locally on your device canvas via Flutter. Image exports never touch our servers.</li>
       <li><strong>Purchases:</strong> Handled authoritatively through Google Play In-App Billing. We never receive, process, or store credit card numbers or financial credentials.</li>
     </ul>
 
     <h2>3. Advertising & Third-Party SDKs</h2>
-    <p>VibeKit AI integrates Google Mobile Ads (AdMob) to provide free daily credits via rewarded video ads. AdMob utilizes Google Server-Side Verification (SSV) to prevent fraud and may process advertising identifiers in compliance with Google Play Developer policies.</p>
+    <p>ReplyVibe AI / VibeKit AI integrates Google Mobile Ads (AdMob) for free-tier banners and optional rewarded video ads. AdMob uses Google Server-Side Verification (SSV) and Advertising Identifiers in compliance with Google Play policies.</p>
 
     <h2>4. Data Retention & Deletion ("Right to be Forgotten")</h2>
     <p>Users have complete sovereignty over their data. You can trigger an instant, permanent deletion of all cloud quota records directly inside the app settings under <em>"Delete My Data"</em>, or by invoking our automated deletion endpoint.</p>
@@ -86,7 +87,7 @@ const deleteDataHtml = `<!DOCTYPE html>
     <p>VibeKit AI is built with privacy-by-design principles:</p>
     <ul>
       <li><strong>No Account Required:</strong> We do not require account registration, passwords, email, or telephone numbers to use VibeKit AI.</li>
-      <li><strong>Zero Prompt Retention:</strong> User chat messages, context, and prompts are processed transiently in memory and are <em>never</em> permanently stored in our databases or used for training foundation models.</li>
+      <li><strong>Zero Chat Logs:</strong> User chat messages and prompts are never saved as persistent conversation history or used by us to train foundation models; 24-hour idempotency retry caches are automatically purged.</li>
       <li><strong>Offline Cards:</strong> Meme and quote cards are rendered 100% locally on your device via Flutter canvas.</li>
       <li><strong>Pseudonymous Device ID:</strong> An anonymous UUID is stored solely to manage daily free quotas, anti-abuse protections, and active subscription entitlements.</li>
     </ul>
@@ -126,6 +127,53 @@ const deleteDataHtml = `<!DOCTYPE html>
 </body>
 </html>`;
 
+const termsHtml = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ReplyVibe AI — Terms of Service</title>
+  <style>
+    :root { --bg: #0f172a; --card: #1e293b; --text: #f8fafc; --muted: #94a3b8; --accent: #6366f1; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; margin: 0; padding: 20px; }
+    .container { max-width: 800px; margin: 0 auto; background: var(--card); padding: 32px; border-radius: 16px; border: 1px solid #334155; }
+    h1 { color: #818cf8; font-size: 28px; margin-top: 0; }
+    h2 { color: #c7d2fe; font-size: 20px; margin-top: 24px; border-bottom: 1px solid #334155; padding-bottom: 8px; }
+    p, li { color: var(--muted); font-size: 15px; }
+    ul { padding-left: 20px; }
+    .badge { display: inline-block; background: rgba(99, 102, 241, 0.2); color: #818cf8; padding: 4px 12px; border-radius: 9999px; font-size: 13px; font-weight: 600; margin-bottom: 16px; }
+    .footer { margin-top: 32px; padding-top: 16px; border-top: 1px solid #334155; font-size: 13px; color: #64748b; text-align: center; }
+    a { color: #818cf8; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="badge">Terms of Service</div>
+    <h1>ReplyVibe AI — Terms of Service</h1>
+    <p>Effective Date: November 15, 2026</p>
+
+    <h2>1. Acceptance of Terms</h2>
+    <p>By downloading, installing, accessing, or using ReplyVibe AI (also referred to as VibeKit AI), you agree to be bound by these Terms of Service. If you do not agree, please do not use the service.</p>
+
+    <h2>2. Description of Service & Acceptable Use</h2>
+    <p>ReplyVibe AI provides AI-assisted conversational reply suggestions, social media captions, profile bios, and offline quote/meme card design tools. You agree not to use the service to generate harassment, threats, hate speech, CSAM, fraud, deceptive impersonation, or unlawful content.</p>
+
+    <h2>3. Content Ownership & AI Disclaimer</h2>
+    <p>You retain ownership of the text you input and the creative outputs generated for your personal or commercial use. AI-generated text is probabilistic and provided on an "AS IS" basis; please review outputs before sharing or publishing.</p>
+
+    <h2>4. Subscriptions, Rewards & In-App Purchases</h2>
+    <p>Pro subscriptions and one-time passes are billed and managed through Google Play Billing. Auto-renewing subscriptions can be canceled anytime via <a href="https://play.google.com/store/account/subscriptions">Google Play Subscriptions</a>. Refund requests follow Google Play policies.</p>
+
+    <h2>5. Contact Us</h2>
+    <p>Questions about these Terms? Contact <a href="mailto:support@vibekit.ai">support@vibekit.ai</a>.</p>
+
+    <div class="footer">
+      &copy; 2026 ReplyVibe AI &bull; <a href="/privacy">Privacy Policy</a> &bull; <a href="/delete-data">Data Deletion</a>
+    </div>
+  </div>
+</body>
+</html>`;
+
 privacyRoute.get('/privacy', (c) => {
   return c.html(privacyHtml);
 });
@@ -135,7 +183,11 @@ privacyRoute.get('/privacy-policy', (c) => {
 });
 
 privacyRoute.get('/terms', (c) => {
-  return c.html(privacyHtml);
+  return c.html(termsHtml);
+});
+
+privacyRoute.get('/terms-of-service', (c) => {
+  return c.html(termsHtml);
 });
 
 privacyRoute.get('/delete-account', (c) => {
@@ -151,7 +203,7 @@ privacyRoute.get('/privacy/delete-data', (c) => {
 });
 
 privacyRoute.post('/privacy/delete-data', async (c) => {
-  const installationId = c.req.header('X-App-Instance-Id') || 'anonymous_default';
+  const installationId = c.get('installationId') || c.req.header('X-App-Instance-Id') || 'anonymous_default';
   const quotaManager = new QuotaManager(c.env);
 
   await quotaManager.deleteUserData(installationId);

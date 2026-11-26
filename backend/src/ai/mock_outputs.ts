@@ -137,22 +137,53 @@ export function mockCaptions(p: { topic: string; language: string; includeHooks?
   };
 }
 
-export function mockBios(p: { interests: string; vibe: string; includeUsernames: boolean }) {
+export function mockBios(p: {
+  interests: string;
+  platform?: string;
+  vibe: string;
+  language?: string;
+  includeUsernames: boolean;
+}) {
   const words = (p.interests.toLowerCase().match(/[a-z]{3,12}/g) ?? ['coffee', 'music']).slice(0, 3);
   const [a = 'coffee', b = 'music', c = 'late nights'] = words;
   const cap = (w: string) => w.charAt(0).toUpperCase() + w.slice(1);
-  return {
-    bios: [
-      `${cap(a)} • ${cap(b)} • ${cap(c)}\nfiguring it out one post at a time`,
+  const lang = asLang(p.language ?? 'English');
+  const usernames = p.includeUsernames
+    ? [`@${a}.daily`, `@${a}_and_${b}`.slice(0, 19), `@not.just.${a}`, `@${b}withme`, `@the${a}diary`]
+    : [];
+
+  const biosByLang: Record<Lang, string[]> = {
+    English: [
+      `${cap(a)} • ${cap(b)} • ${cap(c)} (${p.vibe})\nfiguring it out one post at a time`,
       `Part-time ${a} nerd, full-time ${b} enthusiast.`,
       `I talk about ${a} way too much. DMs open if you do too.`,
     ],
-    usernames: p.includeUsernames ? [`@${a}.daily`, `@${a}_and_${b}`.slice(0, 19), `@not.just.${a}`, `@${b}withme`, `@the${a}diary`] : [],
+    Hindi: [
+      `${cap(a)} • ${cap(b)} • ${p.vibe}\nहर दिन कुछ नया सीखने की कोशिश ✨`,
+      `थोड़ा ${a} का शौक़, बहुत सारा ${b} और अच्छी वाइब्स।`,
+      `सरल अंदाज़, बड़े सपने और ${a} के बिना दिन अधूरा।`,
+    ],
+    Hinglish: [
+      `${cap(a)} • ${cap(b)} • ${p.vibe} mode\nsimple log, high vibes only`,
+      `Thoda ${a}, thoda ${b}, aur full-time good energy.`,
+      `${a} ke baare mein zyada hi bolta hoon, DM open hain.`,
+    ],
+    Gujarati: [
+      `${cap(a)} • ${cap(b)} • ${p.vibe}\nદરેક દિવસ નવી શીખ અને સારી વાઇબ્સ ✨`,
+      `થોડો ${a} નો શોખ, ઘણું બધું ${b} અને સરળ અંદાજ.`,
+      `ઓછા શબ્દો, સારું કામ અને ${a} વગર દિવસ અધૂરો.`,
+    ],
+  };
+
+  return {
+    bios: biosByLang[lang],
+    usernames,
   };
 }
 
 export function mockVibeCheck(p: { text: string; mode: string; language: string }) {
   const mode = p.mode || 'roast';
+  const lang = asLang(p.language);
   let score = 78;
   let title = 'Effortlessly Smooth';
   let verdict = 'Clean delivery with solid energy, but could use a tiny bit more punch.';
@@ -273,6 +304,130 @@ export function mockVibeCheck(p: { text: string; mode: string; language: string 
       'If our music taste matches as well as our banter, we are in trouble.',
       'You are surprisingly fun to talk to. Keep it up.',
     ];
+  }
+
+  const localizedVibeByLang: Record<
+    string,
+    {
+      titles: Record<string, string>;
+      defaultTitle: string;
+      verdicts: Record<string, string>;
+      defaultVerdict: string;
+      tags: string[];
+      rewritesByMode: Record<string, string[]>;
+      defaultRewrites: string[];
+    }
+  > = {
+    Gujarati: {
+      titles: {
+        roast: '🔥 હળવો વાઇબ રોસ્ટ',
+        flags: '🚩 રેડ ફ્લેગ અને સિગ્નલ ચેક',
+        dating: '💘 સ્મૂધ ડેટિંગ એનર્જી',
+        work: '💼 સ્પષ્ટ અને પ્રોફેશનલ અંદાજ',
+      },
+      defaultTitle: '✨ સ્પષ્ટ અને કોન્ફિડન્ટ વાઇબ',
+      verdicts: {
+        roast: 'મેસેજમાં થોડું વધારે વિચાર્યું હોય એવું લાગે છે — થોડું હળવું અને નેચરલ રાખશો તો મજા પડી જશે.',
+        flags: 'વાતચીતમાં મિશ્ર સંકેત દેખાય છે; તમારી સીમાઓ સ્પષ્ટ રાખીને શાંતિથી જવાબ આપવો યોગ્ય રહેશે.',
+        dating: 'અંદાજ પ્લેફુલ અને સહજ છે, બસ થોડો વધારે આત્મવિશ્વાસ ઉમેરશો તો રિસ્પોન્સ જલ્દી આવશે.',
+        work: 'સંદેશ સીધો અને વ્યવસાયિક છે; ટૂંકા મુદ્દા રાખવાથી સામેની વ્યક્તિ તરત નિર્ણય લઈ શકશે.',
+      },
+      defaultVerdict: 'મેસેજનો ટોન ઠીક છે, પરંતુ થોડો વધુ કોન્ફિડન્ટ અને નેચરલ અંદાજ અપનાવશો તો રિસ્પોન્સ વધુ સારો આવશે.',
+      tags: ['#સ્પષ્ટ', '#નેચરલ', '#કોન્ફિડન્ટ'],
+      rewritesByMode: {
+        flags: [
+          'તમારી વાત સમજી, પણ આ વીકેન્ડ મારો સમય વ્યસ્ત છે. આવતા અઠવાડિયે જોઈએ.',
+          'આ પ્લાન હાલ પૂરતો શક્ય નથી, આપણે બીજી કોઈ વખત મળીશું.',
+          'સ્પષ્ટ કહેવા બદલ આભાર, પણ મને લાગે છે આપણે થોડો બ્રેક લેવો જોઈએ.',
+        ],
+        roast: [
+          'આટલું લાંબું વિચારવા કરતાં સીધું જ કહી દો: "ચલ આ વીકેન્ડ કોફી પર મળીએ."',
+          'શબ્દો અડધા કરી નાખો, કોન્ફિડન્સ બમણો લાગશે.',
+          'પ્રસ્તાવના છોડીને સીધી મુદ્દાની વાત પર આવો!',
+        ],
+      },
+      defaultRewrites: [
+        'બધું બરાબર છે ને? આ અઠવાડિયે ફ્રી હોવ તો મળીએ.',
+        'તમારો સમય લો, ફ્રી થાઓ ત્યારે મેસેજ કરજો.',
+        'સરસ વાત છે, આ વિષે શાંતિથી વાત કરીએ.',
+      ],
+    },
+    Hindi: {
+      titles: {
+        roast: '🔥 हल्का वाइब रोस्ट',
+        flags: '🚩 रेड फ्लैग और संकेत जांच',
+        dating: '💘 सहज और आकर्षक अंदाज़',
+        work: '💼 स्पष्ट और प्रोफेशनल संदेश',
+      },
+      defaultTitle: '✨ स्पष्ट और आत्मविश्वासी वाइब',
+      verdicts: {
+        roast: 'लगता है भेजने से पहले आपने काफी देर सोचा — थोड़ा हल्का और सहज अंदाज़ ज़्यादा असर करेगा।',
+        flags: 'संदेश में मिले-जुले संकेत हैं; अपनी सीमाएं स्पष्ट रखते हुए शांत और संतुलित जवाब दें।',
+        dating: 'अंदाज़ मज़ेदार और सहज है; हल्का आत्मविश्वास जोड़ने से सामने से अच्छा रिस्पॉन्स आएगा।',
+        work: 'संदेश साफ़ और पेशेवर है; संक्षिप्त बिंदु रखने से निर्णय जल्दी हो पाएगा।',
+      },
+      defaultVerdict: 'मैसेज का भाव सही है, लेकिन थोड़ा और स्पष्ट और आत्मविश्वास भरा अंदाज़ असर को कई गुना बढ़ा देगा।',
+      tags: ['#स्पष्ट', '#सहज', '#आत्मविश्वास'],
+      rewritesByMode: {
+        flags: [
+          'मैं आपकी बात समझता हूँ, लेकिन इस वीकेंड मेरा शेड्यूल व्यस्त है।',
+          'फिलहाल यह संभव नहीं है, किसी और दिन आराम से बात करते हैं।',
+          'ईमानदारी के लिए शुक्रिया, लेकिन मुझे लगता है हमारी अपेक्षाएं अलग हैं।',
+        ],
+        roast: [
+          'इतना सोचने की बजाय सीधा लिखो: "चलो इस हफ्ते कॉफ़ी पर मिलते हैं।"',
+          'शब्द आधे रखो, आत्मविश्वास दोगुना दिखेगा।',
+          'भूमिका छोड़कर सीधे मुख्य बात पर आओ!',
+        ],
+      },
+      defaultRewrites: [
+        'सब ठीक है ना? इस हफ्ते समय मिले तो बात करते हैं।',
+        'कोई जल्दी नहीं है, जब फ़्री हों तब बताइएगा।',
+        'यह आइडिया बढ़िया है, आइए इसे आराम से तय करते हैं।',
+      ],
+    },
+    Hinglish: {
+      titles: {
+        roast: '🔥 Mild Roast Mode',
+        flags: '🚩 Signal & Red Flag Check',
+        dating: '💘 Smooth Dating Energy',
+        work: '💼 Crisp & Professional',
+      },
+      defaultTitle: '✨ Clear & Confident Vibe',
+      verdicts: {
+        roast: 'Lagta hai send dabane se pehle 20 baar edit kiya hai — thoda chill aur natural rakho.',
+        flags: 'Thode mixed signals lag rahe hain; apni boundaries clear rakh kar calm reply do.',
+        dating: 'Playful aur low-pressure vibe hai, bas thoda confident hook add karoge toh reply pakka hai.',
+        work: 'Message clear aur respectful hai; short bullets rakhne se fast alignment hoga.',
+      },
+      defaultVerdict: 'Message ka tone sahi hai, bas thoda aur relaxed aur confident rakhoge toh reply ka chance double ho jayega.',
+      tags: ['#ClearVibe', '#LowPressure', '#Natural'],
+      rewritesByMode: {
+        flags: [
+          'Samajh gaya, par iss weekend mera schedule packed hai. Next week dekhte hain.',
+          'Abhi ke liye possible nahi hoga, phir kabhi catch up karte hain.',
+          'Honestly kehne ke liye thanks, par shayad hamari expectations match nahi kar rahi.',
+        ],
+        roast: [
+          'Overthink mat kar, bas seedha bol: "Iss week coffee pe milte hain."',
+          'Words aadhe kar, confidence double lagega.',
+          'Intro cut kar aur direct point pe aa!',
+        ],
+      },
+      defaultRewrites: [
+        'Scene chill hai, jab free ho tab bata dena milte hain.',
+        'Koi rush nahi yaar, aaram se batao kab baat karni hai.',
+        'Sounds good, ek baar time confirm kar dete hain.',
+      ],
+    },
+  };
+
+  const loc = localizedVibeByLang[lang];
+  if (loc) {
+    title = loc.titles[mode] ?? loc.defaultTitle;
+    verdict = loc.verdicts[mode] ?? loc.defaultVerdict;
+    tags = loc.tags;
+    rewrites = loc.rewritesByMode[mode] ?? loc.defaultRewrites;
   }
 
   return { score, title, verdict, tags, rewrites };

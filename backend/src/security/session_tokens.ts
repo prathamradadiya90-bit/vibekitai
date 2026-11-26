@@ -90,8 +90,14 @@ export async function verifySessionToken(
 
     const payload = JSON.parse(base64UrlDecode(encodedPayload)) as SessionPayload;
     const now = Math.floor(Date.now() / 1000);
-    if (payload.exp < now) {
-      return null; // Expired
+    if (
+      typeof payload?.sub !== 'string' ||
+      payload.sub.length === 0 ||
+      typeof payload?.exp !== 'number' ||
+      !Number.isFinite(payload.exp) ||
+      payload.exp < now
+    ) {
+      return null; // Malformed or expired
     }
 
     return payload;

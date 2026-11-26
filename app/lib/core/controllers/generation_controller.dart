@@ -85,6 +85,9 @@ class GenerationNotifier<TRequest, TResult>
       for (final item in historyItems) {
         await db.insertItem(item);
       }
+      if (historyItems.isNotEmpty) {
+        ref.read(historyRevisionProvider.notifier).state++;
+      }
 
       // 5. Track Funnel Analytics
       AnalyticsService.instance.logGenerateSuccess(actionType);

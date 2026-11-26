@@ -1,5 +1,5 @@
 import { Hono } from 'hono';
-import { Env } from '../types';
+import { AppHonoEnv } from '../types';
 import { PurchaseVerifySchema, RtdnNotificationSchema } from '../schemas/validation';
 import { QuotaManager } from '../quota/quota_manager';
 import { PurchasesRepository } from '../db/purchases.repo';
@@ -13,11 +13,11 @@ import {
   verifySubscriptionPurchase,
 } from '../security/google_play';
 
-export const purchasesRoute = new Hono<{ Bindings: Env }>();
+export const purchasesRoute = new Hono<AppHonoEnv>();
 
 // 1. Authoritative Purchase Verification & Acknowledgment
 purchasesRoute.post('/purchases/verify', async (c) => {
-  const installationId = c.req.header('X-App-Instance-Id') || 'anonymous_default';
+  const installationId = c.get('installationId') || c.req.header('X-App-Instance-Id') || 'anonymous_default';
   const bodyResult = PurchaseVerifySchema.safeParse(await c.req.json());
 
   if (!bodyResult.success) {
@@ -130,7 +130,7 @@ function mapNotificationTypeForDev(
 
 // 2. Query Subscription Status & Billing Cycle
 purchasesRoute.get('/subscription/status', async (c) => {
-  const installationId = c.req.header('X-App-Instance-Id') || 'anonymous_default';
+  const installationId = c.get('installationId') || c.req.header('X-App-Instance-Id') || 'anonymous_default';
   const quotaManager = new QuotaManager(c.env);
   const quota = await quotaManager.getQuotaStatus(installationId);
 
@@ -172,6 +172,9 @@ purchasesRoute.post('/purchases/rtdn', async (c) => {
 
     if (subNotice) {
       const { notificationType, purchaseToken, subscriptionId } = subNotice;
+      if (!purchaseToken || !subscriptionId) {
+        return c.json({ success: true, processed: false, reason: 'MISSING_FIELDS' });
+      }
       let status: EntitlementStatus;
       let expiresAt: string | undefined;
 
@@ -267,7 +270,7 @@ purchasesRoute.post('/purchases/rtdn', async (c) => {
 
 // 4. One-time Consumable Credit Pack Verification (Feature-Flagged & Idempotent)
 purchasesRoute.post('/purchases/credit-pack', async (c) => {
-  const installationId = c.req.header('X-App-Instance-Id') || 'anonymous_default';
+  const installationId = c.get('installationId') || c.req.header('X-App-Instance-Id') || 'anonymous_default';
   const bodyResult = PurchaseVerifySchema.safeParse(await c.req.json());
 
   if (!bodyResult.success) {
@@ -326,6 +329,8 @@ purchasesRoute.post('/purchases/credit-pack', async (c) => {
   const db = c.env.DB;
 
   if (!db) {
+    const quotaManager = new QuotaManager(c.env);
+    await quotaManager.grantBonusCredits(installationId, creditsToGrant);
     return c.json({
       success: true,
       credits_granted: creditsToGrant,

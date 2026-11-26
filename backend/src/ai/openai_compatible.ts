@@ -16,11 +16,13 @@ export class OpenAICompatibleProvider {
   private apiKey: string;
   private baseUrl: string;
   private model: string;
+  private allowLocalhostInDev: boolean;
 
-  constructor(apiKey: string, baseUrl: string, model: string) {
+  constructor(apiKey: string, baseUrl: string, model: string, allowLocalhostInDev: boolean = false) {
     this.apiKey = apiKey;
     this.baseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
     this.model = model;
+    this.allowLocalhostInDev = allowLocalhostInDev;
   }
 
   async generateReplies(params: {
@@ -154,18 +156,22 @@ export class OpenAICompatibleProvider {
         },
         body: JSON.stringify(payload),
         signal: controller.signal,
-      }, true);
+      }, this.allowLocalhostInDev);
     } finally {
       clearTimeout(timer);
     }
 
     if (!response.ok) {
       const errText = await response.text();
+      if (/content_filter|safety|policy_violation|moderation/i.test(errText)) {
+        throw new Error(`SAFETY_VIOLATION: Request blocked by AI content policy.`);
+      }
       throw new Error(`AI API error (${response.status}): ${errText}`);
     }
 
     interface ChatCompletionResponse {
       choices?: Array<{
+        finish_reason?: string;
         message?: {
           content?: string;
         };
@@ -173,7 +179,11 @@ export class OpenAICompatibleProvider {
     }
 
     const data = (await response.json()) as ChatCompletionResponse;
-    const content = data.choices?.[0]?.message?.content;
+    const choice = data.choices?.[0];
+    if (choice?.finish_reason === 'content_filter') {
+      throw new Error('SAFETY_VIOLATION: The response triggered automated safety filters.');
+    }
+    const content = choice?.message?.content;
     if (!content) {
       throw new Error('Empty response from AI completion.');
     }
@@ -184,7 +194,11 @@ export class OpenAICompatibleProvider {
       // If model wrapped response in markdown json code block
       const jsonMatch = content.match(/```json\s*([\s\S]*?)\s*```/) || content.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
-        return JSON.parse(jsonMatch[1] || jsonMatch[0]);
+        try {
+          return JSON.parse(jsonMatch[1] || jsonMatch[0]);
+        } catch {
+          throw new Error('Failed to parse JSON response from AI provider.');
+        }
       }
       throw new Error('Failed to parse JSON response from AI provider.');
     }

@@ -23,6 +23,10 @@ class StreakNotifier extends StateNotifier<StreakModel> {
     state = updated;
   }
 
+  void reset() {
+    state = StreakModel.initial();
+  }
+
   Future<void> recordAction(String action) async {
     try {
       final res = await _client.checkinStreak(action);
