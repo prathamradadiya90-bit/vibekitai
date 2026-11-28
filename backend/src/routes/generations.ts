@@ -19,6 +19,7 @@ import {
   VibeCheckOutput,
 } from '../schemas/validation';
 import { runGeneration } from '../ai/pipeline';
+import { sha256Hex } from '../security/play_integrity';
 
 export const generationsRoute = new Hono<AppHonoEnv>();
 
@@ -31,6 +32,7 @@ generationsRoute.post('/generations/reply', async (c) => {
     extractChallengeId: (req) => req.challenge_id,
     getCacheTone: (req) => req.tone,
     getCacheLanguage: (req) => req.language,
+    getCacheVariant: (req) => `${req.length}_${req.count}_${req.message.slice(0, 64)}`,
     generate: async (ai, req) => {
       const suggestions = await ai.generateReplies(req);
       return { suggestions };
@@ -54,6 +56,8 @@ generationsRoute.post('/generations/caption', async (c) => {
     extractChallengeId: (req) => req.challenge_id,
     getCacheTone: (req) => req.tone,
     getCacheLanguage: (req) => req.language,
+    getCacheVariant: (req) =>
+      `${req.platform}_${req.length}_${req.include_hooks}_${req.include_hashtags}_${req.topic.slice(0, 64)}`,
     generate: async (ai, req) => {
       const res = await ai.generateCaptions({
         topic: req.topic,
@@ -123,8 +127,10 @@ generationsRoute.post('/generations/vibe-check', async (c) => {
     category: 'vibe_check',
     inputSchema: VibeCheckRequestSchema,
     outputSchema: VibeCheckOutputSchema,
+    extractChallengeId: (req) => req.challenge_id,
     getCacheTone: (req) => req.mode,
     getCacheLanguage: (req) => req.language,
+    getCacheVariant: (req) => `${req.mode}_${req.text.slice(0, 64)}`,
     generate: async (ai, req) => {
       const res = await ai.vibeCheck({
         text: req.text,
@@ -139,7 +145,7 @@ generationsRoute.post('/generations/vibe-check', async (c) => {
         rewrites: res.rewrites,
       };
     },
-    formatResponse: (output, req, creditsRemaining) => ({
+    formatResponse: (output, req, creditsRemaining, cached) => ({
       score: output.score,
       title: output.title,
       verdict: output.verdict,
@@ -148,6 +154,7 @@ generationsRoute.post('/generations/vibe-check', async (c) => {
       mode: req.mode,
       language: req.language,
       credits_remaining: creditsRemaining,
+      ...(cached ? { cached: true } : {}),
     }),
   });
 });

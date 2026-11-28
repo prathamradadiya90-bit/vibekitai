@@ -12,8 +12,11 @@ import 'package:vibekit_ai/core/network/result.dart';
 import 'package:vibekit_ai/core/providers/app_providers.dart';
 import 'package:vibekit_ai/core/services/notification_service.dart';
 import 'package:vibekit_ai/core/services/review_service.dart';
+import 'package:vibekit_ai/core/storage/local_database.dart';
 import 'package:vibekit_ai/core/storage/preferences_service.dart';
 import 'package:vibekit_ai/models/generation_models.dart';
+import 'package:vibekit_ai/models/history_item.dart';
+import 'package:vibekit_ai/models/quota_model.dart';
 
 void main() {
   group('Result<T> Pattern & Functional Handlers', () {
@@ -343,6 +346,116 @@ void main() {
       expect(flagsCheck.rewrites.every((r) => gujaratiRegex.hasMatch(r)), isTrue);
       expect(flagsCheck.title, isNot(equals(roastCheck.title)));
       expect(flagsCheck.score, isNot(equals(roastCheck.score)));
+    });
+  });
+
+  group('Bug Audit Regression Tests (CRIT & HIGH fixes)', () {
+    test('CRIT-03: QuotaModel.canGenerate enforces Pro cycle/rewarded buckets strictly', () {
+      const exhaustedPro = QuotaModel(
+        freeCreditsRemaining: 3,
+        rewardedCreditsRemaining: 0,
+        totalCreditsRemaining: 3,
+        isPro: true,
+        proCreditsRemaining: 0,
+        rewardedAdsWatchedToday: 0,
+        maxRewardedAdsPerDay: 2,
+        resetAtUtc: '',
+      );
+      expect(exhaustedPro.canGenerate, isFalse);
+
+      final proWithRewardPack = exhaustedPro.copyWith(
+        rewardedCreditsRemaining: 2,
+        totalCreditsRemaining: 5,
+      );
+      expect(proWithRewardPack.canGenerate, isTrue);
+    });
+
+    test('CRIT-04: QuotaNotifier.syncCredits trusts server increases and updates Pro credits cleanly', () async {
+      SharedPreferences.setMockInitialValues({'cached_credits': 1, 'cached_is_pro': false});
+      final prefs = await PreferencesService.create();
+      final mockHttp = MockClient((_) async => throw Exception('offline'));
+      final client = ApiClient(client: mockHttp, prefs: prefs, baseUrl: 'https://example.test');
+      final notifier = QuotaNotifier(client, prefs);
+
+      notifier.syncCredits(5);
+      expect(notifier.state.totalCreditsRemaining, equals(5));
+      expect(prefs.getCachedCredits(), equals(5));
+
+      notifier.setPro(true);
+      notifier.updateLocally(notifier.state.copyWith(isPro: true, proCreditsRemaining: 190));
+      notifier.syncCredits(189);
+      expect(notifier.state.proCreditsRemaining, equals(189));
+      expect(prefs.getCachedProCredits(), equals(189));
+    });
+
+    test('HIGH-20: ApiException separates RATE_LIMIT_EXCEEDED from QUOTA_EXCEEDED', () {
+      const rateLimit = ApiException(
+        code: 'RATE_LIMIT_EXCEEDED',
+        message: 'Too many requests',
+        statusCode: 429,
+      );
+      expect(rateLimit.isRateLimited, isTrue);
+      expect(rateLimit.isQuotaExceeded, isFalse);
+
+      const quotaLimit = ApiException(
+        code: 'QUOTA_EXCEEDED',
+        message: 'Out of credits',
+        statusCode: 429,
+      );
+      expect(quotaLimit.isQuotaExceeded, isTrue);
+      expect(quotaLimit.isRateLimited, isFalse);
+    });
+
+    test('LOW-07 & HIGH-07: ApiClient normalizes baseUrl trailing slash, guards non-Map error, and restores real cached Pro usage', () async {
+      SharedPreferences.setMockInitialValues({
+        'cached_credits': 4,
+        'cached_rewarded_credits': 1,
+        'cached_is_pro': true,
+        'cached_pro_credits': 42,
+        'rewarded_ads_watched_today': 1,
+      });
+      final prefs = await PreferencesService.create();
+      final mockHttp = MockClient((request) async {
+        expect(request.url.path, isNot(startsWith('//')));
+        return http.Response(jsonEncode({'error': 'string_error_payload'}), 500);
+      });
+      final client = ApiClient(client: mockHttp, prefs: prefs, baseUrl: 'https://example.test///');
+      expect(client.baseUrl, equals('https://example.test'));
+
+      final usage = await client.getUsage();
+      expect(usage.isPro, isTrue);
+      expect(usage.proCreditsRemaining, equals(42));
+      expect(usage.rewardedAdsWatchedToday, equals(1));
+    });
+
+    test('MED-06 & MED-02: LocalDatabase persists fallback history via PreferencesService across instances', () async {
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await PreferencesService.create();
+
+      final db1 = LocalDatabase(prefs: prefs);
+      await db1.insertItem(
+        HistoryItem(
+          id: 'hist_web_1',
+          title: 'Card Save',
+          content: 'Saved across reload',
+          type: 'card',
+          category: 'Velvet Espresso',
+          createdAt: DateTime.utc(2026, 11, 27),
+          isFavorite: true,
+        ),
+      );
+
+      final db2 = LocalDatabase(prefs: prefs);
+      await db2.init();
+      final restored = await db2.getItems(onlyFavorites: true);
+      expect(restored.length, equals(1));
+      expect(restored.first.id, equals('hist_web_1'));
+      expect(restored.first.content, equals('Saved across reload'));
+
+      await prefs.addAchievementBonusXp(75);
+      await prefs.setNotificationsEnabled(false);
+      expect(prefs.getAchievementBonusXp(), equals(75));
+      expect(prefs.getNotificationsEnabled(), isFalse);
     });
   });
 }

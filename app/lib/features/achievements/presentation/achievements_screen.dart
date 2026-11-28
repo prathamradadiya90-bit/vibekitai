@@ -71,7 +71,13 @@ class _AchievementsScreenState extends ConsumerState<AchievementsScreen> {
             size: 20,
             color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
           ),
-          onPressed: () => context.pop(),
+          onPressed: () {
+            if (context.canPop()) {
+              context.pop();
+            } else {
+              context.go('/home');
+            }
+          },
         ),
       ),
       body: SingleChildScrollView(
@@ -106,47 +112,56 @@ class _AchievementsScreenState extends ConsumerState<AchievementsScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Row(
-                        children: [
-                          Container(
-                            width: 52,
-                            height: 52,
-                            decoration: BoxDecoration(
-                              color: AppColors.primary.withOpacity(0.3),
-                              shape: BoxShape.circle,
-                              border: Border.all(color: AppColors.primaryLight, width: 2),
-                            ),
-                            child: Center(
-                              child: Text(
-                                streak.level >= 5 ? '👑' : streak.level >= 3 ? '⭐' : '⚡',
-                                style: const TextStyle(fontSize: 26),
+                      Expanded(
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 52,
+                              height: 52,
+                              decoration: BoxDecoration(
+                                color: AppColors.primary.withOpacity(0.3),
+                                shape: BoxShape.circle,
+                                border: Border.all(color: AppColors.primaryLight, width: 2),
                               ),
-                            ),
-                          ),
-                          const SizedBox(width: 14),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Level ${streak.level} Creator',
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 18,
-                                  color: Colors.white,
+                              child: Center(
+                                child: Text(
+                                  streak.level >= 5 ? '👑' : streak.level >= 3 ? '⭐' : '⚡',
+                                  style: const TextStyle(fontSize: 26),
                                 ),
                               ),
-                              const SizedBox(height: 2),
-                              Text(
-                                '$unlockedCount of $totalCount Badges Unlocked',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.white.withOpacity(0.7),
-                                ),
+                            ),
+                            const SizedBox(width: 14),
+                            Flexible(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Level ${streak.level} Creator',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 18,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    '$unlockedCount of $totalCount Badges Unlocked',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.white.withOpacity(0.7),
+                                    ),
+                                  ),
+                                ],
                               ),
-                            ],
-                          ),
-                        ],
+                            ),
+                          ],
+                        ),
                       ),
+                      const SizedBox(width: 8),
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                         decoration: BoxDecoration(

@@ -21,8 +21,8 @@ void main() async {
   // Initialize persistent preferences
   final preferencesService = await PreferencesService.create();
 
-  // Initialize SQLite local database
-  final localDatabase = LocalDatabase();
+  // Initialize local database (with SharedPreferences web persistence fallback)
+  final localDatabase = LocalDatabase(prefs: preferencesService);
   await localDatabase.init();
 
   // Check initial onboarding state
@@ -53,6 +53,8 @@ class VibeKitApp extends ConsumerStatefulWidget {
 }
 
 class _VibeKitAppState extends ConsumerState<VibeKitApp> {
+  static final GlobalKey<ScaffoldMessengerState> _scaffoldMessengerKey =
+      GlobalKey<ScaffoldMessengerState>();
   static const MethodChannel _shareChannel =
       MethodChannel('com.vibekit.vibekit_ai/share_intent');
 
@@ -64,15 +66,27 @@ class _VibeKitAppState extends ConsumerState<VibeKitApp> {
     super.initState();
     // Initialize Billing & AdMob asynchronously after first frame to avoid startup jank
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
       final adMob = ref.read(adMobServiceProvider);
       final billing = ref.read(billingServiceProvider);
 
       billing.onProStatusChanged = (isPro) {
+        if (!mounted) return;
         ref.read(quotaProvider.notifier).setPro(isPro);
         adMob.updateProStatus(isPro);
       };
       billing.onCreditsGranted = () {
+        if (!mounted) return;
         ref.read(quotaProvider.notifier).refresh();
+      };
+      billing.onBillingMessage = (message) {
+        _scaffoldMessengerKey.currentState?.showSnackBar(
+          SnackBar(
+            content: Text(message),
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 4),
+          ),
+        );
       };
 
       // Asynchronous non-blocking SDK initializations
@@ -114,6 +128,7 @@ class _VibeKitAppState extends ConsumerState<VibeKitApp> {
 
     return MaterialApp.router(
       title: AppConfig.appName,
+      scaffoldMessengerKey: _scaffoldMessengerKey,
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,

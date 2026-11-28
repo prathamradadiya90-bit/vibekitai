@@ -19,7 +19,6 @@ interface MemoryQuotaEntry {
   rewardedAdsWatched: number;
 }
 
-// In-memory daily quota store for stateless / serverless environments without persistent D1
 const memoryUsageStore = new Map<string, MemoryQuotaEntry>();
 const MAX_MEMORY_ENTRIES = 2000;
 
@@ -31,7 +30,6 @@ function pruneMemoryUsageStore(today: string): void {
     if (v.date !== today) memoryUsageStore.delete(k);
     if (memoryUsageStore.size <= MAX_MEMORY_ENTRIES) return;
   }
-  // Evict oldest insertion entries if still oversized on same day
   for (const k of memoryUsageStore.keys()) {
     memoryUsageStore.delete(k);
     if (memoryUsageStore.size <= MAX_MEMORY_ENTRIES / 2) break;
@@ -47,10 +45,14 @@ export class QuotaManager {
 
   constructor(env: Env) {
     this.db = env.DB;
-    this.maxDailyFree = parseInt(env.MAX_DAILY_FREE_CREDITS || '3', 10);
-    this.maxDailyRewards = parseInt(env.MAX_DAILY_REWARDS || '2', 10);
-    this.creditsPerReward = parseInt(env.REWARD_CREDITS_PER_AD || '3', 10);
-    this.monthlyProCredits = parseInt(env.MONTHLY_PRO_CREDITS || '200', 10);
+    const rawFree = parseInt(env.MAX_DAILY_FREE_CREDITS ?? '3', 10);
+    const rawRewards = parseInt(env.MAX_DAILY_REWARDS ?? '2', 10);
+    const rawPerAd = parseInt(env.REWARD_CREDITS_PER_AD ?? '3', 10);
+    const rawPro = parseInt(env.MONTHLY_PRO_CREDITS ?? '200', 10);
+    this.maxDailyFree = Number.isFinite(rawFree) ? Math.max(0, rawFree) : 3;
+    this.maxDailyRewards = Number.isFinite(rawRewards) ? Math.max(0, rawRewards) : 2;
+    this.creditsPerReward = Number.isFinite(rawPerAd) ? Math.max(0, rawPerAd) : 3;
+    this.monthlyProCredits = Number.isFinite(rawPro) ? Math.max(0, rawPro) : 200;
   }
 
   private getTodayUtcString(): string {
@@ -72,7 +74,6 @@ export class QuotaManager {
       pruneMemoryUsageStore(today);
       let entry = memoryUsageStore.get(installationId);
       if (!entry || entry.date !== today) {
-        // Auto reset on new day!
         entry = { date: today, freeUsed: 0, rewardedEarned: 0, rewardedAdsWatched: 0 };
         memoryUsageStore.set(installationId, entry);
       }
@@ -91,7 +92,6 @@ export class QuotaManager {
       };
     }
 
-    // Ensure installation record exists
     await this.db
       .prepare(
         `INSERT INTO installations (id, created_at, last_active_at)
@@ -101,7 +101,6 @@ export class QuotaManager {
       .bind(installationId, new Date().toISOString(), new Date().toISOString())
       .run();
 
-    // Check pro status
     const inst = await this.db
       .prepare('SELECT is_pro, pro_expires_at FROM installations WHERE id = ?')
       .bind(installationId)
@@ -111,23 +110,47 @@ export class QuotaManager {
     let proCycleResetsAt: string | null = null;
     let proRemaining = 0;
 
-    if (isPro && inst?.pro_expires_at) {
-      if (new Date(inst.pro_expires_at) < new Date()) {
+    if (isPro && inst?.pro_expires_at && new Date(inst.pro_expires_at) < new Date()) {
+      // Expire timed rows but preserve active Lifetime passes if one exists
+      await this.db
+        .prepare(
+          `UPDATE subscription_entitlements
+           SET status = 'EXPIRED'
+           WHERE installation_id = ?
+             AND status IN ('ACTIVE', 'IN_GRACE_PERIOD', 'CANCELED')
+             AND expires_at IS NOT NULL
+             AND product_id NOT IN ('vibekit_pro_lifetime', 'vibekit_lifetime')`
+        )
+        .bind(installationId)
+        .run();
+
+      const activeLifetime = await this.db
+        .prepare(
+          `SELECT id FROM subscription_entitlements
+           WHERE installation_id = ?
+             AND (product_id IN ('vibekit_pro_lifetime', 'vibekit_lifetime') OR expires_at IS NULL)
+             AND status NOT IN ('REVOKED', 'EXPIRED', 'ON_HOLD', 'PAUSED')
+           LIMIT 1`
+        )
+        .bind(installationId)
+        .first<{ id: string }>();
+
+      if (activeLifetime) {
+        await this.db
+          .prepare('UPDATE installations SET is_pro = 1, pro_expires_at = NULL WHERE id = ?')
+          .bind(installationId)
+          .run();
+      } else {
         isPro = false;
         await this.db
           .prepare('UPDATE installations SET is_pro = 0 WHERE id = ?')
           .bind(installationId)
           .run();
-        await this.db
-          .prepare("UPDATE subscription_entitlements SET status = 'EXPIRED' WHERE installation_id = ? AND status = 'ACTIVE'")
-          .bind(installationId)
-          .run();
-      } else {
-        proCycleResetsAt = inst.pro_expires_at;
       }
+    } else if (isPro && inst?.pro_expires_at) {
+      proCycleResetsAt = inst.pro_expires_at;
     }
 
-    // Handle Pro Cycle Usage atomically based on subscription cycle window
     if (isPro) {
       const cycle = await this.ensureActiveProCycle(installationId, inst?.pro_expires_at ?? null);
       if (cycle) {
@@ -136,7 +159,6 @@ export class QuotaManager {
       }
     }
 
-    // Fetch daily usage for today
     const usage = await this.db
       .prepare(
         'SELECT free_credits_used, rewarded_ads_watched FROM daily_usage WHERE installation_id = ? AND usage_date = ?'
@@ -147,7 +169,6 @@ export class QuotaManager {
         rewarded_ads_watched: number;
       }>();
 
-    // Fetch persistent rewarded credits balance
     const rewardedRow = await this.db
       .prepare(
         'SELECT COALESCE(SUM(rewarded_credits_earned), 0) AS remaining_rewarded FROM daily_usage WHERE installation_id = ?'
@@ -160,6 +181,7 @@ export class QuotaManager {
     const rewardedRemaining = Math.max(0, rewardedRow?.remaining_rewarded ?? 0);
 
     const freeRemaining = Math.max(0, this.maxDailyFree - freeUsed);
+    // Keep free+rewarded total populated accurately; Pro users with exhausted cycle also retain rewarded credits
     const totalRemaining = freeRemaining + rewardedRemaining;
 
     return {
@@ -187,7 +209,7 @@ export class QuotaManager {
         `SELECT id, credits_used, cycle_start, cycle_end
          FROM pro_cycle_usage
          WHERE installation_id = ? AND cycle_end > ?
-         ORDER BY cycle_end DESC LIMIT 1`
+         ORDER BY cycle_end ASC LIMIT 1`
       )
       .bind(installationId, nowIso)
       .first<{ id: string; credits_used: number; cycle_start: string; cycle_end: string }>();
@@ -200,17 +222,30 @@ export class QuotaManager {
       }
       const cycleStart = nowIso;
       const cycleEnd = (entitlementEnd && entitlementEnd < monthEnd ? entitlementEnd : monthEnd).toISOString();
-      const cycleId = `pcu_${installationId}_${Date.now()}`;
+      // Deterministic minute-bucket ID + ON CONFLICT DO NOTHING eliminates concurrent PK 500s
+      const minuteBucket = Math.floor(Date.now() / 60000);
+      const cycleId = `pcu_${installationId}_${minuteBucket}`;
 
       await this.db
         .prepare(
           `INSERT INTO pro_cycle_usage (id, installation_id, cycle_start, cycle_end, credits_used, updated_at)
-           VALUES (?, ?, ?, ?, 0, ?)`
+           VALUES (?, ?, ?, ?, 0, ?)
+           ON CONFLICT(id) DO NOTHING`
         )
         .bind(cycleId, installationId, cycleStart, cycleEnd, nowIso)
         .run();
 
-      cycle = { id: cycleId, credits_used: 0, cycle_start: cycleStart, cycle_end: cycleEnd };
+      cycle =
+        (await this.db
+          .prepare(
+            `SELECT id, credits_used, cycle_start, cycle_end
+             FROM pro_cycle_usage
+             WHERE installation_id = ? AND cycle_end > ?
+             ORDER BY cycle_end ASC LIMIT 1`
+          )
+          .bind(installationId, nowIso)
+          .first<{ id: string; credits_used: number; cycle_start: string; cycle_end: string }>()) ??
+        { id: cycleId, credits_used: 0, cycle_start: cycleStart, cycle_end: cycleEnd };
     }
 
     return cycle;
@@ -219,7 +254,7 @@ export class QuotaManager {
   async hasAvailableCredits(installationId: string): Promise<boolean> {
     const quota = await this.getQuotaStatus(installationId);
     if (quota.is_pro) {
-      return quota.pro_credits_remaining > 0;
+      return quota.pro_credits_remaining > 0 || quota.rewarded_credits_remaining > 0;
     }
     return quota.total_credits_remaining > 0;
   }
@@ -228,11 +263,18 @@ export class QuotaManager {
     return (await this.reserveCredit(installationId)) !== null;
   }
 
-  /**
-   * Atomically reserves 1 credit before expensive AI generation so concurrent requests
-   * cannot over-consume upstream LLM tokens beyond the user's remaining balance.
-   */
   async reserveCredit(installationId: string): Promise<CreditBucket | null> {
+    const reserved = await this.reserveCreditWithDate(installationId);
+    return reserved ? reserved.bucket : null;
+  }
+
+  /**
+   * Atomically reserves 1 credit before expensive AI generation and records the UTC date
+   * reserved so cross-midnight failures refund accurately to the debited day.
+   */
+  async reserveCreditWithDate(
+    installationId: string
+  ): Promise<{ bucket: CreditBucket; usageDate: string } | null> {
     const today = this.getTodayUtcString();
     const nowIso = new Date().toISOString();
 
@@ -245,13 +287,13 @@ export class QuotaManager {
       }
       if (entry.freeUsed < this.maxDailyFree) {
         entry.freeUsed += 1;
-        return 'free';
+        return { bucket: 'free', usageDate: today };
       }
       if (entry.rewardedEarned > 0) {
         entry.rewardedEarned -= 1;
-        return 'rewarded';
+        return { bucket: 'rewarded', usageDate: today };
       }
-      return null; // Daily quota exhausted!
+      return null;
     }
 
     // 1. Check if user is Pro
@@ -264,67 +306,35 @@ export class QuotaManager {
 
     if (isPro) {
       const cycle = await this.ensureActiveProCycle(installationId, inst?.pro_expires_at ?? null);
-      if (!cycle) return null;
-      // Atomic increment targeting only the active Pro cycle row
-      const proResult = await this.db
-        .prepare(
-          `UPDATE pro_cycle_usage
-           SET credits_used = credits_used + 1, updated_at = ?
-           WHERE id = (
-             SELECT id FROM pro_cycle_usage
-             WHERE installation_id = ? AND cycle_start <= ? AND cycle_end > ? AND credits_used < ?
-             ORDER BY cycle_end DESC LIMIT 1
-           )`
-        )
-        .bind(nowIso, installationId, nowIso, nowIso, this.monthlyProCredits)
-        .run();
-
-      if ((proResult.meta?.changes ?? 0) > 0) {
-        // Track daily record for reporting
-        await this.db
+      if (cycle && this.monthlyProCredits > 0) {
+        const proNowIso = new Date().toISOString();
+        const proResult = await this.db
           .prepare(
-            `INSERT INTO daily_usage (id, installation_id, usage_date, pro_credits_used, updated_at)
-             VALUES (?, ?, ?, 1, ?)
-             ON CONFLICT(installation_id, usage_date) DO UPDATE SET
-               pro_credits_used = pro_credits_used + 1,
-               updated_at = excluded.updated_at`
+            `UPDATE pro_cycle_usage
+             SET credits_used = credits_used + 1, updated_at = ?
+             WHERE id = ? AND credits_used < ?`
           )
-          .bind(`${installationId}_${today}`, installationId, today, nowIso)
+          .bind(proNowIso, cycle.id, this.monthlyProCredits)
           .run();
-        return 'pro';
+
+        if ((proResult.meta?.changes ?? 0) > 0) {
+          await this.db
+            .prepare(
+              `INSERT INTO daily_usage (id, installation_id, usage_date, pro_credits_used, updated_at)
+               VALUES (?, ?, ?, 1, ?)
+               ON CONFLICT(installation_id, usage_date) DO UPDATE SET
+                 pro_credits_used = pro_credits_used + 1,
+                 updated_at = excluded.updated_at`
+            )
+            .bind(`${installationId}_${today}`, installationId, today, proNowIso)
+            .run();
+          return { bucket: 'pro', usageDate: today };
+        }
       }
-      return null; // Pro quota exhausted
-    }
-
-    // 2. Free user: try atomic deduction from free credits first
-    const freeUpdate = await this.db
-      .prepare(
-        `UPDATE daily_usage
-         SET free_credits_used = free_credits_used + 1, updated_at = ?
-         WHERE installation_id = ? AND usage_date = ? AND free_credits_used < ?`
-      )
-      .bind(nowIso, installationId, today, this.maxDailyFree)
-      .run();
-
-    if ((freeUpdate.meta?.changes ?? 0) > 0) {
-      return 'free';
-    }
-
-    // If no row updated, attempt insert if this is the first credit of the day
-    try {
-      const insertResult = await this.db
-        .prepare(
-          `INSERT INTO daily_usage (id, installation_id, usage_date, free_credits_used, updated_at)
-           VALUES (?, ?, ?, 1, ?)`
-        )
-        .bind(`${installationId}_${today}`, installationId, today, nowIso)
-        .run();
-      if ((insertResult.meta?.changes ?? 0) > 0) {
-        return 'free';
-      }
-    } catch {
-      // Row was inserted concurrently; try atomic update once more with guard
-      const retryUpdate = await this.db
+      // Pro monthly allowance exhausted: fall through to purchased credit packs / rewarded credits
+    } else if (this.maxDailyFree > 0) {
+      // 2. Free user: try atomic deduction from free credits first
+      const freeUpdate = await this.db
         .prepare(
           `UPDATE daily_usage
            SET free_credits_used = free_credits_used + 1, updated_at = ?
@@ -332,20 +342,47 @@ export class QuotaManager {
         )
         .bind(nowIso, installationId, today, this.maxDailyFree)
         .run();
-      if ((retryUpdate.meta?.changes ?? 0) > 0) {
-        return 'free';
+
+      if ((freeUpdate.meta?.changes ?? 0) > 0) {
+        return { bucket: 'free', usageDate: today };
+      }
+
+      // First credit of the day attempt
+      try {
+        const insertResult = await this.db
+          .prepare(
+            `INSERT INTO daily_usage (id, installation_id, usage_date, free_credits_used, updated_at)
+             VALUES (?, ?, ?, 1, ?)`
+          )
+          .bind(`${installationId}_${today}`, installationId, today, nowIso)
+          .run();
+        if ((insertResult.meta?.changes ?? 0) > 0) {
+          return { bucket: 'free', usageDate: today };
+        }
+      } catch {
+        const retryUpdate = await this.db
+          .prepare(
+            `UPDATE daily_usage
+             SET free_credits_used = free_credits_used + 1, updated_at = ?
+             WHERE installation_id = ? AND usage_date = ? AND free_credits_used < ?`
+          )
+          .bind(nowIso, installationId, today, this.maxDailyFree)
+          .run();
+        if ((retryUpdate.meta?.changes ?? 0) > 0) {
+          return { bucket: 'free', usageDate: today };
+        }
       }
     }
 
-    // 3. Free credits exhausted; attempt atomic deduction from rewarded credits
-    const candidateRow = await this.db
+    // 3. Deduct from persistent rewarded / credit-pack / referral credits across dates
+    const candidateRows = await this.db
       .prepare(
-        'SELECT usage_date FROM daily_usage WHERE installation_id = ? AND rewarded_credits_earned > 0 ORDER BY usage_date ASC LIMIT 1'
+        'SELECT usage_date FROM daily_usage WHERE installation_id = ? AND rewarded_credits_earned > 0 ORDER BY usage_date ASC LIMIT 10'
       )
       .bind(installationId)
-      .first<{ usage_date: string }>();
+      .all<{ usage_date: string }>();
 
-    if (candidateRow) {
+    for (const candidateRow of candidateRows.results ?? []) {
       const rewardedUpdate = await this.db
         .prepare(
           `UPDATE daily_usage
@@ -356,23 +393,23 @@ export class QuotaManager {
         .run();
 
       if ((rewardedUpdate.meta?.changes ?? 0) > 0) {
-        return 'rewarded';
+        return { bucket: 'rewarded', usageDate: candidateRow.usage_date };
       }
     }
 
-    return null; // All credits exhausted
+    return null;
   }
 
   /**
-   * Refunds a previously reserved credit when upstream AI generation fails or is blocked.
+   * Refunds a previously reserved credit to the exact UTC date debited when AI generation fails.
    */
-  async refundCredit(installationId: string, bucket: CreditBucket): Promise<void> {
-    const today = this.getTodayUtcString();
+  async refundCredit(installationId: string, bucket: CreditBucket, reservedUsageDate?: string): Promise<void> {
+    const targetDate = reservedUsageDate || this.getTodayUtcString();
     const nowIso = new Date().toISOString();
 
     if (!this.db) {
       const entry = memoryUsageStore.get(installationId);
-      if (!entry || entry.date !== today) return;
+      if (!entry || entry.date !== targetDate) return;
       if (bucket === 'free' && entry.freeUsed > 0) {
         entry.freeUsed -= 1;
       } else if (bucket === 'rewarded') {
@@ -390,7 +427,7 @@ export class QuotaManager {
              WHERE id = (
                SELECT id FROM pro_cycle_usage
                WHERE installation_id = ? AND cycle_start <= ? AND cycle_end > ?
-               ORDER BY cycle_end DESC LIMIT 1
+               ORDER BY cycle_end ASC LIMIT 1
              )`
           )
           .bind(nowIso, installationId, nowIso, nowIso)
@@ -401,7 +438,7 @@ export class QuotaManager {
              SET pro_credits_used = MAX(0, pro_credits_used - 1), updated_at = ?
              WHERE installation_id = ? AND usage_date = ?`
           )
-          .bind(nowIso, installationId, today)
+          .bind(nowIso, installationId, targetDate)
           .run();
       } else if (bucket === 'free') {
         await this.db
@@ -410,7 +447,7 @@ export class QuotaManager {
              SET free_credits_used = MAX(0, free_credits_used - 1), updated_at = ?
              WHERE installation_id = ? AND usage_date = ?`
           )
-          .bind(nowIso, installationId, today)
+          .bind(nowIso, installationId, targetDate)
           .run();
       } else if (bucket === 'rewarded') {
         await this.db
@@ -421,7 +458,7 @@ export class QuotaManager {
                rewarded_credits_earned = rewarded_credits_earned + 1,
                updated_at = excluded.updated_at`
           )
-          .bind(`${installationId}_${today}`, installationId, today, nowIso)
+          .bind(`${installationId}_${targetDate}`, installationId, targetDate, nowIso)
           .run();
       }
     } catch (err) {
@@ -456,14 +493,12 @@ export class QuotaManager {
       .run();
   }
 
-  // Generate and store an ad nonce to prevent replay attacks
   async createAdNonce(installationId: string): Promise<string> {
     const nonce = `nonce_${Date.now()}_${Math.random().toString(36).substring(2, 12)}`;
     const now = new Date();
-    const expiresAt = new Date(now.getTime() + 10 * 60 * 1000); // 10 minutes
+    const expiresAt = new Date(now.getTime() + 10 * 60 * 1000);
 
     if (this.db) {
-      // Ensure installation record exists to satisfy foreign key constraint
       await this.db
         .prepare(
           `INSERT INTO installations (id, created_at, last_active_at)
@@ -485,7 +520,7 @@ export class QuotaManager {
     return nonce;
   }
 
-  // Verified AdMob SSV Reward Granting (only called after cryptographic signature verification)
+  // Verified AdMob SSV Reward Granting (only persists transaction & consumes nonce when credit slot succeeds)
   async recordSsvReward(params: {
     installationId: string;
     transactionId: string;
@@ -494,6 +529,10 @@ export class QuotaManager {
     adNetwork?: string;
     nonce?: string;
   }): Promise<{ success: boolean; reason?: string }> {
+    if (this.maxDailyRewards <= 0) {
+      return { success: false, reason: 'DAILY_REWARD_LIMIT_REACHED' };
+    }
+
     if (!this.db) {
       const today = this.getTodayUtcString();
       pruneMemoryUsageStore(today);
@@ -514,23 +553,26 @@ export class QuotaManager {
     const today = this.getTodayUtcString();
     const nowIso = new Date().toISOString();
 
-    // 1. Check if transaction_id was already processed (Idempotency)
+    // 1. Check transaction_id or reward_id idempotency before touching nonces or daily caps
     const existingTx = await this.db
-      .prepare('SELECT transaction_id FROM admob_ssv_transactions WHERE transaction_id = ?')
-      .bind(transactionId)
+      .prepare(
+        `SELECT transaction_id FROM admob_ssv_transactions
+         WHERE transaction_id = ? OR (installation_id = ? AND ? IS NOT NULL AND reward_id = ?)`
+      )
+      .bind(transactionId, installationId, rewardId || null, rewardId || null)
       .first<{ transaction_id: string }>();
 
     if (existingTx) {
       return { success: false, reason: 'DUPLICATE_TRANSACTION' };
     }
 
-    // 2. Enforce maximum rewarded ads per UTC day server-side
+    // 2. Enforce cap early
     const quota = await this.getQuotaStatus(installationId);
     if (quota.rewarded_ads_watched_today >= this.maxDailyRewards) {
       return { success: false, reason: 'DAILY_REWARD_LIMIT_REACHED' };
     }
 
-    // 3. If a nonce was passed, verify and consume it atomically
+    // 3. Verify & consume nonce before granting
     if (nonce) {
       const consumeRes = await this.db
         .prepare(
@@ -546,26 +588,7 @@ export class QuotaManager {
       }
     }
 
-    // 4. Ensure installation record exists to satisfy foreign key constraint
-    await this.db
-      .prepare(
-        `INSERT INTO installations (id, created_at, last_active_at)
-         VALUES (?, ?, ?)
-         ON CONFLICT(id) DO UPDATE SET last_active_at = excluded.last_active_at`
-      )
-      .bind(installationId, nowIso, nowIso)
-      .run();
-
-    // 5. Record transaction in admob_ssv_transactions
-    await this.db
-      .prepare(
-        `INSERT INTO admob_ssv_transactions (transaction_id, installation_id, reward_id, key_id, verified_at, ad_network)
-         VALUES (?, ?, ?, ?, ?, ?)`
-      )
-      .bind(transactionId, installationId, rewardId || null, keyId, nowIso, adNetwork || 'admob')
-      .run();
-
-    // 6. Atomically increment daily_usage credits within daily reward cap
+    // 4. Atomically reserve daily ad reward slot BEFORE persisting SSV transaction
     const creditRes = await this.db
       .prepare(
         `INSERT INTO daily_usage (id, installation_id, usage_date, rewarded_credits_earned, rewarded_ads_watched, updated_at)
@@ -580,17 +603,46 @@ export class QuotaManager {
       .run();
 
     if ((creditRes.meta?.changes ?? 0) === 0) {
+      if (nonce) {
+        await this.db
+          .prepare('UPDATE ad_nonces SET used_at = NULL WHERE nonce = ? AND installation_id = ?')
+          .bind(nonce, installationId)
+          .run()
+          .catch(() => {});
+      }
       return { success: false, reason: 'DAILY_REWARD_LIMIT_REACHED' };
+    }
+
+    // 5. Persist SSV transaction; roll back daily reward increment if concurrent duplicate wins PK/unique constraint
+    try {
+      await this.db
+        .prepare(
+          `INSERT INTO admob_ssv_transactions (transaction_id, installation_id, reward_id, key_id, verified_at, ad_network)
+           VALUES (?, ?, ?, ?, ?, ?)`
+        )
+        .bind(transactionId, installationId, rewardId || null, keyId, nowIso, adNetwork || 'admob')
+        .run();
+    } catch {
+      await this.db
+        .prepare(
+          `UPDATE daily_usage
+           SET rewarded_credits_earned = MAX(0, rewarded_credits_earned - ?),
+               rewarded_ads_watched = MAX(0, rewarded_ads_watched - 1),
+               updated_at = ?
+           WHERE installation_id = ? AND usage_date = ?`
+        )
+        .bind(this.creditsPerReward, nowIso, installationId, today)
+        .run()
+        .catch(() => {});
+      return { success: false, reason: 'DUPLICATE_TRANSACTION' };
     }
 
     return { success: true };
   }
 
   /**
-   * Records a Google-verified entitlement. `expiresAt` must come from Google Play
-   * (null = lifetime / never expires). Idempotent: repeated restores neither extend
-   * the expiry nor reset the Pro credit cycle. A purchase token can back only one
-   * installation at a time; re-binding it removes Pro from the previous installation.
+   * Records a Google-verified entitlement while protecting active Lifetime passes
+   * from having their `pro_expires_at = NULL` overwritten by an older timed sub.
    */
   async activatePro(
     installationId: string,
@@ -609,16 +661,31 @@ export class QuotaManager {
       .bind(purchaseToken)
       .first<{ installation_id: string }>();
 
+    const existingLifetime = await this.db
+      .prepare(
+        `SELECT id FROM subscription_entitlements
+         WHERE installation_id = ?
+           AND (product_id IN ('vibekit_pro_lifetime', 'vibekit_lifetime') OR expires_at IS NULL)
+           AND status NOT IN ('REVOKED', 'EXPIRED', 'ON_HOLD', 'PAUSED')
+         LIMIT 1`
+      )
+      .bind(installationId)
+      .first<{ id: string }>();
+
+    const isLifetimePurchase =
+      expiresAt === null || productId === 'vibekit_pro_lifetime' || productId === 'vibekit_lifetime';
+    const effectiveExpiresAt = existingLifetime || isLifetimePurchase ? null : expiresAt;
+
     await this.db
       .prepare(
         `INSERT INTO installations (id, created_at, last_active_at, is_pro, pro_expires_at)
          VALUES (?, ?, ?, 1, ?)
          ON CONFLICT(id) DO UPDATE SET
            is_pro = 1,
-           pro_expires_at = excluded.pro_expires_at,
+           pro_expires_at = CASE WHEN excluded.pro_expires_at IS NULL THEN NULL ELSE COALESCE(excluded.pro_expires_at, installations.pro_expires_at) END,
            last_active_at = excluded.last_active_at`
       )
-      .bind(installationId, nowIso, nowIso, expiresAt)
+      .bind(installationId, nowIso, nowIso, effectiveExpiresAt)
       .run();
 
     await this.db
@@ -651,13 +718,18 @@ export class QuotaManager {
           `UPDATE installations SET is_pro = 0
            WHERE id = ? AND NOT EXISTS (
              SELECT 1 FROM subscription_entitlements
-             WHERE installation_id = ? AND status IN ('ACTIVE', 'IN_GRACE_PERIOD', 'CANCELED')
+             WHERE installation_id = ?
+               AND status NOT IN ('REVOKED', 'EXPIRED', 'ON_HOLD', 'PAUSED')
+               AND (
+                 product_id IN ('vibekit_pro_lifetime', 'vibekit_lifetime')
+                 OR expires_at IS NULL
+                 OR expires_at > ?
+               )
            )`
         )
-        .bind(previous.installation_id, previous.installation_id)
+        .bind(previous.installation_id, previous.installation_id, nowIso)
         .run();
     }
-    // Pro credit cycles are created lazily (30-day windows) in getQuotaStatus.
   }
 
   async handleSubscriptionLifecycleUpdate(params: {
@@ -687,12 +759,28 @@ export class QuotaManager {
       .run();
 
     if (isPro) {
+      const activeLifetime = await this.db
+        .prepare(
+          `SELECT id FROM subscription_entitlements
+           WHERE installation_id = ?
+             AND (product_id IN ('vibekit_pro_lifetime', 'vibekit_lifetime') OR expires_at IS NULL)
+             AND status NOT IN ('REVOKED', 'EXPIRED', 'ON_HOLD', 'PAUSED')
+           LIMIT 1`
+        )
+        .bind(sub.installation_id)
+        .first<{ id: string }>();
+
+      const nextExpires = activeLifetime ? null : params.expiresAt || null;
       await this.db
-        .prepare('UPDATE installations SET is_pro = 1, pro_expires_at = COALESCE(?, pro_expires_at) WHERE id = ?')
-        .bind(params.expiresAt || null, sub.installation_id)
+        .prepare(
+          `UPDATE installations
+           SET is_pro = 1,
+               pro_expires_at = CASE WHEN ? IS NOT NULL THEN pro_expires_at ELSE COALESCE(?, pro_expires_at) END
+           WHERE id = ?`
+        )
+        .bind(activeLifetime ? 1 : null, nextExpires, sub.installation_id)
         .run();
     } else {
-      // Guard: Only revoke is_pro if the user has no other active entitlement or lifetime pass!
       await this.db
         .prepare(
           `UPDATE installations SET is_pro = 0
@@ -702,8 +790,7 @@ export class QuotaManager {
                AND purchase_token != ?
                AND status NOT IN ('REVOKED', 'EXPIRED', 'ON_HOLD', 'PAUSED')
                AND (
-                 status IN ('ACTIVE', 'IN_GRACE_PERIOD')
-                 OR product_id IN ('vibekit_pro_lifetime', 'vibekit_lifetime')
+                 product_id IN ('vibekit_pro_lifetime', 'vibekit_lifetime')
                  OR expires_at IS NULL
                  OR expires_at > ?
                )
@@ -712,8 +799,6 @@ export class QuotaManager {
         .bind(sub.installation_id, sub.installation_id, params.purchaseToken, new Date().toISOString())
         .run();
     }
-    // Renewals don't insert a cycle here: the current cycle ends at the old expiry and
-    // getQuotaStatus opens a fresh 30-day window lazily, so credits can't be reset on demand.
   }
 
   async deleteUserData(installationId: string): Promise<void> {
@@ -732,7 +817,9 @@ export class QuotaManager {
       this.db.prepare('DELETE FROM streaks WHERE installation_id = ?').bind(installationId),
       this.db.prepare('DELETE FROM xp_events WHERE installation_id = ?').bind(installationId),
       this.db.prepare('DELETE FROM milestone_claims WHERE installation_id = ?').bind(installationId),
-      this.db.prepare('DELETE FROM referrals WHERE referrer_installation_id = ? OR referred_installation_id = ?').bind(installationId, installationId),
+      this.db
+        .prepare('DELETE FROM referrals WHERE referrer_installation_id = ? OR referred_installation_id = ?')
+        .bind(installationId, installationId),
       this.db.prepare('DELETE FROM feedback_records WHERE installation_id = ?').bind(installationId),
       this.db.prepare('DELETE FROM installations WHERE id = ?').bind(installationId),
     ]);
@@ -741,12 +828,13 @@ export class QuotaManager {
   async reconcileEntitlementsNightly(): Promise<{ checked: number; expired: number }> {
     if (!this.db) return { checked: 0, expired: 0 };
 
-    const nowIso = new Date().toISOString();
     const rows = await this.db
       .prepare(
         `SELECT id, installation_id, product_id, purchase_token, status, expires_at
          FROM subscription_entitlements
-         WHERE status IN ('ACTIVE', 'IN_GRACE_PERIOD')`
+         WHERE status IN ('ACTIVE', 'IN_GRACE_PERIOD', 'CANCELED')
+           AND expires_at IS NOT NULL
+           AND product_id NOT IN ('vibekit_pro_lifetime', 'vibekit_lifetime')`
       )
       .all<{
         id: string;
@@ -765,7 +853,7 @@ export class QuotaManager {
         await this.handleSubscriptionLifecycleUpdate({
           purchaseToken: sub.purchase_token,
           status: 'EXPIRED',
-          expiresAt: nowIso,
+          expiresAt: sub.expires_at,
         });
         expiredCount++;
       }

@@ -87,6 +87,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       ref.read(quotaProvider.notifier).reset();
       ref.read(streakProvider.notifier).reset();
       await ref.read(languageProvider.notifier).setLanguage('English');
+      await ref.read(themeModeProvider.notifier).setTheme(ThemeMode.light);
       ref.read(historyRevisionProvider.notifier).state++;
 
       if (mounted) {

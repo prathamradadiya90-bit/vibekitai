@@ -19,6 +19,7 @@ const REPLIES: Record<Lang, Record<string, string[]>> = {
     Savage: ["I'd reply faster, but I was matching your energy.", "Did your keyboard run out of letters or just your conversational effort?", "I'm way too expensive to be left on delivered, but do your thing."],
     Unbothered: ["All good, hit me up whenever you're around.", "Zero worries, do your thing.", "Sounds like a plan, let me know."],
     Opener: ["Random question: are you team sweet breakfast or savoury breakfast?", "Your photo has major main-character energy, what's the backstory?", "Two truths and a lie: go first."],
+    Chill: ["no rush at all, whenever you're free works", "all good, keep it easy today", "cool with me, just ping whenever"],
   },
   Hinglish: {
     Funny: ['khana hai toh pakka aa raha hoon, warna soch ke batata hoon', 'mera bed mujhe jaane nahi de raha yaar', 'bas chappal pehen raha hoon, aa gaya samjho'],
@@ -33,6 +34,7 @@ const REPLIES: Record<Lang, Record<string, string[]>> = {
     Savage: ['energy match kar raha hoon, aur kuch nahi', 'text karne mein haath thak gaye the kya?', 'itna dry text toh desert mein bhi nahi milta'],
     Unbothered: ['chill scene hai, jab free ho bata dena', 'no worries yaar, apna kaam nipta le', 'sab badhiya, baad mein baat karte hain'],
     Opener: ['ek quick sawal: chai ya coffee? galat jawab pe block', 'ye wali photo ka backstory sunna padega boss', 'weekend pe adventure mode on ya lazy mode?'],
+    Chill: ['bilkul chill hai yaar, jab mann kare tab kar lena', 'aaram se scene set rakho, koi load nahi', 'theek hai boss, free hoke ping kar dena'],
   },
   Hindi: {
     Funny: ['खाना है तो पक्का आ रहा हूँ 😄', 'मेरा बिस्तर मुझे छोड़ नहीं रहा', 'बस चप्पल पहन रहा हूँ, आ गया समझो'],
@@ -47,6 +49,7 @@ const REPLIES: Record<Lang, Record<string, string[]>> = {
     Savage: ['जितनी देर में रिप्लाई आया, उतनी देर में एक युग बीत गया', 'एनर्जी मैच कर रहा हूँ बस', 'कीबोर्ड में शब्द ख़त्म हो गए थे क्या?'],
     Unbothered: ['कोई बात नहीं, जब फ़्री हो तब बताना।', 'सब ठीक है, अपना काम पूरा कर लो।', 'आराम से, कोई जल्दी नहीं है।'],
     Opener: ['एक ज़रूरी सवाल: वीकेंड पर घूमना पसंद है या घर पर आराम?', 'तुम्हारी इस फ़ोटो के पीछे की कहानी क्या है?', 'चाय या कॉफ़ी? सही जवाब देना ज़रूरी है!'],
+    Chill: ['सब आराम से चल रहा है, कोई जल्दी नहीं।', 'जब भी फ़्री हो बता देना, सब ठीक है।', 'एकदम शांत और सहज, अपनी रफ़्तार से चलो।'],
   },
   Gujarati: {
     Funny: ['જમવાનું હોય તો પાક્કું આવું છું 😄', 'મારો પલંગ મને જવા નથી દેતો', 'ચંપલ પહેરું છું, આવી ગયો સમજો'],
@@ -61,6 +64,7 @@ const REPLIES: Record<Lang, Record<string, string[]>> = {
     Savage: ['જેટલી વારમાં રિપ્લાય આપ્યો એટલી વારમાં તો નવો જિલ્લો બની જાય', 'એનર્જી મેચ કરું છું બસ', 'કીબોર્ડમાં અક્ષરો ખૂટી ગયા હતા કે શું?'],
     Unbothered: ['વાંધો નહીં, ફ્રી થાઓ ત્યારે જણાવજો.', 'બધું શાંતિથી પતાવી લો, કોઈ ઉતાવળ નથી.', 'બરાબર છે, સમય મળે ત્યારે વાત કરીએ.'],
     Opener: ['એક સવાલ: વીકેન્ડ પર ફરવું ગમે કે ઘરે આરામ?', 'આ ફોટો પાછળની મજેદાર સ્ટોરી શું છે?', 'ચા કે કોફી? સાચો જવાબ આપજો!'],
+    Chill: ['એકદમ શાંતિ છે, તમારી અનુકૂળતાએ કહેજો.', 'કોઈ ઉતાવળ નથી, આરામથી પતાવો.', 'બધું ફર્સ્ટક્લાસ છે, ફ્રી થાઓ ત્યારે વાત કરીએ.'],
   },
 };
 
@@ -85,7 +89,14 @@ export function mockReplies(p: { tone: string; language: string; count?: number 
       }
     }
   }
-  return list.slice(0, Math.max(1, Math.min(p.count ?? 3, list.length)));
+  const requested = Math.max(1, Math.min(p.count ?? 3, 5));
+  const out = [...list];
+  const extras = byTone.Friendly ?? [];
+  for (const fb of extras) {
+    if (out.length >= requested) break;
+    if (!out.includes(fb)) out.push(fb);
+  }
+  return out.slice(0, requested);
 }
 
 /** Pulls safe topic keywords (letters only) for hashtags — never echoes the raw sentence. */
@@ -324,6 +335,14 @@ export function mockVibeCheck(p: { text: string; mode: string; language: string 
         flags: '🚩 રેડ ફ્લેગ અને સિગ્નલ ચેક',
         dating: '💘 સ્મૂધ ડેટિંગ એનર્જી',
         work: '💼 સ્પષ્ટ અને પ્રોફેશનલ અંદાજ',
+        polish: '✨ નિખારેલો અને સ્માર્ટ અંદાજ',
+        decoder: '🕵️ સાચો ભાવાર્થ ડિકોડર',
+        excuse: '🛡️ સભ્ય અને સરળ બહાનું',
+        revival: '🎈 અટકેલી વાતની ફરી શરૂઆત',
+        apology: '🤝 દિલથી અને પરિપક્વ માફી',
+        overthinking: '🧘 શાંત અને સંતુલિત જવાબ',
+        story: '📸 સ્ટોરી પર મજેદાર રિએક્શન',
+        chemistry: '✨ વાઇબ અને કેમિસ્ટ્રી મેચ',
       },
       defaultTitle: '✨ સ્પષ્ટ અને કોન્ફિડન્ટ વાઇબ',
       verdicts: {
@@ -331,6 +350,14 @@ export function mockVibeCheck(p: { text: string; mode: string; language: string 
         flags: 'વાતચીતમાં મિશ્ર સંકેત દેખાય છે; તમારી સીમાઓ સ્પષ્ટ રાખીને શાંતિથી જવાબ આપવો યોગ્ય રહેશે.',
         dating: 'અંદાજ પ્લેફુલ અને સહજ છે, બસ થોડો વધારે આત્મવિશ્વાસ ઉમેરશો તો રિસ્પોન્સ જલ્દી આવશે.',
         work: 'સંદેશ સીધો અને વ્યવસાયિક છે; ટૂંકા મુદ્દા રાખવાથી સામેની વ્યક્તિ તરત નિર્ણય લઈ શકશે.',
+        polish: 'તમારી વાત સારી છે; વાક્ય થોડું ટૂંકું અને સ્પષ્ટ રાખવાથી અસર બેવડાઈ જશે.',
+        decoder: 'સામેની વ્યક્તિ વ્યસ્ત હોઈ શકે છે અથવા વધારે ઉત્સાહ બતાવવાનું ટાળી રહી છે — શાંત રહો.',
+        excuse: 'તમે પોતાની સીમા વિનમ્રતાથી જાળવી છે, સામેવાળાને ખરાબ નહીં લાગે.',
+        revival: 'દબાણ વગર ફરી વાત શરૂ કરવાનો આ સરળ અને રસપ્રદ અંદાજ છે.',
+        apology: 'જવાબદારી સ્વીકારીને સાફ દિલથી કરેલી વાત વિશ્વાસ પાછો લાવવામાં મદદ કરશે.',
+        overthinking: 'લાંબું વિચારવાને બદલે સરળ અને આત્મવિશ્વાસભર્યો જવાબ તમારી શાંતિ જાળવશે.',
+        story: 'સ્ટોરી પર સહજ અને કુતૂહલ જગાડતો પ્રતિભાવ વાત આગળ વધારશે.',
+        chemistry: 'બંને તરફથી સારો રસ દેખાય છે — મજાકિયા અને સરળ ટોન જાળવી રાખો.',
       },
       defaultVerdict: 'મેસેજનો ટોન ઠીક છે, પરંતુ થોડો વધુ કોન્ફિડન્ટ અને નેચરલ અંદાજ અપનાવશો તો રિસ્પોન્સ વધુ સારો આવશે.',
       tags: ['#સ્પષ્ટ', '#નેચરલ', '#કોન્ફિડન્ટ'],
@@ -358,6 +385,14 @@ export function mockVibeCheck(p: { text: string; mode: string; language: string 
         flags: '🚩 रेड फ्लैग और संकेत जांच',
         dating: '💘 सहज और आकर्षक अंदाज़',
         work: '💼 स्पष्ट और प्रोफेशनल संदेश',
+        polish: '✨ निखरा और प्रभावशाली अंदाज़',
+        decoder: '🕵️ छिपा अर्थ डिकोड',
+        excuse: '🛡️ विनम्र और सुरक्षित सीमा',
+        revival: '🎈 रुकी बातचीत की नई शुरुआत',
+        apology: '🤝 सच्ची और परिपक्व माफ़ी',
+        overthinking: '🧘 शांत और संतुलित ऊर्जा',
+        story: '📸 स्टोरी पर सहज प्रतिक्रिया',
+        chemistry: '✨ शानदार बातचीत की केमिस्ट्री',
       },
       defaultTitle: '✨ स्पष्ट और आत्मविश्वासी वाइब',
       verdicts: {
@@ -365,6 +400,14 @@ export function mockVibeCheck(p: { text: string; mode: string; language: string 
         flags: 'संदेश में मिले-जुले संकेत हैं; अपनी सीमाएं स्पष्ट रखते हुए शांत और संतुलित जवाब दें।',
         dating: 'अंदाज़ मज़ेदार और सहज है; हल्का आत्मविश्वास जोड़ने से सामने से अच्छा रिस्पॉन्स आएगा।',
         work: 'संदेश साफ़ और पेशेवर है; संक्षिप्त बिंदु रखने से निर्णय जल्दी हो पाएगा।',
+        polish: 'आपका मूल भाव बढ़िया है; बस अनावश्यक झिझक हटाने से संदेश अधिक असरदार लगेगा।',
+        decoder: 'संभव है वे काम में व्यस्त हों या ज़्यादा उत्सुक न दिखना चाहते हों — अपनी सहजता बनाए रखें।',
+        excuse: 'बिना अपराधबोध या रिश्ते बिगाड़े साफ़ और विनम्र सीमा तय करने का अच्छा तरीका है।',
+        revival: 'बिना शिकायत किए हल्की जिज्ञासा के साथ बातचीत दोबारा शुरू करने का बढ़िया मौका है।',
+        apology: 'बिना बहाने बनाए ईमानदारी से जिम्मेदारी लेना भरोसा फिर से मज़बूत करेगा।',
+        overthinking: 'ज़्यादा सोचने की जगह संक्षिप्त और शांत जवाब आपकी आत्म-गरिमा बनाए रखेगा।',
+        story: 'हल्का और दिलचस्प रिएक्शन सामने वाले को जवाब देने का आसान बहाना देगा।',
+        chemistry: 'दोनों तरफ़ से ऊर्जा मेल खा रही है — इसी हल्की मस्ती के साथ आगे बढ़ें।',
       },
       defaultVerdict: 'मैसेज का भाव सही है, लेकिन थोड़ा और स्पष्ट और आत्मविश्वास भरा अंदाज़ असर को कई गुना बढ़ा देगा।',
       tags: ['#स्पष्ट', '#सहज', '#आत्मविश्वास'],
@@ -392,6 +435,14 @@ export function mockVibeCheck(p: { text: string; mode: string; language: string 
         flags: '🚩 Signal & Red Flag Check',
         dating: '💘 Smooth Dating Energy',
         work: '💼 Crisp & Professional',
+        polish: '✨ Sharp & Natural Polish',
+        decoder: '🕵️ Subtext Decoded',
+        excuse: '🛡️ Clean & Polite Exit',
+        revival: '🎈 Smooth Convo Revival',
+        apology: '🤝 Sincere Accountability',
+        overthinking: '🧘 Calm & Grounded',
+        story: '📸 Effortless Story Slide',
+        chemistry: '✨ High Banter Chemistry',
       },
       defaultTitle: '✨ Clear & Confident Vibe',
       verdicts: {
@@ -399,6 +450,14 @@ export function mockVibeCheck(p: { text: string; mode: string; language: string 
         flags: 'Thode mixed signals lag rahe hain; apni boundaries clear rakh kar calm reply do.',
         dating: 'Playful aur low-pressure vibe hai, bas thoda confident hook add karoge toh reply pakka hai.',
         work: 'Message clear aur respectful hai; short bullets rakhne se fast alignment hoga.',
+        polish: 'Core intent strong hai, bas thoda extra hesitation trim karoge toh crisp lagega.',
+        decoder: 'Samne wala busy ho sakta hai ya eager nahi dikhna chahta — chill raho.',
+        excuse: 'Polite boundary set ki hai bina guilt ke, bilkul smooth exit hai.',
+        revival: 'Zero awkwardness ke saath convo restart karne ka chill tareeka hai.',
+        apology: 'Bina excuses diye accountability lene se trust jaldi rebuild hota hai.',
+        overthinking: 'Zyada sochna band karo aur short confident line bhejo.',
+        story: 'Low-pressure aur curious story reply easy conversation start kar dega.',
+        chemistry: 'Dono side se energy match ho rahi hai, fun banter continue rakho.',
       },
       defaultVerdict: 'Message ka tone sahi hai, bas thoda aur relaxed aur confident rakhoge toh reply ka chance double ho jayega.',
       tags: ['#ClearVibe', '#LowPressure', '#Natural'],

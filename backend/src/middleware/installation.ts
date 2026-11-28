@@ -2,11 +2,11 @@ import { MiddlewareHandler } from 'hono';
 import { AppHonoEnv, InstallationRecord } from '../types';
 import { InstallationsRepository } from '../db/installations.repo';
 import { BansRepository } from '../db/bans.repo';
-import { AccountBannedError } from '../errors/app_error';
+import { AccountBannedError, AuthError } from '../errors/app_error';
+import { verifySessionToken } from '../security/session_tokens';
 
 export const installationMiddleware = (): MiddlewareHandler<AppHonoEnv> => {
   return async (c, next) => {
-    // Exempt admin routes, health checks, and external billing/ad webhooks from mobile installation tracking
     if (
       c.req.path.startsWith('/v1/admin') ||
       c.req.path === '/v1/health' ||
@@ -25,11 +25,26 @@ export const installationMiddleware = (): MiddlewareHandler<AppHonoEnv> => {
       : '';
     const installationId = sanitizedId.length > 0 ? sanitizedId : 'anonymous_default';
     const requestId =
+      c.get('requestId') ||
       c.req.header('X-Request-Id')?.trim() ||
       `req_${Date.now()}_${Math.random().toString(36).substring(7)}`;
 
     c.header('X-Request-Id', requestId);
     c.set('requestId', requestId);
+
+    // If caller presents X-Session-Token, verify HMAC signature and installation binding
+    const sessionToken = c.req.header('X-Session-Token')?.trim();
+    if (sessionToken) {
+      const isDevOrTest = c.env?.ENVIRONMENT === 'development' || c.env?.ENVIRONMENT === 'test';
+      const secret =
+        c.env?.SESSION_SECRET ||
+        c.env?.ADMIN_SECRET ||
+        (isDevOrTest ? 'vibekit_default_session_secret_rotate_in_prod' : '');
+      const payload = await verifySessionToken(sessionToken, secret);
+      if (!payload || payload.sub !== installationId) {
+        throw new AuthError('Invalid or mismatched session token.');
+      }
+    }
 
     // Fast cached ban verification (exempt privacy data erasure)
     if (c.env?.DB && c.req.path !== '/v1/privacy/delete-data') {
@@ -41,6 +56,10 @@ export const installationMiddleware = (): MiddlewareHandler<AppHonoEnv> => {
         }
       } catch (err) {
         if (err instanceof AccountBannedError) throw err;
+        // Fail closed in production so transient DB errors don't bypass bans
+        if (c.env.ENVIRONMENT === 'production') {
+          throw err;
+        }
       }
     }
 

@@ -17,7 +17,7 @@ enum SubscriptionState {
 
 class BillingService extends ChangeNotifier {
   late final InAppPurchase? _iap;
-  final ApiClient _apiClient;
+  ApiClient _apiClient;
   StreamSubscription<List<PurchaseDetails>>? _subscription;
   List<ProductDetails> _products = [];
   bool _isAvailable = false;
@@ -27,6 +27,10 @@ class BillingService extends ChangeNotifier {
   Function(SubscriptionState state)? onSubscriptionStateChanged;
   Function(String message)? onBillingMessage;
   VoidCallback? onCreditsGranted;
+
+  void updateApiClient(ApiClient client) {
+    _apiClient = client;
+  }
 
   /// Mirrors the server's `feature_flags.credit_packs`; packs are hidden and blocked when off,
   /// so users can't pay for something the backend would refuse to credit.
@@ -166,6 +170,9 @@ class BillingService extends ChangeNotifier {
         _subscriptionState = SubscriptionState.error;
         notifyListeners();
         onSubscriptionStateChanged?.call(SubscriptionState.error);
+        onBillingMessage?.call(
+          purchase.error?.message ?? 'Billing error occurred. No charges were completed.',
+        );
         if (purchase.pendingCompletePurchase && _iap != null) {
           await _iap.completePurchase(purchase);
         }
@@ -211,6 +218,13 @@ class BillingService extends ChangeNotifier {
       return true;
     } catch (e) {
       debugPrint('Backend purchase verification failed: $e');
+      if (e is ApiException && e.statusCode == 402) {
+        _subscriptionState = SubscriptionState.inactive;
+        notifyListeners();
+        onSubscriptionStateChanged?.call(SubscriptionState.inactive);
+        onProStatusChanged?.call(false);
+        onBillingMessage?.call('Subscription is canceled or expired in Google Play.');
+      }
       return _isPermanentRejection(e);
     }
   }

@@ -133,8 +133,28 @@ GoRouter createRouter({required bool initialOnboardingDone}) {
       ),
     ],
     errorBuilder: (context, state) => Scaffold(
+      appBar: AppBar(title: const Text('Page Not Found')),
       body: Center(
-        child: Text('Page not found: ${state.uri}'),
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.explore_off_rounded, size: 48),
+              const SizedBox(height: 12),
+              Text(
+                'Route not found: ${state.uri.path}',
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 16),
+              ElevatedButton.icon(
+                onPressed: () => context.go('/home'),
+                icon: const Icon(Icons.home_rounded, size: 18),
+                label: const Text('Back to Home'),
+              ),
+            ],
+          ),
+        ),
       ),
     ),
   );

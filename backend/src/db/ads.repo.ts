@@ -9,7 +9,6 @@ export class AdsRepository {
   ): Promise<boolean> {
     if (!transactionId && !rewardId && !nonce) return false;
 
-    // 1. If nonce provided, check if it was marked used by the SSV callback
     if (nonce) {
       const consumedNonce = await this.db
         .prepare('SELECT nonce FROM ad_nonces WHERE nonce = ? AND installation_id = ? AND used_at IS NOT NULL')
@@ -18,7 +17,6 @@ export class AdsRepository {
       if (consumedNonce) return true;
     }
 
-    // 2. Check if transaction_id or reward_id is recorded in admob_ssv_transactions
     if (transactionId || rewardId) {
       const tx = await this.db
         .prepare(
@@ -69,21 +67,15 @@ export class AdsRepository {
 
   async validateAndConsumeNonce(nonce: string, installationId: string): Promise<boolean> {
     const nowIso = new Date().toISOString();
-    const existing = await this.db
+    const res = await this.db
       .prepare(
-        'SELECT nonce FROM ad_nonces WHERE nonce = ? AND installation_id = ? AND expires_at > ?'
+        `UPDATE ad_nonces
+         SET used_at = ?
+         WHERE nonce = ? AND installation_id = ? AND used_at IS NULL AND expires_at >= ?`
       )
-      .bind(nonce, installationId, nowIso)
-      .first();
-
-    if (!existing) return false;
-
-    // Immediately purge or consume to prevent replay
-    await this.db
-      .prepare('DELETE FROM ad_nonces WHERE nonce = ?')
-      .bind(nonce)
+      .bind(nowIso, nonce, installationId, nowIso)
       .run();
 
-    return true;
+    return (res.meta?.changes ?? 0) > 0;
   }
 }

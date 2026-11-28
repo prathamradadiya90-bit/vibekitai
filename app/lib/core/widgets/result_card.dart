@@ -76,7 +76,7 @@ class _ResultCardState extends State<ResultCard> {
     final cardBg = isDark ? AppColors.surfaceCardDark : AppColors.surfaceCardLight;
     final borderCol = isDark ? AppColors.borderDark : AppColors.borderLight;
     final textCol = isDark ? Colors.white : AppColors.textPrimaryLight;
-    final subtitleCol = isDark ? AppColors.primaryLight : AppColors.primary;
+    final subtitleCol = isDark ? AppColors.accent : AppColors.primary;
     final dividerCol = isDark ? AppColors.borderDark : AppColors.borderLight;
     final iconCol = isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight;
 

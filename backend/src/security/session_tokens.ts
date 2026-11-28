@@ -3,23 +3,40 @@
  * Pure Web Crypto API (supported natively across Cloudflare Workers isolates)
  */
 
-interface SessionPayload {
+export interface SessionPayload {
   sub: string; // installation_id
   dev: string; // device integrity hash
   iat: number;
   exp: number;
 }
 
-function base64UrlEncode(str: string): string {
-  return btoa(str).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+function bytesToBase64Url(bytes: Uint8Array): string {
+  let binary = '';
+  for (let i = 0; i < bytes.length; i++) {
+    binary += String.fromCharCode(bytes[i]!);
+  }
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 
-function base64UrlDecode(str: string): string {
+function utf8ToBase64Url(str: string): string {
+  return bytesToBase64Url(new TextEncoder().encode(str));
+}
+
+function base64UrlToBytes(str: string): Uint8Array {
   let base64 = str.replace(/-/g, '+').replace(/_/g, '/');
   while (base64.length % 4) {
     base64 += '=';
   }
-  return atob(base64);
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return bytes;
+}
+
+function base64UrlDecodeUtf8(str: string): string {
+  return new TextDecoder().decode(base64UrlToBytes(str));
 }
 
 async function getHmacKey(secret: string): Promise<CryptoKey> {
@@ -39,6 +56,9 @@ export async function mintSessionToken(
   secret: string = 'vibekit_default_session_secret_rotate_in_prod',
   ttlSeconds: number = 900 // 15 minutes
 ): Promise<string> {
+  if (!secret) {
+    throw new Error('Session signing secret must be non-empty.');
+  }
   const iat = Math.floor(Date.now() / 1000);
   const exp = iat + ttlSeconds;
 
@@ -50,24 +70,23 @@ export async function mintSessionToken(
     exp,
   };
 
-  const encodedHeader = base64UrlEncode(JSON.stringify(header));
-  const encodedPayload = base64UrlEncode(JSON.stringify(payload));
+  const encodedHeader = utf8ToBase64Url(JSON.stringify(header));
+  const encodedPayload = utf8ToBase64Url(JSON.stringify(payload));
   const message = `${encodedHeader}.${encodedPayload}`;
 
   const key = await getHmacKey(secret);
-  const enc = new TextEncoder();
-  const signatureBuffer = await crypto.subtle.sign('HMAC', key, enc.encode(message));
-  const signatureBytes = Array.from(new Uint8Array(signatureBuffer));
-  const signature = base64UrlEncode(String.fromCharCode(...signatureBytes));
+  const signatureBuffer = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(message));
+  const signature = bytesToBase64Url(new Uint8Array(signatureBuffer));
 
   return `${message}.${signature}`;
 }
 
 export async function verifySessionToken(
   token: string,
-  secret: string = 'vibekit_default_session_secret_rotate_in_prod'
+  secret: string
 ): Promise<SessionPayload | null> {
   try {
+    if (!secret) return null;
     const parts = token.split('.');
     if (parts.length !== 3) return null;
 
@@ -76,28 +95,25 @@ export async function verifySessionToken(
 
     const message = `${encodedHeader}.${encodedPayload}`;
     const key = await getHmacKey(secret);
+    const sigBytes = base64UrlToBytes(signature);
 
-    // Decode signature
-    const sigBinary = base64UrlDecode(signature);
-    const sigBytes = new Uint8Array(sigBinary.length);
-    for (let i = 0; i < sigBinary.length; i++) {
-      sigBytes[i] = sigBinary.charCodeAt(i);
-    }
-
-    const enc = new TextEncoder();
-    const isValid = await crypto.subtle.verify('HMAC', key, sigBytes, enc.encode(message));
+    const isValid = await crypto.subtle.verify('HMAC', key, sigBytes, new TextEncoder().encode(message));
     if (!isValid) return null;
 
-    const payload = JSON.parse(base64UrlDecode(encodedPayload)) as SessionPayload;
+    const payload = JSON.parse(base64UrlDecodeUtf8(encodedPayload)) as SessionPayload;
     const now = Math.floor(Date.now() / 1000);
     if (
       typeof payload?.sub !== 'string' ||
       payload.sub.length === 0 ||
+      typeof payload?.dev !== 'string' ||
+      typeof payload?.iat !== 'number' ||
+      !Number.isFinite(payload.iat) ||
+      payload.iat > now + 60 ||
       typeof payload?.exp !== 'number' ||
       !Number.isFinite(payload.exp) ||
       payload.exp < now
     ) {
-      return null; // Malformed or expired
+      return null;
     }
 
     return payload;

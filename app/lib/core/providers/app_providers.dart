@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../config/app_config.dart';
@@ -25,7 +24,9 @@ final localDatabaseProvider = Provider<LocalDatabase>((ref) {
 
 final apiClientProvider = Provider<ApiClient>((ref) {
   final prefs = ref.watch(preferencesServiceProvider);
-  return ApiClient(prefs: prefs, baseUrl: prefs.getCustomApiUrl());
+  final client = ApiClient(prefs: prefs, baseUrl: prefs.getCustomApiUrl());
+  ref.onDispose(client.close);
+  return client;
 });
 
 final adMobServiceProvider = Provider<AdMobService>((ref) {
@@ -33,8 +34,11 @@ final adMobServiceProvider = Provider<AdMobService>((ref) {
 });
 
 final billingServiceProvider = ChangeNotifierProvider<BillingService>((ref) {
-  final apiClient = ref.watch(apiClientProvider);
-  return BillingService(apiClient);
+  final service = BillingService(ref.read(apiClientProvider));
+  ref.listen<ApiClient>(apiClientProvider, (_, next) {
+    service.updateApiClient(next);
+  });
+  return service;
 });
 
 final reviewServiceProvider = Provider<ReviewService>((ref) {
@@ -68,7 +72,8 @@ class QuotaNotifier extends StateNotifier<QuotaModel> {
       freeCreditsRemaining: cachedFree,
       rewardedCreditsRemaining: cachedRewarded,
       isPro: _prefs.getCachedIsPro(),
-      rewardedAdsWatchedToday: didReset ? 0 : state.rewardedAdsWatchedToday,
+      proCreditsRemaining: _prefs.getCachedProCredits(),
+      rewardedAdsWatchedToday: didReset ? 0 : _prefs.getCachedRewardedAdsWatchedToday(),
     );
     refresh();
   }
@@ -77,6 +82,7 @@ class QuotaNotifier extends StateNotifier<QuotaModel> {
     try {
       if (_prefs.checkAndPerformDailyLocalReset()) {
         final rewarded = _prefs.getCachedRewardedCredits();
+        if (!mounted) return;
         state = state.copyWith(
           totalCreditsRemaining: AppConfig.defaultDailyCredits + rewarded,
           freeCreditsRemaining: AppConfig.defaultDailyCredits,
@@ -85,46 +91,74 @@ class QuotaNotifier extends StateNotifier<QuotaModel> {
         );
       }
       final quota = await _apiClient.getUsage();
+      if (!mounted) return;
       state = quota;
       await _prefs.setCachedCredits(quota.totalCreditsRemaining);
       await _prefs.setCachedRewardedCredits(quota.rewardedCreditsRemaining);
       await _prefs.setCachedIsPro(quota.isPro);
+      await _prefs.setCachedProCredits(quota.proCreditsRemaining);
+      await _prefs.setCachedRewardedAdsWatchedToday(quota.rewardedAdsWatchedToday);
     } catch (_) {
       // Retain cached state on network failure
     }
   }
 
   void syncCredits(int remaining) {
+    if (!mounted) return;
+    final clamped = remaining.clamp(0, 9999);
     if (state.isPro) {
-      state = state.copyWith(proCreditsRemaining: remaining);
+      if (state.proCreditsRemaining > 0) {
+        state = state.copyWith(proCreditsRemaining: clamped);
+        _prefs.setCachedProCredits(clamped);
+      } else if (state.rewardedCreditsRemaining > 0) {
+        final newRewarded = clamped.clamp(0, state.rewardedCreditsRemaining);
+        state = state.copyWith(
+          rewardedCreditsRemaining: newRewarded,
+          totalCreditsRemaining: clamped,
+        );
+        _prefs.setCachedCredits(clamped);
+        _prefs.setCachedRewardedCredits(newRewarded);
+      }
     } else {
-      // Ensure consumption is reflected even if backend is stateless
-      final newTotal = remaining < state.totalCreditsRemaining
-          ? remaining
-          : (state.totalCreditsRemaining - 1).clamp(0, 999);
-      final free = newTotal.clamp(0, state.freeCreditsRemaining > 0 ? state.freeCreditsRemaining - 1 : 0);
-      final rewarded = (newTotal - free).clamp(0, 999);
+      final delta = state.totalCreditsRemaining - clamped;
+      final newFree = delta > 0
+          ? (state.freeCreditsRemaining - delta).clamp(0, state.freeCreditsRemaining)
+          : state.freeCreditsRemaining.clamp(0, clamped);
+      final newRewarded = (clamped - newFree).clamp(0, 9999);
       state = state.copyWith(
-        totalCreditsRemaining: newTotal,
-        freeCreditsRemaining: free,
-        rewardedCreditsRemaining: rewarded,
+        totalCreditsRemaining: clamped,
+        freeCreditsRemaining: newFree,
+        rewardedCreditsRemaining: newRewarded,
       );
-      _prefs.setCachedCredits(newTotal);
-      _prefs.setCachedRewardedCredits(rewarded);
+      _prefs.setCachedCredits(clamped);
+      _prefs.setCachedRewardedCredits(newRewarded);
     }
   }
 
   void consumeOneCredit() {
+    if (!mounted) return;
     if (state.isPro) {
-      final remaining = (state.proCreditsRemaining - 1).clamp(0, 999);
-      state = state.copyWith(proCreditsRemaining: remaining);
+      if (state.proCreditsRemaining > 0) {
+        final remaining = (state.proCreditsRemaining - 1).clamp(0, 9999);
+        state = state.copyWith(proCreditsRemaining: remaining);
+        _prefs.setCachedProCredits(remaining);
+      } else if (state.rewardedCreditsRemaining > 0) {
+        final newRewarded = (state.rewardedCreditsRemaining - 1).clamp(0, 9999);
+        final newTotal = (state.totalCreditsRemaining - 1).clamp(0, 9999);
+        state = state.copyWith(
+          rewardedCreditsRemaining: newRewarded,
+          totalCreditsRemaining: newTotal,
+        );
+        _prefs.setCachedCredits(newTotal);
+        _prefs.setCachedRewardedCredits(newRewarded);
+      }
       return;
     }
-    final remaining = (state.totalCreditsRemaining - 1).clamp(0, 999);
-    final free = (state.freeCreditsRemaining - 1).clamp(0, 999);
+    final remaining = (state.totalCreditsRemaining - 1).clamp(0, 9999);
+    final free = (state.freeCreditsRemaining - 1).clamp(0, 9999);
     final rewarded = state.freeCreditsRemaining > 0
         ? state.rewardedCreditsRemaining
-        : (state.rewardedCreditsRemaining - 1).clamp(0, 999);
+        : (state.rewardedCreditsRemaining - 1).clamp(0, 9999);
     state = state.copyWith(
       totalCreditsRemaining: remaining,
       freeCreditsRemaining: free,
@@ -135,13 +169,17 @@ class QuotaNotifier extends StateNotifier<QuotaModel> {
   }
 
   void reset() {
+    if (!mounted) return;
     state = QuotaModel.initial();
   }
 
   void updateLocally(QuotaModel updated) {
+    if (!mounted) return;
     state = updated;
     _prefs.setCachedCredits(updated.totalCreditsRemaining);
+    _prefs.setCachedRewardedCredits(updated.rewardedCreditsRemaining);
     _prefs.setCachedIsPro(updated.isPro);
+    _prefs.setCachedProCredits(updated.proCreditsRemaining);
   }
 
   Future<bool> grantRewardCredit({String? nonce, String? transactionId, String? rewardId}) async {
@@ -153,6 +191,7 @@ class QuotaNotifier extends StateNotifier<QuotaModel> {
       if (attempt > 0) {
         await Future.delayed(Duration(milliseconds: 1000 * attempt));
       }
+      if (!mounted) return false;
       try {
         final res = await _apiClient.verifyRewardedAd(
           rewardId: effectiveRewardId,
@@ -160,6 +199,7 @@ class QuotaNotifier extends StateNotifier<QuotaModel> {
           nonce: nonce,
           adNetwork: 'admob',
         );
+        if (!mounted) return false;
         if (res['verified'] == true) {
           final creditsAdded = (res['credits_added'] as num?)?.toInt() ?? 3;
           final remaining = (res['credits_remaining'] as num?)?.toInt() ??
@@ -175,6 +215,7 @@ class QuotaNotifier extends StateNotifier<QuotaModel> {
           state = updated;
           await _prefs.setCachedCredits(remaining);
           await _prefs.setCachedRewardedCredits(updated.rewardedCreditsRemaining);
+          await _prefs.setCachedRewardedAdsWatchedToday(watched);
           return true;
         }
       } on ApiException catch (e) {
@@ -187,8 +228,8 @@ class QuotaNotifier extends StateNotifier<QuotaModel> {
       }
     }
 
-    // Dev or Web mode fallback when backend is unreachable (still respects daily ad limit)
-    if ((AppConfig.isDev || kIsWeb) && state.canWatchRewardedAd) {
+    // Debug-only offline fallback for local development when backend is unreachable
+    if (AppConfig.isDev && mounted && state.canWatchRewardedAd) {
       final updated = state.copyWith(
         totalCreditsRemaining: state.totalCreditsRemaining + 3,
         rewardedCreditsRemaining: state.rewardedCreditsRemaining + 3,
@@ -197,14 +238,19 @@ class QuotaNotifier extends StateNotifier<QuotaModel> {
       state = updated;
       await _prefs.setCachedCredits(updated.totalCreditsRemaining);
       await _prefs.setCachedRewardedCredits(updated.rewardedCreditsRemaining);
+      await _prefs.setCachedRewardedAdsWatchedToday(updated.rewardedAdsWatchedToday);
       return true;
     }
     return false;
   }
 
   void setPro(bool isPro) {
+    if (!mounted) return;
     state = state.copyWith(isPro: isPro);
     _prefs.setCachedIsPro(isPro);
+    if (isPro) {
+      refresh();
+    }
   }
 }
 

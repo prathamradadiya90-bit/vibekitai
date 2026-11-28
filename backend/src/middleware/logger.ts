@@ -17,19 +17,27 @@ export interface StructuredLogRecord {
 
 /**
  * Structured Logging Middleware with Invariant Zero-Prompt Retention Redaction.
- * Strictly outputs sanitized operational metadata as JSON.
- * Guaranteed never to log request body, headers with tokens, prompts, or AI outputs.
+ * Assigns requestId early so downstream rate-limiter/installation rejections also log cleanly.
  */
 export const structuredLoggerMiddleware = (): MiddlewareHandler<AppHonoEnv> => {
   return async (c, next) => {
     const startTime = Date.now();
-    const requestId = c.get('requestId') || c.req.header('X-Request-Id') || 'unknown';
-    const installationId = c.get('installation')?.id || c.req.header('X-App-Instance-Id') || 'anonymous';
+    const requestId =
+      c.get('requestId') ||
+      c.req.header('X-Request-Id')?.trim() ||
+      `req_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+    c.set('requestId', requestId);
+    c.header('X-Request-Id', requestId);
 
     await next();
 
     const durationMs = Date.now() - startTime;
     const status = c.res.status;
+    const installationId =
+      c.get('installationId') ||
+      c.get('installation')?.id ||
+      c.req.header('X-App-Instance-Id')?.trim().slice(0, 64) ||
+      'anonymous';
 
     let outcome: StructuredLogRecord['outcome'] = 'success';
     if (status === 429) {
@@ -54,7 +62,6 @@ export const structuredLoggerMiddleware = (): MiddlewareHandler<AppHonoEnv> => {
       country: (c.req.raw as any)?.cf?.country,
     };
 
-    // Output strictly serialized JSON to stdout (ingested by Cloudflare Logpush)
     console.log(JSON.stringify(logRecord));
   };
 };

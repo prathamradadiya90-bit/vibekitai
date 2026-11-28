@@ -34,14 +34,17 @@ class _VibeCheckScreenState extends ConsumerState<VibeCheckScreen> {
   final Set<String> _favoritedTexts = {};
   final Set<String> _reportedContents = {};
 
+  String _reportKey(String category, String content) => '$category::$content';
+
   Future<void> _reportContent(String content, String category) async {
+    final key = _reportKey(category, content);
     final reported = await showReportAiContentDialog(
       context,
       category: category,
       content: content,
     );
     if (reported && mounted) {
-      setState(() => _reportedContents.add(content));
+      setState(() => _reportedContents.add(key));
     }
   }
 
@@ -700,21 +703,21 @@ class _VibeCheckScreenState extends ConsumerState<VibeCheckScreen> {
               Align(
                 alignment: Alignment.centerRight,
                 child: TextButton.icon(
-                  onPressed: _reportedContents.contains(result.verdict)
+                  onPressed: _reportedContents.contains(_reportKey('vibe_check_verdict', '${result.title}: ${result.verdict}'))
                       ? null
                       : () => _reportContent('${result.title}: ${result.verdict}', 'vibe_check_verdict'),
                   icon: Icon(
-                    _reportedContents.contains(result.verdict)
+                    _reportedContents.contains(_reportKey('vibe_check_verdict', '${result.title}: ${result.verdict}'))
                         ? Icons.flag_rounded
                         : Icons.flag_outlined,
                     size: 15,
-                    color: _reportedContents.contains(result.verdict) ? AppColors.accentPink : null,
+                    color: _reportedContents.contains(_reportKey('vibe_check_verdict', '${result.title}: ${result.verdict}')) ? AppColors.accentPink : null,
                   ),
                   label: Text(
-                    _reportedContents.contains(result.verdict) ? 'Reported' : 'Report AI Verdict',
+                    _reportedContents.contains(_reportKey('vibe_check_verdict', '${result.title}: ${result.verdict}')) ? 'Reported' : 'Report AI Verdict',
                     style: TextStyle(
                       fontSize: 12,
-                      color: _reportedContents.contains(result.verdict) ? AppColors.accentPink : null,
+                      color: _reportedContents.contains(_reportKey('vibe_check_verdict', '${result.title}: ${result.verdict}')) ? AppColors.accentPink : null,
                     ),
                   ),
                   style: TextButton.styleFrom(
@@ -863,21 +866,21 @@ class _VibeCheckScreenState extends ConsumerState<VibeCheckScreen> {
                       ),
                       // Report Action (Google Play Generative AI Policy)
                       TextButton.icon(
-                        onPressed: _reportedContents.contains(rewrite)
+                        onPressed: _reportedContents.contains(_reportKey('vibe_check_rewrite', rewrite))
                             ? null
                             : () => _reportContent(rewrite, 'vibe_check_rewrite'),
                         icon: Icon(
-                          _reportedContents.contains(rewrite)
+                          _reportedContents.contains(_reportKey('vibe_check_rewrite', rewrite))
                               ? Icons.flag_rounded
                               : Icons.flag_outlined,
                           size: 15,
-                          color: _reportedContents.contains(rewrite) ? AppColors.accentPink : null,
+                          color: _reportedContents.contains(_reportKey('vibe_check_rewrite', rewrite)) ? AppColors.accentPink : null,
                         ),
                         label: Text(
-                          _reportedContents.contains(rewrite) ? 'Reported' : 'Report',
+                          _reportedContents.contains(_reportKey('vibe_check_rewrite', rewrite)) ? 'Reported' : 'Report',
                           style: TextStyle(
                             fontSize: 12,
-                            color: _reportedContents.contains(rewrite) ? AppColors.accentPink : null,
+                            color: _reportedContents.contains(_reportKey('vibe_check_rewrite', rewrite)) ? AppColors.accentPink : null,
                           ),
                         ),
                         style: TextButton.styleFrom(

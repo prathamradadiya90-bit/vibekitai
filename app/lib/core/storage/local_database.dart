@@ -1,16 +1,26 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart' as p;
 import 'package:uuid/uuid.dart';
 import '../../models/history_item.dart';
+import 'preferences_service.dart';
 
 class LocalDatabase {
   static const String _tableName = 'creations_history';
+  static const int _maxFallbackItems = 200;
+  final PreferencesService? _prefs;
   Database? _db;
   final List<HistoryItem> _fallbackMemoryStore = [];
 
+  LocalDatabase({PreferencesService? prefs}) : _prefs = prefs;
+
   Future<void> init() async {
+    if (kIsWeb) {
+      _loadFallbackFromPrefs();
+      return;
+    }
     try {
       final dbPath = await getDatabasesPath();
       final path = p.join(dbPath, 'vibekit_ai.db');
@@ -43,8 +53,47 @@ class LocalDatabase {
       );
     } catch (e) {
       debugPrint(
-          'LocalDatabase: SQLite native init failed ($e). Using secure memory fallback.');
+          'LocalDatabase: SQLite native init failed ($e). Using persistent prefs fallback.');
       _db = null;
+      _loadFallbackFromPrefs();
+    }
+  }
+
+  void _loadFallbackFromPrefs() {
+    final raw = _prefs?.getWebHistoryJson();
+    if (raw == null || raw.isEmpty) return;
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is List) {
+        _fallbackMemoryStore.clear();
+        for (final entry in decoded) {
+          if (entry is Map) {
+            try {
+              _fallbackMemoryStore.add(
+                HistoryItem.fromMap(Map<String, dynamic>.from(entry)),
+              );
+            } catch (_) {
+              // Skip malformed record
+            }
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('LocalDatabase: Failed to restore web history fallback: $e');
+    }
+  }
+
+  Future<void> _persistFallback() async {
+    if (_prefs == null) return;
+    if (_fallbackMemoryStore.isEmpty) {
+      await _prefs.setWebHistoryJson(null);
+      return;
+    }
+    final capped = _fallbackMemoryStore.take(_maxFallbackItems).map((i) => i.toMap()).toList();
+    try {
+      await _prefs.setWebHistoryJson(jsonEncode(capped));
+    } catch (e) {
+      debugPrint('LocalDatabase: Failed to persist web history fallback: $e');
     }
   }
 
@@ -58,6 +107,10 @@ class LocalDatabase {
     } else {
       _fallbackMemoryStore.removeWhere((i) => i.id == item.id);
       _fallbackMemoryStore.insert(0, item);
+      if (_fallbackMemoryStore.length > _maxFallbackItems) {
+        _fallbackMemoryStore.removeRange(_maxFallbackItems, _fallbackMemoryStore.length);
+      }
+      await _persistFallback();
     }
   }
 
@@ -82,9 +135,14 @@ class LocalDatabase {
       }
 
       if (query != null && query.trim().isNotEmpty) {
-        whereClauses.add('(title LIKE ? OR content LIKE ?)');
-        whereArgs.add('%${query.trim()}%');
-        whereArgs.add('%${query.trim()}%');
+        final escaped = query
+            .trim()
+            .replaceAll(r'\', r'\\')
+            .replaceAll('%', r'\%')
+            .replaceAll('_', r'\_');
+        whereClauses.add(r"(title LIKE ? ESCAPE '\' OR content LIKE ? ESCAPE '\')");
+        whereArgs.add('%$escaped%');
+        whereArgs.add('%$escaped%');
       }
 
       final whereString =
@@ -181,6 +239,7 @@ class LocalDatabase {
       if (index != -1) {
         _fallbackMemoryStore[index] =
             _fallbackMemoryStore[index].copyWith(isFavorite: isFavorite);
+        await _persistFallback();
       }
     }
   }
@@ -194,6 +253,7 @@ class LocalDatabase {
       );
     } else {
       _fallbackMemoryStore.removeWhere((i) => i.id == id);
+      await _persistFallback();
     }
   }
 
@@ -202,5 +262,6 @@ class LocalDatabase {
       await _db!.delete(_tableName);
     }
     _fallbackMemoryStore.clear();
+    await _persistFallback();
   }
 }

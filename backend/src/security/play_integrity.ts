@@ -27,11 +27,24 @@ export async function verifyPlayIntegrityToken(
   env: Env,
   isCreditGrant = false
 ): Promise<IntegrityVerdict> {
-  // If in dev or test mode without Play credentials configured, permit test bypass
-  if (!env.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON || env.ENVIRONMENT === 'test') {
-    if (!token && isCreditGrant && env.ENVIRONMENT === 'production') {
-      return { isValid: false, error: 'MISSING_INTEGRITY_TOKEN' };
+  const isProd = env.ENVIRONMENT === 'production';
+
+  if (!env.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON) {
+    if (isProd) {
+      return {
+        isValid: !isCreditGrant,
+        error: token ? 'PLAY_INTEGRITY_NOT_CONFIGURED' : 'MISSING_INTEGRITY_TOKEN',
+      };
     }
+    return {
+      isValid: true,
+      appLicensingVerdict: 'LICENSED',
+      deviceRecognitionVerdict: ['MEETS_STRONG_INTEGRITY'],
+      appRecognitionVerdict: 'PLAY_RECOGNIZED',
+    };
+  }
+
+  if (env.ENVIRONMENT === 'test') {
     return {
       isValid: true,
       appLicensingVerdict: 'LICENSED',
@@ -42,16 +55,14 @@ export async function verifyPlayIntegrityToken(
 
   if (!token) {
     return {
-      isValid: !isCreditGrant, // Fail closed on credit grants, fail soft on read
+      isValid: !isCreditGrant,
       error: 'NO_TOKEN_PROVIDED',
     };
   }
 
   try {
-    // Official Google Play Integrity API decode request
-    // Requires Google OAuth2 Bearer token obtained via Service Account JSON
     const response = await fetch(
-      `https://playintegrity.googleapis.com/v1/${packageName}:decodeIntegrityToken`,
+      `https://playintegrity.googleapis.com/v1/${encodeURIComponent(packageName)}:decodeIntegrityToken`,
       {
         method: 'POST',
         headers: {
@@ -70,14 +81,23 @@ export async function verifyPlayIntegrityToken(
     const payload = (await response.json()) as any;
     const tokenPayload = payload.tokenPayloadExternal || {};
 
-    const licensing = tokenPayload.appLicensingVerdict?.licensingStatus;
-    const device = tokenPayload.deviceIntegrity?.deviceRecognitionVerdict || [];
-    const app = tokenPayload.appIntegrity?.appRecognitionVerdict;
+    const licensing: string | undefined =
+      tokenPayload.accountDetails?.appLicensingVerdict ??
+      tokenPayload.appLicensingVerdict?.licensingStatus;
+    const device: string[] = tokenPayload.deviceIntegrity?.deviceRecognitionVerdict || [];
+    const app: string | undefined = tokenPayload.appIntegrity?.appRecognitionVerdict;
+    const reqPkg: string | undefined = tokenPayload.requestDetails?.requestPackageName;
 
-    const meetsBasic = device.includes('MEETS_BASIC_INTEGRITY') || device.includes('MEETS_STRONG_INTEGRITY') || device.includes('MEETS_DEVICE_INTEGRITY');
+    const meetsDevice =
+      device.includes('MEETS_BASIC_INTEGRITY') ||
+      device.includes('MEETS_STRONG_INTEGRITY') ||
+      device.includes('MEETS_DEVICE_INTEGRITY');
+    const pkgValid = !reqPkg || reqPkg === packageName;
+    const appValid = !isCreditGrant ? app !== 'UNRECOGNIZED_VERSION' : app === 'PLAY_RECOGNIZED';
+    const licensingValid = !isCreditGrant || !licensing || licensing === 'LICENSED';
 
     return {
-      isValid: meetsBasic,
+      isValid: meetsDevice && pkgValid && appValid && licensingValid,
       appLicensingVerdict: licensing,
       deviceRecognitionVerdict: device,
       appRecognitionVerdict: app,
@@ -99,7 +119,8 @@ export async function recordAbuseSignal(params: {
   const ipHash = await sha256Hex(params.clientIp || 'unknown');
   const deviceHash = params.deviceToken ? await sha256Hex(params.deviceToken) : null;
   const now = new Date();
-  const windowHour = now.toISOString().substring(0, 13); // Hourly aggregation window
+  const windowStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), now.getHours()).toISOString();
+  const id = `ab_${ipHash.substring(0, 16)}_${windowStart.substring(0, 13)}`;
 
   try {
     await params.db
@@ -110,15 +131,9 @@ export async function recordAbuseSignal(params: {
            request_count = request_count + 1,
            updated_at = excluded.updated_at`
       )
-      .bind(
-        `abs_${ipHash.substring(0, 16)}_${windowHour}`,
-        ipHash,
-        deviceHash,
-        windowHour,
-        now.toISOString()
-      )
+      .bind(id, ipHash, deviceHash, windowStart, now.toISOString())
       .run();
   } catch (err) {
-    // Non-blocking telemetry
+    console.warn('Could not persist abuse signal:', err);
   }
 }

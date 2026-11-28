@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -59,9 +60,15 @@ class ShareService {
         : (installationId != null ? '✨ Created with VibeKit AI: ${buildReferralLink(installationId)}' : 'Created with VibeKit AI');
 
     if (kIsWeb) {
-      if (imageBytes != null) {
+      Uint8List? effectiveBytes = imageBytes;
+      if (effectiveBytes == null && filePath.startsWith('data:image/png;base64,')) {
+        try {
+          effectiveBytes = base64Decode(filePath.substring('data:image/png;base64,'.length));
+        } catch (_) {}
+      }
+      if (effectiveBytes != null) {
         await Share.shareXFiles(
-          [XFile.fromData(imageBytes, mimeType: 'image/png', name: 'vibekit_card.png')],
+          [XFile.fromData(effectiveBytes, mimeType: 'image/png', name: 'vibekit_card.png')],
           text: formattedCaption,
         );
       } else {

@@ -95,7 +95,17 @@ class _StudioScreenState extends ConsumerState<StudioScreen> {
     'Savage',
     'Unbothered',
     'Opener',
+    'Chill',
   ];
+
+  int get _maxChars => switch (_activeTab) {
+        StudioTab.reply => 500,
+        StudioTab.vibeCheck => 600,
+        StudioTab.caption => 400,
+        StudioTab.bio => 300,
+      };
+
+  String _reportKey(String category, String content) => '$category::$content';
 
   static const List<Map<String, String>> _vibeModes = [
     {'id': 'flags', 'label': '🚩 Flag Scanner'},
@@ -187,8 +197,10 @@ class _StudioScreenState extends ConsumerState<StudioScreen> {
       _selectedLanguage = savedLang;
     }
 
-    if (widget.initialPrompt != null && widget.initialPrompt!.isNotEmpty) {
-      _textController.text = widget.initialPrompt!;
+    if (widget.initialPrompt != null) {
+      final incoming = widget.initialPrompt!;
+      _textController.text =
+          incoming.length > _maxChars ? incoming.substring(0, _maxChars) : incoming;
     } else {
       _textController.text = _sampleChips[_activeTab]?.first['text'] ?? '';
     }
@@ -205,10 +217,20 @@ class _StudioScreenState extends ConsumerState<StudioScreen> {
   void didUpdateWidget(covariant StudioScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.initialTabId != null && widget.initialTabId != oldWidget.initialTabId) {
-      _switchTab(StudioTab.fromId(widget.initialTabId));
+      final nextTab = StudioTab.fromId(widget.initialTabId);
+      final currentText = _textController.text.trim();
+      final isCurrentSampleOrEmpty = currentText.isEmpty ||
+          (_sampleChips[_activeTab]?.any((s) => s['text']!.trim() == currentText) ?? false);
+      _activeTab = nextTab;
+      if (isCurrentSampleOrEmpty && widget.initialPrompt == null) {
+        _textController.text = _sampleChips[nextTab]?.first['text'] ?? '';
+      }
     }
     if (widget.initialPrompt != null && widget.initialPrompt != oldWidget.initialPrompt) {
-      _textController.text = widget.initialPrompt!;
+      final incoming = widget.initialPrompt!;
+      _textController.text = incoming.length > _maxChars ? incoming.substring(0, _maxChars) : incoming;
+    } else if (_textController.text.length > _maxChars) {
+      _textController.text = _textController.text.substring(0, _maxChars);
     }
     if (widget.initialOption != null && widget.initialOption != oldWidget.initialOption) {
       if (_replyTones.contains(widget.initialOption)) _replyTone = widget.initialOption!;
@@ -229,10 +251,18 @@ class _StudioScreenState extends ConsumerState<StudioScreen> {
     final currentText = _textController.text.trim();
     final isCurrentSampleOrEmpty = currentText.isEmpty ||
         (_sampleChips[_activeTab]?.any((s) => s['text']!.trim() == currentText) ?? false);
+    final nextMax = switch (tab) {
+      StudioTab.reply => 500,
+      StudioTab.vibeCheck => 600,
+      StudioTab.caption => 400,
+      StudioTab.bio => 300,
+    };
     setState(() {
       _activeTab = tab;
       if (isCurrentSampleOrEmpty) {
         _textController.text = _sampleChips[tab]?.first['text'] ?? '';
+      } else if (_textController.text.length > nextMax) {
+        _textController.text = _textController.text.substring(0, nextMax);
       }
     });
   }
@@ -602,7 +632,7 @@ class _StudioScreenState extends ConsumerState<StudioScreen> {
                       TextField(
                         controller: _textController,
                         maxLines: 4,
-                        maxLength: 500,
+                        maxLength: _maxChars,
                         style: theme.textTheme.bodyMedium,
                         decoration: InputDecoration(
                           filled: false,
@@ -637,7 +667,7 @@ class _StudioScreenState extends ConsumerState<StudioScreen> {
                           else
                             const SizedBox.shrink(),
                           Text(
-                            '${_textController.text.length}/500',
+                            '${_textController.text.length}/$_maxChars',
                             style: theme.textTheme.labelSmall?.copyWith(
                               color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
                             ),
@@ -691,7 +721,10 @@ class _StudioScreenState extends ConsumerState<StudioScreen> {
                             );
                           }).toList(),
                           onChanged: (val) {
-                            if (val != null) setState(() => _selectedLanguage = val);
+                            if (val != null) {
+                              setState(() => _selectedLanguage = val);
+                              ref.read(languageProvider.notifier).setLanguage(val);
+                            }
                           },
                         ),
                       ),
@@ -1061,16 +1094,18 @@ class _StudioScreenState extends ConsumerState<StudioScreen> {
                     ),
                   ),
                   IconButton(
-                    tooltip: _reportedContents.contains(res.verdict) ? 'Reported' : 'Report content',
-                    onPressed: _reportedContents.contains(res.verdict)
+                    tooltip: _reportedContents.contains(_reportKey('studio_vibe_check_verdict', '${res.title}: ${res.verdict}'))
+                        ? 'Reported'
+                        : 'Report content',
+                    onPressed: _reportedContents.contains(_reportKey('studio_vibe_check_verdict', '${res.title}: ${res.verdict}'))
                         ? null
                         : () => _reportContent('${res.title}: ${res.verdict}', 'studio_vibe_check_verdict'),
                     icon: Icon(
-                      _reportedContents.contains(res.verdict)
+                      _reportedContents.contains(_reportKey('studio_vibe_check_verdict', '${res.title}: ${res.verdict}'))
                           ? Icons.flag_rounded
                           : Icons.flag_outlined,
                       size: 18,
-                      color: _reportedContents.contains(res.verdict)
+                      color: _reportedContents.contains(_reportKey('studio_vibe_check_verdict', '${res.title}: ${res.verdict}'))
                           ? AppColors.accentPink
                           : (isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight),
                     ),
@@ -1078,6 +1113,34 @@ class _StudioScreenState extends ConsumerState<StudioScreen> {
                 ],
               ),
             ),
+            if (res.tags.isNotEmpty) ...[
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: res.tags.map((tag) {
+                  final cleanTag = tag.startsWith('#') ? tag : '#$tag';
+                  return Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: isDark ? AppColors.surfaceElevatedDark : AppColors.surfaceCardLight,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                      ),
+                    ),
+                    child: Text(
+                      cleanTag,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: isDark ? AppColors.accentWarm : AppColors.primary,
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+              const SizedBox(height: 12),
+            ],
             ...res.rewrites.asMap().entries.map((e) {
               return _buildOutputCard(
                 context: context,
@@ -1108,6 +1171,15 @@ class _StudioScreenState extends ConsumerState<StudioScreen> {
               return _buildOutputCard(
                 context: context,
                 title: 'Reel Hook ${e.key + 1}',
+                content: e.value,
+                isDark: isDark,
+                theme: theme,
+              );
+            }),
+            ...res.callToActions.asMap().entries.map((e) {
+              return _buildOutputCard(
+                context: context,
+                title: 'Call to Action ${e.key + 1}',
                 content: e.value,
                 isDark: isDark,
                 theme: theme,
@@ -1154,13 +1226,14 @@ class _StudioScreenState extends ConsumerState<StudioScreen> {
   }
 
   Future<void> _reportContent(String content, String category) async {
+    final key = _reportKey(category, content);
     final reported = await showReportAiContentDialog(
       context,
       category: category,
       content: content,
     );
     if (reported && mounted) {
-      setState(() => _reportedContents.add(content));
+      setState(() => _reportedContents.add(key));
     }
   }
 
@@ -1282,21 +1355,21 @@ class _StudioScreenState extends ConsumerState<StudioScreen> {
                   ),
                 ),
                 TextButton.icon(
-                  onPressed: _reportedContents.contains(content)
+                  onPressed: _reportedContents.contains(_reportKey('studio_${_activeTab.id}', content))
                       ? null
                       : () => _reportContent(content, 'studio_${_activeTab.id}'),
                   icon: Icon(
-                    _reportedContents.contains(content)
+                    _reportedContents.contains(_reportKey('studio_${_activeTab.id}', content))
                         ? Icons.flag_rounded
                         : Icons.flag_outlined,
                     size: 15,
-                    color: _reportedContents.contains(content) ? AppColors.accentPink : null,
+                    color: _reportedContents.contains(_reportKey('studio_${_activeTab.id}', content)) ? AppColors.accentPink : null,
                   ),
                   label: Text(
-                    _reportedContents.contains(content) ? 'Reported' : 'Report',
+                    _reportedContents.contains(_reportKey('studio_${_activeTab.id}', content)) ? 'Reported' : 'Report',
                     style: TextStyle(
                       fontSize: 12,
-                      color: _reportedContents.contains(content) ? AppColors.accentPink : null,
+                      color: _reportedContents.contains(_reportKey('studio_${_activeTab.id}', content)) ? AppColors.accentPink : null,
                     ),
                   ),
                   style: TextButton.styleFrom(

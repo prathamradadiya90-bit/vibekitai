@@ -20,3 +20,23 @@ migrations_dir = "migrations"
 [triggers]
 crons = ["0 1 * * *"]
 
+[env.production]
+name = "vibekit-ai-backend"
+
+[env.production.vars]
+ENVIRONMENT = "production"
+GEMINI_MODEL = "gemini-2.0-flash"
+MAX_DAILY_FREE_CREDITS = "3"
+REWARD_CREDITS_PER_AD = "3"
+MAX_DAILY_REWARDS = "2"
+MONTHLY_PRO_CREDITS = "200"
+
+[[env.production.d1_databases]]
+binding = "DB"
+database_name = "vibekit-prod"
+# Replace with live Cloudflare D1 database UUID before running `wrangler deploy --env production`
+database_id = "vibekit-d1-placeholder-id"
+migrations_dir = "migrations"
+
+[env.production.triggers]
+crons = ["0 1 * * *"]

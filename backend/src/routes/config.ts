@@ -8,7 +8,6 @@ export const configRoute = new Hono<AppHonoEnv>();
 configRoute.get('/config', async (c) => {
   const cfg = getAppConfig(c.env);
 
-  // Short edge cache TTL for performance
   c.header('Cache-Control', 'public, max-age=300, s-maxage=300');
 
   const baseConfig = {
@@ -32,12 +31,12 @@ configRoute.get('/config', async (c) => {
       credit_packs: c.env.ENABLE_CREDIT_PACKS === 'true',
     },
     ad_settings: {
-      interstitial_min_interval_seconds: 180, // 3-minute gap
+      interstitial_min_interval_seconds: 180,
       interstitial_max_per_day: 3,
       rewarded_max_per_day: cfg.maxDailyRewards,
     },
     paywall: {
-      variant: 'default', // A/B test variant
+      variant: 'default',
       max_full_screens_per_session: 1,
     },
     privacy_policy_url: 'https://vibekit.ai/privacy',
@@ -48,16 +47,25 @@ configRoute.get('/config', async (c) => {
     const remoteRepo = new RemoteConfigRepository(c.env?.DB);
     const dynamicOverrides = await remoteRepo.getLatestConfig<Record<string, any>>('app_remote_config');
     if (dynamicOverrides?.value) {
+      const ov = dynamicOverrides.value;
       return c.json({
         ...baseConfig,
-        ...dynamicOverrides.value,
+        ...ov,
+        pricing: {
+          ...baseConfig.pricing,
+          ...(ov.pricing ?? {}),
+        },
         feature_flags: {
           ...baseConfig.feature_flags,
-          ...(dynamicOverrides.value.feature_flags ?? {}),
+          ...(ov.feature_flags ?? {}),
         },
         ad_settings: {
           ...baseConfig.ad_settings,
-          ...(dynamicOverrides.value.ad_settings ?? {}),
+          ...(ov.ad_settings ?? {}),
+        },
+        paywall: {
+          ...baseConfig.paywall,
+          ...(ov.paywall ?? {}),
         },
       });
     }

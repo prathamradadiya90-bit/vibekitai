@@ -55,8 +55,8 @@ export class StatsRepository {
     const today = new Date().toISOString().substring(0, 10);
     const now = new Date();
 
-    const sevenDaysAgo = new Date(now.getTime() - 7 * 86400000).toISOString().substring(0, 10);
-    const thirtyDaysAgo = new Date(now.getTime() - 30 * 86400000).toISOString().substring(0, 10);
+    const sevenDaysAgo = new Date(now.getTime() - 6 * 86400000).toISOString().substring(0, 10);
+    const thirtyDaysAgo = new Date(now.getTime() - 29 * 86400000).toISOString().substring(0, 10);
 
     // 1. Activity / Active users (DAU, WAU, MAU)
     const [dauRow, wauRow, mauRow, newInstallsRow] = await Promise.all([
@@ -306,10 +306,13 @@ export class StatsRepository {
          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
          ON CONFLICT(stat_date) DO UPDATE SET
            dau = excluded.dau,
+           wau = excluded.wau,
+           mau = excluded.mau,
            new_installs = excluded.new_installs,
            total_generations = excluded.total_generations,
            failed_generations = excluded.failed_generations,
            avg_latency_ms = excluded.avg_latency_ms,
+           p95_latency_ms = excluded.p95_latency_ms,
            rewarded_ads = excluded.rewarded_ads,
            pro_active_count = excluded.pro_active_count,
            estimated_revenue_inr = excluded.estimated_revenue_inr,

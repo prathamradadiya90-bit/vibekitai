@@ -15,12 +15,12 @@ class AppTheme {
       scaffoldBackgroundColor: AppColors.backgroundDark,
       primaryColor: AppColors.primary,
       colorScheme: const ColorScheme.dark(
-        primary: AppColors.primary,
+        primary: AppColors.accent,
         secondary: AppColors.secondary,
-        tertiary: AppColors.accent,
+        tertiary: AppColors.accentWarm,
         surface: AppColors.surfaceDark,
         error: AppColors.error,
-        onPrimary: Colors.white,
+        onPrimary: Color(0xFF1E130B),
         onSecondary: Colors.white,
         onSurface: AppColors.textPrimaryDark,
       ),
@@ -128,6 +128,21 @@ class AppTheme {
             fontWeight: FontWeight.w600,
           ),
         ),
+      ),
+      textButtonTheme: TextButtonThemeData(
+        style: TextButton.styleFrom(
+          foregroundColor: AppColors.accentWarm,
+        ),
+      ),
+      switchTheme: SwitchThemeData(
+        thumbColor: WidgetStateProperty.resolveWith((states) {
+          return states.contains(WidgetState.selected) ? AppColors.accent : AppColors.textMutedDark;
+        }),
+        trackColor: WidgetStateProperty.resolveWith((states) {
+          return states.contains(WidgetState.selected)
+              ? AppColors.accent.withValues(alpha: 0.35)
+              : AppColors.surfaceElevatedDark;
+        }),
       ),
     );
   }

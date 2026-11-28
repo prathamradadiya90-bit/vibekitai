@@ -38,8 +38,13 @@ Future<bool> showReportAiContentDialog(
       return StatefulBuilder(
         builder: (context, setSheetState) {
           return SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+            child: SingleChildScrollView(
+              padding: EdgeInsets.fromLTRB(
+                20,
+                16,
+                20,
+                20 + MediaQuery.of(context).viewInsets.bottom,
+              ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -176,28 +181,32 @@ Future<bool> showReportAiContentDialog(
     final safeSnippet = trimmedSnippet.length > 280
         ? '${trimmedSnippet.substring(0, 280)}...'
         : trimmedSnippet;
+    bool sent = false;
     try {
       final container = ProviderScope.containerOf(context, listen: false);
       final client = container.read(apiClientProvider);
       await client.sendFeedback(
         'REPORT_AI_CONTENT [$category]: reason="$selectedReason", snippet="$safeSnippet"',
       );
+      sent = true;
     } catch (_) {
-      // Fallback for offline / test environments
+      sent = false;
     }
 
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Text(
-            'Report submitted. Thank you for helping keep our community safe!',
+            sent
+                ? 'Report submitted. Thank you for helping keep our community safe!'
+                : 'Could not reach server to send report. Please check your connection and try again.',
           ),
           behavior: SnackBarBehavior.floating,
-          duration: Duration(seconds: 3),
+          duration: const Duration(seconds: 3),
         ),
       );
     }
-    return true;
+    return sent;
   }
 
   return false;

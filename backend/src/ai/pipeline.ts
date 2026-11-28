@@ -8,6 +8,7 @@ import { getCachedChallengeResponse, setCachedChallengeResponse } from './challe
 import { GenerationsRepository } from '../db/generations.repo';
 import { IdempotencyRepository } from '../db/idempotency.repo';
 import { AICircuitBreaker } from '../security/circuit_breaker';
+import { sha256Hex } from '../security/play_integrity';
 
 export interface GenerationPipelineConfig<TInput, TOutput> {
   category: 'reply' | 'caption' | 'bio' | 'vibe_check';
@@ -16,6 +17,7 @@ export interface GenerationPipelineConfig<TInput, TOutput> {
   extractChallengeId?: (input: TInput) => string | undefined;
   getCacheTone?: (input: TInput) => string;
   getCacheLanguage?: (input: TInput) => string;
+  getCacheVariant?: (input: TInput) => string;
   generate: (ai: ReturnType<typeof createAIProvider>, input: TInput) => Promise<TOutput>;
   formatResponse: (output: TOutput, input: TInput, creditsRemaining: number, cached?: boolean) => Record<string, unknown>;
 }
@@ -28,42 +30,46 @@ export async function runGeneration<TInput, TOutput>(
   const requestId = c.get('requestId');
   const startTime = Date.now();
 
-  // 1. Idempotency Key Check (24-hour request deduplication)
+  // 1. Global AI Daily Budget Circuit Breaker Check
+  const circuitBreaker = new AICircuitBreaker(c.env?.DB);
+  await circuitBreaker.checkBudgetGuard(0.001);
+
+  // 2. Validate Input Payload with Zod
+  const rawBody = await c.req.json();
+  const parsed = config.inputSchema.safeParse(rawBody);
+  if (!parsed.success) {
+    throw new ValidationError('Invalid request payload.', parsed.error.format());
+  }
+  const input = parsed.data;
+  const payloadHash = await sha256Hex(JSON.stringify(input));
+
+  // 3. Idempotency Key Check (24-hour deduplication; rejects parameter swaps under the same key)
   const idempotencyKey = c.req.header('Idempotency-Key')?.trim() || c.req.header('X-Idempotency-Key')?.trim();
   let idempotencyRepo: IdempotencyRepository | undefined;
   if (idempotencyKey && c.env?.DB) {
     idempotencyRepo = new IdempotencyRepository(c.env.DB);
     const cachedResponse = await idempotencyRepo.getValidResponse(idempotencyKey, installation.id, c.req.path);
     if (cachedResponse) {
+      if (cachedResponse.requestHash && cachedResponse.requestHash !== payloadHash) {
+        throw new ValidationError('Idempotency-Key cannot be reused with different request parameters.');
+      }
       return c.json(cachedResponse.data as any, cachedResponse.statusCode as any);
     }
   }
 
-  // 2. Global AI Daily Budget Circuit Breaker Check
-  const circuitBreaker = new AICircuitBreaker(c.env?.DB);
-  await circuitBreaker.checkBudgetGuard(0.001);
-
-  // 3. Validate Input Payload with Zod
-  const rawBody = await c.req.json();
-
-  const parsed = config.inputSchema.safeParse(rawBody);
-  if (!parsed.success) {
-    throw new ValidationError('Invalid request payload.', parsed.error.format());
-  }
-  const input = parsed.data;
-
-  // 4. Atomically Reserve Credit Before Calling Upstream AI (eliminates parallel TOCTOU overspend)
+  // 4. Atomically Reserve Credit Before Calling Upstream AI (with debited UTC date tracking)
   const quotaManager = new QuotaManager(c.env);
-  const reservedBucket = await quotaManager.reserveCredit(installation.id);
-  if (!reservedBucket) {
+  const reserved = await quotaManager.reserveCreditWithDate(installation.id);
+  if (!reserved) {
     throw new QuotaExceededError();
   }
 
   const challengeId = config.extractChallengeId ? config.extractChallengeId(input) : undefined;
   const tone = config.getCacheTone ? config.getCacheTone(input) : undefined;
   const language = config.getCacheLanguage ? config.getCacheLanguage(input) : undefined;
+  const variantSig = config.getCacheVariant ? config.getCacheVariant(input) : payloadHash.slice(0, 16);
 
-  // 5. Daily Challenge Cache Check (if challenge request)
+  // 5. Daily Challenge Cache Check (keyed cleanly by variant + prompt digest)
   if (challengeId && tone && language && c.env?.DB) {
     try {
       const cached = await getCachedChallengeResponse<TOutput>(
@@ -71,7 +77,8 @@ export async function runGeneration<TInput, TOutput>(
         challengeId,
         tone,
         language,
-        config.category
+        config.category,
+        variantSig
       );
       if (cached) {
         const quota = await quotaManager.getQuotaStatus(installation.id);
@@ -83,7 +90,7 @@ export async function runGeneration<TInput, TOutput>(
             key: idempotencyKey,
             installationId: installation.id,
             endpoint: c.req.path,
-            requestHash: requestId,
+            requestHash: payloadHash,
             responseJson: JSON.stringify(cachedResponse),
             statusCode: 200,
           });
@@ -92,7 +99,7 @@ export async function runGeneration<TInput, TOutput>(
         return c.json(cachedResponse);
       }
     } catch (cacheErr) {
-      await quotaManager.refundCredit(installation.id, reservedBucket);
+      await quotaManager.refundCredit(installation.id, reserved.bucket, reserved.usageDate);
       throw cacheErr;
     }
   }
@@ -104,19 +111,23 @@ export async function runGeneration<TInput, TOutput>(
   try {
     const rawResult = await aiGenerationWithTimeout(ai, input, config.generate, 20000);
 
-    // Prompt injection leak guard
+    // Narrow prompt-injection leak guard (avoid false-positives on normal prose discussing prompts)
     const serialized = JSON.stringify(rawResult).toLowerCase();
-    if (serialized.includes('system prompt') || serialized.includes('internal instructions')) {
-      throw new ProviderError('AI response violated safety policy.');
+    if (
+      serialized.includes('my system prompt') ||
+      serialized.includes('my internal instructions') ||
+      serialized.includes('<user_input>') ||
+      serialized.includes('system_prompt')
+    ) {
+      throw new ProviderError('SAFETY_VIOLATION: AI response violated safety policy.');
     }
 
-    // Validate output with Zod schema
     const validated = config.outputSchema.safeParse(rawResult);
     if (validated.success) {
       output = validated.data;
     } else {
-      // 1 repair retry attempt
       console.warn(`[Pipeline] Output schema validation mismatch for ${config.category}, attempting repair retry.`);
+      await circuitBreaker.recordSpend(0.0001).catch(() => {});
       const retryResult = await aiGenerationWithTimeout(ai, input, config.generate, 15000);
       const retryValidated = config.outputSchema.safeParse(retryResult);
       if (retryValidated.success) {
@@ -126,9 +137,10 @@ export async function runGeneration<TInput, TOutput>(
       }
     }
   } catch (err: unknown) {
-    await quotaManager.refundCredit(installation.id, reservedBucket);
+    await quotaManager.refundCredit(installation.id, reserved.bucket, reserved.usageDate);
+    await circuitBreaker.recordSpend(0.0001).catch(() => {});
     const errMessage = err instanceof Error ? err.message : 'AI generation error';
-    // Record failure in audit metadata (non-fatal)
+    const isSafety = errMessage.toUpperCase().includes('SAFETY');
     try {
       const genRepo = new GenerationsRepository(c.env?.DB);
       await genRepo.insertMetadata({
@@ -138,13 +150,18 @@ export async function runGeneration<TInput, TOutput>(
         category: config.category,
         tone,
         language,
-        status: errMessage.includes('SAFETY') ? 'safety_rejected' : 'failed',
+        status: isSafety ? 'safety_rejected' : 'failed',
         latencyMs: Date.now() - startTime,
       });
     } catch (telemetryErr) {
       console.warn('[Pipeline] Failed to record failure metadata:', telemetryErr);
     }
-    throw new ProviderError(errMessage);
+    // Never leak internal upstream provider error details to end users
+    throw new ProviderError(
+      isSafety
+        ? 'SAFETY_VIOLATION: The request could not be completed due to safety guidelines.'
+        : 'AI generation service is temporarily unavailable. Please try again.'
+    );
   }
 
   const latencyMs = Date.now() - startTime;
@@ -157,11 +174,12 @@ export async function runGeneration<TInput, TOutput>(
       tone,
       language,
       config.category,
-      output
+      output,
+      variantSig
     );
   }
 
-  // 8. Write Audit Metadata & budget spend (Never fail a succeeded generation on telemetry writes)
+  // 8. Write Audit Metadata & budget spend
   try {
     const genRepo = new GenerationsRepository(c.env?.DB);
     await genRepo.insertMetadata({
@@ -179,7 +197,6 @@ export async function runGeneration<TInput, TOutput>(
     console.warn('[Pipeline] Non-fatal telemetry/budget write failed:', telemetryErr);
   }
 
-  // 10. Return Standardized Response & Cache in Idempotency Repo
   const quota = await quotaManager.getQuotaStatus(installation.id);
   const creditsRemaining = quota.is_pro ? quota.pro_credits_remaining : quota.total_credits_remaining;
   const finalResponse = config.formatResponse(output, input, creditsRemaining, false);
@@ -190,7 +207,7 @@ export async function runGeneration<TInput, TOutput>(
         key: idempotencyKey,
         installationId: installation.id,
         endpoint: c.req.path,
-        requestHash: requestId,
+        requestHash: payloadHash,
         responseJson: JSON.stringify(finalResponse),
         statusCode: 200,
       });
@@ -205,17 +222,19 @@ export async function runGeneration<TInput, TOutput>(
 async function aiGenerationWithTimeout<TInput, TOutput>(
   ai: ReturnType<typeof createAIProvider>,
   input: TInput,
-  generator: (ai: ReturnType<typeof createAIProvider>, input: TInput) => Promise<TOutput>,
+  generateFn: (ai: ReturnType<typeof createAIProvider>, input: TInput) => Promise<TOutput>,
   timeoutMs: number
 ): Promise<TOutput> {
-  let timer: any;
+  let timeoutId: ReturnType<typeof setTimeout>;
   const timeoutPromise = new Promise<never>((_, reject) => {
-    timer = setTimeout(() => reject(new ProviderError(`AI provider timed out after ${timeoutMs}ms.`)), timeoutMs);
+    timeoutId = setTimeout(() => {
+      reject(new Error(`Upstream AI generation timed out after ${timeoutMs}ms`));
+    }, timeoutMs);
   });
 
   try {
-    return await Promise.race([generator(ai, input), timeoutPromise]);
+    return await Promise.race([generateFn(ai, input), timeoutPromise]);
   } finally {
-    clearTimeout(timer);
+    clearTimeout(timeoutId!);
   }
 }

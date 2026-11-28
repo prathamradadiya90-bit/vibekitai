@@ -16,16 +16,16 @@ export class IdempotencyRepository {
     key: string,
     installationId: string,
     endpoint: string
-  ): Promise<{ statusCode: number; data: unknown } | null> {
+  ): Promise<{ statusCode: number; data: unknown; requestHash?: string } | null> {
     const now = new Date().toISOString();
     const row = await this.db
       .prepare(
-        `SELECT response_json, status_code
+        `SELECT response_json, status_code, request_hash
          FROM idempotency_keys
          WHERE idempotency_key = ? AND installation_id = ? AND endpoint = ? AND expires_at > ?`
       )
       .bind(key, installationId, endpoint, now)
-      .first<{ response_json: string; status_code: number }>();
+      .first<{ response_json: string; status_code: number; request_hash?: string }>();
 
     if (!row) return null;
 
@@ -33,6 +33,7 @@ export class IdempotencyRepository {
       return {
         statusCode: row.status_code,
         data: JSON.parse(row.response_json),
+        requestHash: row.request_hash,
       };
     } catch {
       return null;

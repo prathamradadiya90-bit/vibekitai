@@ -7,6 +7,7 @@ import '../../core/constants/app_colors.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/services/achievement_service.dart';
 import '../../models/challenge_model.dart';
+import '../streaks/providers/streak_provider.dart';
 
 class ChallengeScreen extends ConsumerStatefulWidget {
   const ChallengeScreen({super.key});
@@ -41,9 +42,10 @@ class _ChallengeScreenState extends ConsumerState<ChallengeScreen> {
   }
 
   Future<void> _startChallenge(ChallengeModel challenge) async {
-    // Record challenge accepted/solved progress
+    // Record challenge accepted/solved progress & streak XP
     final prefs = ref.read(preferencesServiceProvider);
     await prefs.incrementChallengesSolved();
+    ref.read(streakProvider.notifier).recordAction('challenge');
     if (mounted) {
       await ref.read(achievementServiceProvider).checkAndUnlockAchievements(context: context);
     }
@@ -85,13 +87,51 @@ class _ChallengeScreenState extends ConsumerState<ChallengeScreen> {
         elevation: 0,
         leading: IconButton(
           icon: Icon(Icons.arrow_back_ios_new, color: titleCol, size: 20),
-          onPressed: () => context.pop(),
+          onPressed: () {
+            if (context.canPop()) {
+              context.pop();
+            } else {
+              context.go('/home');
+            }
+          },
         ),
       ),
       body: SafeArea(
         child: _isLoading
             ? const Center(child: CircularProgressIndicator())
-            : ListView.separated(
+            : _challenges.isEmpty
+                ? Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(28),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.explore_off_rounded, size: 48, color: subtitleCol),
+                          const SizedBox(height: 12),
+                          Text(
+                            'No Challenges Loaded',
+                            style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: titleCol),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            'Tap retry to reload today\'s creative challenge prompts.',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(fontSize: 13, color: subtitleCol),
+                          ),
+                          const SizedBox(height: 16),
+                          ElevatedButton.icon(
+                            onPressed: () {
+                              setState(() => _isLoading = true);
+                              _loadChallenges();
+                            },
+                            icon: const Icon(Icons.refresh_rounded, size: 18),
+                            label: const Text('Retry'),
+                          ),
+                        ],
+                      ),
+                    ),
+                  )
+                : ListView.separated(
                 physics: const BouncingScrollPhysics(),
                 padding: const EdgeInsets.all(20),
                 itemCount: _challenges.length,

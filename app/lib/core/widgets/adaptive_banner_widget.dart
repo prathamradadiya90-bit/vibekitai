@@ -58,6 +58,7 @@ class _AdaptiveBannerWidgetState extends ConsumerState<AdaptiveBannerWidget> {
         }
       },
       onAdFailed: (error) {
+        _bannerAd = null;
         if (mounted) {
           setState(() {
             _isLoaded = false;
@@ -87,6 +88,8 @@ class _AdaptiveBannerWidgetState extends ConsumerState<AdaptiveBannerWidget> {
         _bannerAd = null;
         if (mounted) setState(() => _isLoaded = false);
       } else if (prev == true && !next && _bannerAd == null) {
+        _loadFailed = false;
+        _initCheckAttempts = 0;
         _loadBanner();
       }
     });

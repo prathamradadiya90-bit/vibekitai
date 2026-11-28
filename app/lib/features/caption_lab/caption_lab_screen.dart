@@ -623,6 +623,29 @@ class _CaptionLabScreenState extends ConsumerState<CaptionLabScreen> {
                 ),
               ],
 
+              // Call to Actions
+              if (genState.result!.callToActions.isNotEmpty) ...[
+                const SizedBox(height: AppSpacing.md),
+                Text(
+                  'Calls to Action',
+                  style: TextStyle(
+                    color: isDark ? Colors.white : AppColors.textPrimaryLight,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                ...genState.result!.callToActions.map(
+                  (cta) => ResultCard(
+                    content: cta,
+                    subtitle: 'CALL TO ACTION',
+                    category: 'Call to Action',
+                    isFavorite: _favoritedTexts.contains(cta),
+                    onFavoriteToggle: () => _toggleFavorite(cta, 'Call to Action'),
+                  ),
+                ),
+              ],
+
               // Hashtags
               if (genState.result!.hashtags.isNotEmpty) ...[
                 const SizedBox(height: AppSpacing.md),

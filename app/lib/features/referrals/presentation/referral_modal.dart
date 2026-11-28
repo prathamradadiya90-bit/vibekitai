@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/config/app_config.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/network/api_exception.dart';
 import '../../../core/providers/app_providers.dart';
 import '../../../core/services/share_service.dart';
 import '../../../core/services/analytics_service.dart';
@@ -85,9 +86,10 @@ class _ReferralModalState extends ConsumerState<ReferralModal> {
       }
     } catch (e) {
       if (mounted) {
+        final msg = e is ApiException ? e.message : 'Unable to claim referral right now. Please try again.';
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed: ${e.toString()}'),
+            content: Text(msg),
             backgroundColor: const Color(0xFFFF7675),
           ),
         );

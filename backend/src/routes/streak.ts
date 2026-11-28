@@ -6,7 +6,6 @@ import { StreaksRepository } from '../db/streaks.repo';
 
 export const streakRoute = new Hono<AppHonoEnv>();
 
-// Action XP Values
 const ACTION_XP: Record<string, number> = {
   generate: 10,
   card_export: 15,
@@ -17,14 +16,18 @@ const ACTION_XP: Record<string, number> = {
   aura_radar: 20,
 };
 
-// Helper: Calculate date string with client UTC offset
+function clampTimezoneOffset(offsetMinutes: number): number {
+  if (!Number.isFinite(offsetMinutes)) return 0;
+  return Math.max(-840, Math.min(840, Math.trunc(offsetMinutes)));
+}
+
 function getLocalDateString(offsetMinutes: number): string {
+  const clamped = clampTimezoneOffset(offsetMinutes);
   const now = new Date();
-  const localTime = new Date(now.getTime() + offsetMinutes * 60 * 1000);
+  const localTime = new Date(now.getTime() + clamped * 60 * 1000);
   return localTime.toISOString().split('T')[0] ?? '';
 }
 
-// Helper: Check day difference between two YYYY-MM-DD dates
 function getDayDiff(date1Str: string, date2Str: string): number {
   const d1 = new Date(date1Str);
   const d2 = new Date(date2Str);
@@ -32,17 +35,17 @@ function getDayDiff(date1Str: string, date2Str: string): number {
   return Math.round(diffTime / (1000 * 60 * 60 * 24));
 }
 
-// 1. GET /v1/streak - Fetch current streak, XP, level, and milestones
+// 1. GET /v1/streak
 streakRoute.get('/streak', handleGetStreak);
 streakRoute.get('/streaks', handleGetStreak);
 async function handleGetStreak(c: any) {
   const installationId = c.get('installationId') || c.req.header('X-App-Instance-Id') || 'anonymous_default';
   const offsetHeader = c.req.header('X-Timezone-Offset');
-  const offsetMinutes = offsetHeader ? parseInt(offsetHeader, 10) : 0;
-  const todayLocal = getLocalDateString(isNaN(offsetMinutes) ? 0 : offsetMinutes);
+  const parsedOffset = offsetHeader ? parseInt(offsetHeader, 10) : 0;
+  const offsetMinutes = clampTimezoneOffset(isNaN(parsedOffset) ? 0 : parsedOffset);
+  const todayLocal = getLocalDateString(offsetMinutes);
 
   if (!c.env.DB) {
-    // Memory fallback for standalone tests
     return c.json({
       current_streak: 1,
       longest_streak: 1,
@@ -63,11 +66,13 @@ async function handleGetStreak(c: any) {
   const nowIso = new Date().toISOString();
 
   if (quota.is_pro) {
-    const lastRefill = streakRow.pro_freeze_refilled_at ? new Date(streakRow.pro_freeze_refilled_at).getTime() : 0;
+    const lastRefill = streakRow.pro_freeze_refilled_at
+      ? new Date(streakRow.pro_freeze_refilled_at).getTime()
+      : 0;
     const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
     if (Date.now() - lastRefill > sevenDaysMs && streakRow.freeze_count < 2) {
-      await repo.refillProFreeze(installationId, nowIso);
-      streakRow.freeze_count += 1;
+      const refilled = await repo.refillProFreeze(installationId, nowIso);
+      if (refilled) streakRow.freeze_count += 1;
     }
   }
 
@@ -88,12 +93,13 @@ async function handleGetStreak(c: any) {
   });
 }
 
-// 2. POST /v1/streak/checkin - Record daily action, update streak and award XP
+// 2. POST /v1/streak/checkin
 streakRoute.post('/streak/checkin', handleCheckin);
 streakRoute.post('/streaks/checkin', handleCheckin);
 async function handleCheckin(c: any) {
   const installationId = c.get('installationId') || c.req.header('X-App-Instance-Id') || 'anonymous_default';
-  const bodyResult = StreakCheckinSchema.safeParse(await c.req.json().catch(() => ({})));
+  const rawBody = await c.req.json().catch(() => null);
+  const bodyResult = StreakCheckinSchema.safeParse(rawBody ?? {});
 
   if (!bodyResult.success) {
     return c.json(
@@ -109,13 +115,13 @@ async function handleCheckin(c: any) {
   }
 
   const { utc_offset_minutes, action } = bodyResult.data;
-  const todayLocal = getLocalDateString(utc_offset_minutes);
+  const clampedOffset = clampTimezoneOffset(utc_offset_minutes);
+  const todayLocal = getLocalDateString(clampedOffset);
   const xpAwarded = ACTION_XP[action] || 10;
   const nowIso = new Date().toISOString();
 
-  // Calculate the exact UTC timestamp corresponding to local midnight
   const localMidnightUtcMs =
-    new Date(`${todayLocal}T00:00:00.000Z`).getTime() - utc_offset_minutes * 60 * 1000;
+    new Date(`${todayLocal}T00:00:00.000Z`).getTime() - clampedOffset * 60 * 1000;
   const localStartOfDayUtcIso = new Date(localMidnightUtcMs).toISOString();
 
   if (!c.env.DB) {
@@ -128,8 +134,10 @@ async function handleCheckin(c: any) {
     });
   }
 
+  const quotaManager = new QuotaManager(c.env);
+  const quota = await quotaManager.getQuotaStatus(installationId);
   const repo = new StreaksRepository(c.env.DB);
-  const streak = await repo.getOrCreateStreak(installationId, false);
+  const streak = await repo.getOrCreateStreak(installationId, quota.is_pro);
 
   let newStreak = streak.current_streak;
   let newLongest = streak.longest_streak;
@@ -138,7 +146,6 @@ async function handleCheckin(c: any) {
   let effectiveCheckinDate = todayLocal;
 
   if (streak.last_checkin_date === todayLocal) {
-    // Already checked in today: check if XP for this action was already awarded today
     const existingXp = await c.env.DB
       .prepare('SELECT id FROM xp_events WHERE installation_id = ? AND action_type = ? AND created_at >= ? LIMIT 1')
       .bind(installationId, action, localStartOfDayUtcIso)
@@ -147,27 +154,40 @@ async function handleCheckin(c: any) {
       effectiveXp = 0;
     }
   } else if (streak.last_checkin_date === '') {
-    // First ever checkin
     newStreak = 1;
     newLongest = 1;
   } else {
     const diff = getDayDiff(todayLocal, streak.last_checkin_date);
     if (diff < 0) {
-      // Clock / west-moving timezone shift: keep later check-in date and preserve streak
+      // Clock / west-moving timezone shift: never grant fresh XP for shifting backwards
       newStreak = streak.current_streak;
       effectiveCheckinDate = streak.last_checkin_date;
+      effectiveXp = 0;
     } else if (diff === 0) {
       newStreak = streak.current_streak;
-    } else if (diff === 1) {
-      newStreak += 1;
-      if (newStreak > newLongest) newLongest = newStreak;
-    } else if (diff === 2 && streak.freeze_count > 0) {
-      freezeUsed = true;
-      streak.freeze_count -= 1;
-      newStreak += 1;
-      if (newStreak > newLongest) newLongest = newStreak;
+      effectiveXp = 0;
     } else {
-      newStreak = 1;
+      // Enforce minimum 20-hour real elapsed cooldown per action to block +/-timezone toggling
+      const twentyHoursAgoIso = new Date(Date.now() - 20 * 60 * 60 * 1000).toISOString();
+      const recentActionXp = await c.env.DB
+        .prepare('SELECT id FROM xp_events WHERE installation_id = ? AND action_type = ? AND created_at >= ? LIMIT 1')
+        .bind(installationId, action, twentyHoursAgoIso)
+        .first();
+      if (recentActionXp) {
+        effectiveXp = 0;
+      }
+
+      if (diff === 1) {
+        newStreak += 1;
+        if (newStreak > newLongest) newLongest = newStreak;
+      } else if (diff === 2 && streak.freeze_count > 0) {
+        freezeUsed = true;
+        streak.freeze_count -= 1;
+        newStreak += 1;
+        if (newStreak > newLongest) newLongest = newStreak;
+      } else {
+        newStreak = 1;
+      }
     }
   }
 
@@ -192,10 +212,11 @@ async function handleCheckin(c: any) {
   });
 }
 
-// 3. POST /v1/streak/claim-milestone - Claim milestone rewards
+// 3. POST /v1/streak/claim-milestone
 streakRoute.post('/streak/claim-milestone', async (c) => {
   const installationId = c.get('installationId') || c.req.header('X-App-Instance-Id') || 'anonymous_default';
-  const bodyResult = MilestoneClaimSchema.safeParse(await c.req.json().catch(() => ({})));
+  const rawBody = await c.req.json().catch(() => null);
+  const bodyResult = MilestoneClaimSchema.safeParse(rawBody ?? {});
 
   if (!bodyResult.success) {
     return c.json(
@@ -270,20 +291,24 @@ streakRoute.post('/streak/claim-milestone', async (c) => {
       reward_type: rewardType,
       bonus_credits: bonusCredits,
     });
-  } catch (_err) {
-    return c.json(
-      {
-        error: {
-          code: 'ALREADY_CLAIMED',
-          message: `Milestone ${milestone_day} has already been claimed for this installation.`,
+  } catch (err: any) {
+    const msg = String(err?.message || err).toLowerCase();
+    if (msg.includes('unique') || msg.includes('constraint')) {
+      return c.json(
+        {
+          error: {
+            code: 'ALREADY_CLAIMED',
+            message: `Milestone ${milestone_day} has already been claimed for this installation.`,
+          },
         },
-      },
-      400
-    );
+        400
+      );
+    }
+    throw err;
   }
 });
 
-// 4. POST /v1/streak/earn-freeze - Free users earn 1 freeze via rewarded ad
+// 4. POST /v1/streak/earn-freeze - Require a fresh unredeemed rewarded ad watch
 streakRoute.post('/streak/earn-freeze', async (c) => {
   const installationId = c.get('installationId') || c.req.header('X-App-Instance-Id') || 'anonymous_default';
   if (!c.env.DB) {
@@ -293,21 +318,26 @@ streakRoute.post('/streak/earn-freeze', async (c) => {
   const quotaManager = new QuotaManager(c.env);
   const quota = await quotaManager.getQuotaStatus(installationId);
   const isDevOrTest = c.env.ENVIRONMENT === 'development' || c.env.ENVIRONMENT === 'test';
-
-  if (!isDevOrTest && quota.rewarded_ads_watched_today === 0) {
-    return c.json(
-      {
-        error: {
-          code: 'AD_REQUIRED',
-          message: 'Watch a rewarded ad to earn a streak freeze.',
-        },
-      },
-      400
-    );
-  }
+  const todayUtc = new Date().toISOString().split('T')[0] ?? '';
 
   const repo = new StreaksRepository(c.env.DB);
   const streak = await repo.getStreak(installationId);
+
+  if (!isDevOrTest) {
+    const adsRedeemedToday =
+      streak?.last_freeze_ad_date === todayUtc ? (streak.last_freeze_ads_count ?? 0) : 0;
+    if (quota.rewarded_ads_watched_today <= adsRedeemedToday) {
+      return c.json(
+        {
+          error: {
+            code: 'AD_REQUIRED',
+            message: 'Watch a rewarded ad to earn a streak freeze.',
+          },
+        },
+        400
+      );
+    }
+  }
 
   if (streak && streak.freeze_count >= 2) {
     return c.json(
@@ -322,10 +352,27 @@ streakRoute.post('/streak/earn-freeze', async (c) => {
   }
 
   const nowIso = new Date().toISOString();
-  const freezeCount = await repo.earnFreeze(installationId, nowIso);
+  const result = await repo.earnFreeze(
+    installationId,
+    nowIso,
+    todayUtc,
+    quota.rewarded_ads_watched_today
+  );
+
+  if (!result.granted) {
+    return c.json(
+      {
+        error: {
+          code: 'MAX_FREEZES_REACHED',
+          message: 'You already have the maximum of 2 streak freezes.',
+        },
+      },
+      400
+    );
+  }
 
   return c.json({
     success: true,
-    freeze_count: freezeCount,
+    freeze_count: result.freezeCount,
   });
 });

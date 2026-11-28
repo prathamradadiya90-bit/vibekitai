@@ -537,7 +537,13 @@ export function getAdminHtml(): string {
           alert('Permission Denied: Your role does not have authorization for this operation.');
           return null;
         }
-        return await res.json();
+        const payload = await res.json().catch(() => null);
+        if (!res.ok) {
+          const msg = payload?.error?.message || ('Request failed (HTTP ' + res.status + ')');
+          alert('Admin API Error: ' + msg);
+          return null;
+        }
+        return payload;
       } catch (e) {
         console.error('API Error:', e);
         return null;
@@ -710,11 +716,12 @@ export function getAdminHtml(): string {
       const data = await apiFetch('/v1/admin/config');
       if (!data) return;
       if (data.current) {
-        if (data.current.daily_free_credits) document.getElementById('cfgFreeCredits').value = data.current.daily_free_credits;
-        if (data.current.reward_credits_per_ad) document.getElementById('cfgRewardCredits').value = data.current.reward_credits_per_ad;
-        if (data.current.max_daily_rewards) document.getElementById('cfgMaxAds').value = data.current.max_daily_rewards;
+        if (data.current.daily_free_credits != null) document.getElementById('cfgFreeCredits').value = data.current.daily_free_credits;
+        if (data.current.reward_credits_per_ad != null) document.getElementById('cfgRewardCredits').value = data.current.reward_credits_per_ad;
+        if (data.current.max_daily_rewards != null) document.getElementById('cfgMaxAds').value = data.current.max_daily_rewards;
         if (data.current.paywall_variant) document.getElementById('cfgPaywallVariant').value = data.current.paywall_variant;
         if (data.current.ai_provider) document.getElementById('cfgAiProvider').value = data.current.ai_provider;
+        if (data.current.maintenance_mode != null) document.getElementById('cfgMaintenanceMode').value = String(Boolean(data.current.maintenance_mode));
       }
 
       const tbody = document.getElementById('configHistoryTableBody');

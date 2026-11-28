@@ -324,6 +324,8 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('ReplyVibe AI'), findsOneWidget);
+      expect(find.text('EXAMPLE TO TRY'), findsOneWidget);
+      expect(find.text('Or paste your own message instead'), findsOneWidget);
       expect(find.text('Daily AI Credits'), findsOneWidget);
       expect(find.text('Reply Studio'), findsOneWidget);
       expect(find.text('Caption Lab'), findsOneWidget);

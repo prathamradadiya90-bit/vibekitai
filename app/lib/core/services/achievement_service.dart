@@ -134,6 +134,7 @@ class AchievementService {
     for (final a in all) {
       if (a.progress >= 1.0 && !unlockedIds.contains(a.id)) {
         await _prefs.saveUnlockedAchievement(a.id);
+        await _prefs.addAchievementBonusXp(a.xpReward);
         newlyUnlocked.add(a);
 
         // Grant XP to streak notifier

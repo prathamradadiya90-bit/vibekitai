@@ -7,19 +7,23 @@ export interface RemoteConfigVersionRecord {
   created_at: string;
 }
 
-// In-memory cache across worker isolate requests
-const configCache = new Map<string, { data: any; version: number; expiresAt: number }>();
-const CONFIG_CACHE_TTL_MS = 60_000; // 60s
+const configCache = new Map<
+  string,
+  { data: any; version: number; updated_by: string; expiresAt: number }
+>();
+const CONFIG_CACHE_TTL_MS = 60_000;
 
 export class RemoteConfigRepository {
   constructor(private db?: D1Database) {}
 
-  public async getLatestConfig<T = any>(key: string): Promise<{ value: T; version: number; updated_by: string } | null> {
+  public async getLatestConfig<T = any>(
+    key: string
+  ): Promise<{ value: T; version: number; updated_by: string } | null> {
     if (!this.db) return null;
     const cached = configCache.get(key);
     const now = Date.now();
     if (cached && cached.expiresAt > now) {
-      return { value: cached.data as T, version: cached.version, updated_by: 'cache' };
+      return { value: cached.data as T, version: cached.version, updated_by: cached.updated_by };
     }
 
     const row = await this.db
@@ -37,39 +41,69 @@ export class RemoteConfigRepository {
 
     try {
       const parsed = JSON.parse(row.value_json) as T;
-      configCache.set(key, { data: parsed, version: row.version, expiresAt: now + CONFIG_CACHE_TTL_MS });
+      configCache.set(key, {
+        data: parsed,
+        version: row.version,
+        updated_by: row.updated_by,
+        expiresAt: now + CONFIG_CACHE_TTL_MS,
+      });
       return { value: parsed, version: row.version, updated_by: row.updated_by };
     } catch {
       return null;
     }
   }
 
-  public async saveConfig(key: string, value: any, updatedBy: string): Promise<{ version: number }> {
+  public async saveConfig(
+    key: string,
+    value: any,
+    updatedBy: string
+  ): Promise<{ version: number }> {
     if (!this.db) throw new Error('Database not configured');
-    // Find highest version
-    const latest = await this.db
-      .prepare('SELECT MAX(version) as max_version FROM remote_config_versions WHERE config_key = ?')
-      .bind(key)
-      .first<{ max_version: number | null }>();
-
-    const nextVersion = (latest?.max_version ?? 0) + 1;
-    const id = `cfg_${Date.now()}_v${nextVersion}`;
     const valueJson = JSON.stringify(value);
     const now = new Date().toISOString();
 
-    await this.db
-      .prepare(
-        `INSERT INTO remote_config_versions (id, config_key, value_json, version, updated_by, created_at)
-         VALUES (?, ?, ?, ?, ?, ?)`
-      )
-      .bind(id, key, valueJson, nextVersion, updatedBy, now)
-      .run();
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const latest = await this.db
+        .prepare('SELECT MAX(version) as max_version FROM remote_config_versions WHERE config_key = ?')
+        .bind(key)
+        .first<{ max_version: number | null }>();
 
-    configCache.set(key, { data: value, version: nextVersion, expiresAt: Date.now() + CONFIG_CACHE_TTL_MS });
-    return { version: nextVersion };
+      const nextVersion = (latest?.max_version ?? 0) + 1;
+      const id = `cfg_${Date.now()}_${Math.random().toString(36).slice(2, 6)}_v${nextVersion}`;
+
+      try {
+        await this.db
+          .prepare(
+            `INSERT INTO remote_config_versions (id, config_key, value_json, version, updated_by, created_at)
+             VALUES (?, ?, ?, ?, ?, ?)`
+          )
+          .bind(id, key, valueJson, nextVersion, updatedBy, now)
+          .run();
+
+        configCache.set(key, {
+          data: value,
+          version: nextVersion,
+          updated_by: updatedBy,
+          expiresAt: Date.now() + CONFIG_CACHE_TTL_MS,
+        });
+        return { version: nextVersion };
+      } catch (err: any) {
+        const msg = String(err?.message || err).toLowerCase();
+        if (attempt < 2 && (msg.includes('unique') || msg.includes('constraint'))) {
+          continue;
+        }
+        throw err;
+      }
+    }
+
+    throw new Error('Failed to save remote config version after retries');
   }
 
-  public async revertToVersion(key: string, targetVersion: number, revertedBy: string): Promise<{ version: number }> {
+  public async revertToVersion(
+    key: string,
+    targetVersion: number,
+    revertedBy: string
+  ): Promise<{ version: number }> {
     if (!this.db) throw new Error('Database not configured');
     const targetRow = await this.db
       .prepare('SELECT value_json FROM remote_config_versions WHERE config_key = ? AND version = ?')
@@ -98,9 +132,5 @@ export class RemoteConfigRepository {
       .all<RemoteConfigVersionRecord>();
 
     return rows.results ?? [];
-  }
-
-  public static clearCache(): void {
-    configCache.clear();
   }
 }

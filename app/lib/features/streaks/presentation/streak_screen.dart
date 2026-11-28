@@ -1,7 +1,9 @@
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/config/app_config.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/providers/app_providers.dart';
 import '../../../core/services/notification_service.dart';
@@ -14,7 +16,11 @@ final notificationServiceProvider = Provider<NotificationService>((ref) {
   return service;
 });
 
-final notificationEnabledProvider = StateProvider<bool>((ref) => true);
+final notificationEnabledProvider = StateProvider<bool>((ref) {
+  return ref.read(preferencesServiceProvider).getNotificationsEnabled();
+});
+
+final _freezeAdBusyProvider = StateProvider.autoDispose<bool>((ref) => false);
 
 class StreakScreen extends ConsumerWidget {
   const StreakScreen({super.key});
@@ -24,6 +30,7 @@ class StreakScreen extends ConsumerWidget {
     final streak = ref.watch(streakProvider);
     final quota = ref.watch(quotaProvider);
     final notifsEnabled = ref.watch(notificationEnabledProvider);
+    final isFreezeBusy = ref.watch(_freezeAdBusyProvider);
 
     final currentXpInLevel = streak.totalXp % 100;
     final progressToNextLevel = currentXpInLevel / 100.0;
@@ -42,7 +49,13 @@ class StreakScreen extends ConsumerWidget {
         elevation: 0,
         leading: IconButton(
           icon: Icon(Icons.arrow_back_ios_new, color: textCol, size: 20),
-          onPressed: () => context.pop(),
+          onPressed: () {
+            if (context.canPop()) {
+              context.pop();
+            } else {
+              context.go('/home');
+            }
+          },
         ),
         title: Text(
           'Vibe Streaks & Rewards',
@@ -235,7 +248,7 @@ class StreakScreen extends ConsumerWidget {
                       ],
                     ),
                   ),
-                  if (!quota.isPro && streak.freezeCount < 2)
+                  if (!quota.isPro && streak.freezeCount < 2 && (!kIsWeb || AppConfig.isDev))
                     ElevatedButton(
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.info.withValues(alpha: isDark ? 0.28 : 0.14),
@@ -246,15 +259,80 @@ class StreakScreen extends ConsumerWidget {
                           borderRadius: BorderRadius.circular(12),
                         ),
                       ),
-                      onPressed: () async {
-                        final success = await ref.read(streakProvider.notifier).earnFreeze();
-                        if (context.mounted && success) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('+1 Streak Freeze earned! ❄️')),
-                          );
-                        }
-                      },
-                      child: const Text('+1 Freeze', style: TextStyle(fontSize: 12)),
+                      onPressed: isFreezeBusy
+                          ? null
+                          : () async {
+                              ref.read(_freezeAdBusyProvider.notifier).state = true;
+                              try {
+                                final adMob = ref.read(adMobServiceProvider);
+                                final apiClient = ref.read(apiClientProvider);
+                                final instId = ref.read(preferencesServiceProvider).getAppInstanceId();
+                                final notifier = ref.read(streakProvider.notifier);
+
+                                final nonce = await apiClient.requestAdNonce();
+                                final rewardId = 'freeze_${DateTime.now().millisecondsSinceEpoch}';
+                                final customData = jsonEncode({
+                                  'userId': instId,
+                                  if (nonce != null) 'nonce': nonce,
+                                  'rewardId': rewardId,
+                                  'timestamp': DateTime.now().millisecondsSinceEpoch,
+                                });
+
+                                bool failureNotified = false;
+                                final showed = await adMob.showRewardedAd(
+                                  userId: instId,
+                                  customData: customData,
+                                  onRewardEarned: (_) async {
+                                    final success = await notifier.earnFreeze(retryForSsv: true);
+                                    if (context.mounted) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                            success
+                                                ? '+1 Streak Freeze earned! ❄️'
+                                                : (notifier.lastError ??
+                                                    'Could not unlock a Streak Freeze right now.'),
+                                          ),
+                                          backgroundColor:
+                                              success ? AppColors.success : AppColors.error,
+                                          behavior: SnackBarBehavior.floating,
+                                        ),
+                                      );
+                                    }
+                                  },
+                                  onAdFailed: () {
+                                    failureNotified = true;
+                                    if (context.mounted) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(
+                                          content: Text(
+                                              'Rewarded ad is loading. Please try again in a moment.'),
+                                          behavior: SnackBarBehavior.floating,
+                                        ),
+                                      );
+                                    }
+                                  },
+                                );
+                                if (!showed && !failureNotified && context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text(
+                                          'Rewarded ad unavailable right now. Please try again shortly.'),
+                                      behavior: SnackBarBehavior.floating,
+                                    ),
+                                  );
+                                }
+                              } finally {
+                                ref.read(_freezeAdBusyProvider.notifier).state = false;
+                              }
+                            },
+                      child: isFreezeBusy
+                          ? const SizedBox(
+                              width: 14,
+                              height: 14,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Text('+1 Freeze', style: TextStyle(fontSize: 12)),
                     ),
                 ],
               ),
@@ -352,6 +430,7 @@ class StreakScreen extends ConsumerWidget {
               activeColor: AppColors.primary,
               onChanged: (val) async {
                 ref.read(notificationEnabledProvider.notifier).state = val;
+                await ref.read(preferencesServiceProvider).setNotificationsEnabled(val);
                 final notifs = ref.read(notificationServiceProvider);
                 if (val) {
                   await notifs.requestPermission();
@@ -410,12 +489,15 @@ class StreakScreen extends ConsumerWidget {
               children: [
                 Row(
                   children: [
-                    Text(
-                      title,
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                        color: textCol,
+                    Flexible(
+                      child: Text(
+                        title,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: textCol,
+                        ),
                       ),
                     ),
                     const SizedBox(width: 6),
@@ -458,12 +540,21 @@ class StreakScreen extends ConsumerWidget {
               ),
               onPressed: () async {
                 final success =
-                    await ref.read(streakProvider.notifier).claimMilestone(day, ref);
-                if (context.mounted && success) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Claimed milestone reward for Day $day! 🎉')),
-                  );
-                  await ReviewPromptService.instance.onStreakMilestoneClaimed(context, day);
+                    await ref.read(streakProvider.notifier).claimMilestone(day);
+                if (context.mounted) {
+                  if (success) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Claimed milestone reward for Day $day! 🎉')),
+                    );
+                    await ReviewPromptService.instance.onStreakMilestoneClaimed(context, day);
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Could not claim Day $day reward right now. Please try again.'),
+                        backgroundColor: AppColors.error,
+                      ),
+                    );
+                  }
                 }
               },
               child: const Text('Claim', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),

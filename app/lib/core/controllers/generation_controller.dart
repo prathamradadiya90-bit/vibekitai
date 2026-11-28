@@ -74,6 +74,7 @@ class GenerationNotifier<TRequest, TResult>
     try {
       // 2. Perform Network Call
       final result = await caller();
+      if (!mounted) return false;
 
       // 3. Sync Credits from Authoritative Server Result
       final remaining = getCreditsRemaining(result);
@@ -85,6 +86,8 @@ class GenerationNotifier<TRequest, TResult>
       for (final item in historyItems) {
         await db.insertItem(item);
       }
+      if (!mounted) return false;
+
       if (historyItems.isNotEmpty) {
         ref.read(historyRevisionProvider.notifier).state++;
       }
@@ -98,6 +101,7 @@ class GenerationNotifier<TRequest, TResult>
       );
       return true;
     } on ApiException catch (e) {
+      if (!mounted) return false;
       state = state.copyWith(
         isGenerating: false,
         errorMessage: e.message,
@@ -108,6 +112,7 @@ class GenerationNotifier<TRequest, TResult>
       }
       return false;
     } catch (e) {
+      if (!mounted) return false;
       state = state.copyWith(
         isGenerating: false,
         errorMessage: 'An error occurred: $e',

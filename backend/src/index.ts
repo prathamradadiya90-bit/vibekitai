@@ -14,7 +14,7 @@ import { usageRoute } from './routes/usage';
 import { generationsRoute } from './routes/generations';
 import { purchasesRoute } from './routes/purchases';
 import { adsRoute } from './routes/ads';
-import { privacyRoute } from './routes/privacy';
+import { privacyRoute, privacyPublicRoute } from './routes/privacy';
 import { feedbackRoute } from './routes/feedback';
 import { streakRoute } from './routes/streak';
 import { referralsRoute } from './routes/referrals';
@@ -61,10 +61,10 @@ app.use(
       // Mobile app native clients do not send Origin header
       if (!origin) return '*';
       const isLocalhost = /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/.test(origin);
+      const isHttpsVibeKit = /^https:\/\/([a-z0-9-]+\.)*vibekit\.ai$/i.test(origin);
       if (
         isLocalhost ||
-        origin.endsWith('.vibekit.ai') ||
-        origin === 'https://vibekit.ai' ||
+        isHttpsVibeKit ||
         origin === 'https://replyvibe-api.vercel.app'
       ) {
         return origin;
@@ -91,14 +91,14 @@ app.use(
   })
 );
 
-// 4. Shared Installation & RequestId Extraction
-app.use('/v1/*', installationMiddleware());
-
-// 5. Structured Logging Middleware with Zero Prompt Retention Redaction
+// 4. Structured Logging Middleware with Zero Prompt Retention Redaction (assigns requestId first)
 app.use('/v1/*', structuredLoggerMiddleware());
 
-// 6. Shared Edge Rate Limiting Middleware across isolates
+// 5. Shared Edge Rate Limiting Middleware before DB installation writes
 app.use('/v1/*', rateLimiterMiddleware({ generalLimit: 60, generationLimit: 15, windowSeconds: 60 }));
+
+// 6. Shared Installation, Ban, & Session Verification
+app.use('/v1/*', installationMiddleware());
 
 // 7. Global Error Handler Boundary
 app.onError(globalErrorHandler);
@@ -120,7 +120,7 @@ app.route('/v1', privacyRoute as any);
 app.route('/v1', feedbackRoute as any);
 app.route('/v1', streakRoute as any);
 app.route('/v1', referralsRoute as any);
-app.route('/', privacyRoute as any);
+app.route('/', privacyPublicRoute as any);
 
 // Interactive Web App Demo UI
 app.get('/', (c) => c.html(getWebDemoHtml()));

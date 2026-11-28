@@ -1,20 +1,31 @@
 // Daily Challenge Response Cache
-// IMPORTANT PRIVACY GUARANTEE: This cache is strictly utilized for pre-seeded
-// public daily creative challenges. It is NEVER used for user-private custom inputs.
+// IMPORTANT PRIVACY GUARANTEE: Includes prompt/variant signature in cacheKey to prevent
+// cross-category collisions and cross-user leakage of private prompts sharing a challengeId.
 
 import { sha256Hex } from '../security/play_integrity';
+
+async function buildCacheKey(
+  category: 'reply' | 'caption' | 'bio' | 'vibe_check',
+  challengeId: string,
+  tone: string,
+  language: string,
+  variantSignature: string = ''
+): Promise<string> {
+  const normalized = `challenge_${category}_${challengeId}_${tone.toLowerCase()}_${language.toLowerCase()}_${variantSignature}`;
+  return sha256Hex(normalized);
+}
 
 export async function getCachedChallengeResponse<T>(
   db: D1Database | undefined,
   challengeId: string,
   tone: string,
   language: string,
-  category: 'reply' | 'caption' | 'bio' | 'vibe_check'
+  category: 'reply' | 'caption' | 'bio' | 'vibe_check',
+  variantSignature: string = ''
 ): Promise<T | null> {
   if (!db) return null;
 
-  const normalized = `challenge_${challengeId}_${tone.toLowerCase()}_${language.toLowerCase()}`;
-  const cacheKey = await sha256Hex(normalized);
+  const cacheKey = await buildCacheKey(category, challengeId, tone, language, variantSignature);
   const nowIso = new Date().toISOString();
 
   try {
@@ -42,12 +53,12 @@ export async function setCachedChallengeResponse(
   language: string,
   category: 'reply' | 'caption' | 'bio' | 'vibe_check',
   data: any,
+  variantSignature: string = '',
   ttlHours = 24
 ): Promise<void> {
   if (!db) return;
 
-  const normalized = `challenge_${challengeId}_${tone.toLowerCase()}_${language.toLowerCase()}`;
-  const cacheKey = await sha256Hex(normalized);
+  const cacheKey = await buildCacheKey(category, challengeId, tone, language, variantSignature);
   const now = new Date();
   const expiresAt = new Date(now.getTime() + ttlHours * 60 * 60 * 1000);
 

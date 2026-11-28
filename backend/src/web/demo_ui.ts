@@ -371,7 +371,8 @@ export function getWebDemoHtml(): string {
         <option value="TikTok">TikTok</option>
         <option value="Instagram Post">Instagram Post</option>
         <option value="Threads & X">Threads & X</option>
-        <option value="LinkedIn">LinkedIn</option>
+        <option value="YouTube Shorts">YouTube Shorts</option>
+        <option value="General Social Media">General Social Media</option>
       </select>
 
       <label>Topic / Idea</label>
@@ -459,6 +460,52 @@ export function getWebDemoHtml(): string {
       });
     });
 
+    function createActionCard(text, extraMeta) {
+      const card = document.createElement('div');
+      card.className = 'result-card';
+
+      const body = document.createElement('div');
+      body.className = 'result-text';
+      body.textContent = text;
+      card.appendChild(body);
+
+      if (extraMeta) {
+        const meta = document.createElement('div');
+        meta.style.cssText = 'font-size:12px; color:#a78bfa; margin-bottom:8px;';
+        meta.textContent = extraMeta;
+        card.appendChild(meta);
+      }
+
+      const actions = document.createElement('div');
+      actions.className = 'card-actions';
+
+      const cardBtn = document.createElement('button');
+      cardBtn.className = 'action-btn';
+      cardBtn.type = 'button';
+      cardBtn.textContent = '🎨 Put on Card';
+      cardBtn.addEventListener('click', () => sendToCard(text));
+
+      const copyBtn = document.createElement('button');
+      copyBtn.className = 'action-btn';
+      copyBtn.type = 'button';
+      copyBtn.textContent = '📋 Copy';
+      copyBtn.addEventListener('click', () => copyText(text));
+
+      actions.appendChild(cardBtn);
+      actions.appendChild(copyBtn);
+      card.appendChild(actions);
+      return card;
+    }
+
+    function renderErrorCard(resContainer, message) {
+      resContainer.innerHTML = '';
+      const errCard = document.createElement('div');
+      errCard.className = 'result-card';
+      errCard.style.color = '#f87171';
+      errCard.textContent = message;
+      resContainer.appendChild(errCard);
+    }
+
     async function generateReplies() {
       const btn = document.getElementById('generateReplyBtn');
       const input = document.getElementById('replyInput').value.trim();
@@ -479,22 +526,16 @@ export function getWebDemoHtml(): string {
         });
         const data = await res.json();
         if (!res.ok) {
-          resContainer.innerHTML = '<div class="result-card" style="color: #f87171;">' + escapeHtml(data?.error?.message || 'Generation failed') + '</div>';
+          renderErrorCard(resContainer, data?.error?.message || 'Generation failed');
         } else if (data.suggestions && data.suggestions.length) {
-          resContainer.innerHTML = data.suggestions.map(s => \`
-            <div class="result-card">
-              <div class="result-text">\${escapeHtml(s)}</div>
-              <div class="card-actions">
-                <button class="action-btn" onclick="sendToCard('\${escapeJs(s)}')">🎨 Put on Card</button>
-                <button class="action-btn" onclick="copyText('\${escapeJs(s)}')">📋 Copy</button>
-              </div>
-            </div>
-          \`).join('');
+          data.suggestions.forEach(s => {
+            resContainer.appendChild(createActionCard(String(s || ''), ''));
+          });
         } else {
           resContainer.innerHTML = '<div class="result-card">No replies returned. Try another message!</div>';
         }
       } catch (err) {
-        resContainer.innerHTML = '<div class="result-card" style="color: #f87171;">Error: ' + err.message + '</div>';
+        renderErrorCard(resContainer, 'Error: ' + (err?.message || 'Request failed'));
       } finally {
         btn.disabled = false;
         btn.innerText = '⚡ Generate Replies';
@@ -522,24 +563,42 @@ export function getWebDemoHtml(): string {
         });
         const data = await res.json();
         if (!res.ok) {
-          resContainer.innerHTML = '<div class="result-card" style="color: #f87171;">' + escapeHtml(data?.error?.message || 'Generation failed') + '</div>';
-        } else if (data.captions && data.captions.length) {
-          const allTags = (data.hashtags || []).map(h => h.startsWith('#') ? h : '#' + h).join(' ');
-          resContainer.innerHTML = data.captions.map((c, i) => \`
-            <div class="result-card">
-              <div class="result-text">\${escapeHtml(c)}</div>
-              \${i === 0 && allTags ? '<div style="font-size:12px; color:#a78bfa; margin-bottom:8px;">' + escapeHtml(allTags) + '</div>' : ''}
-              <div class="card-actions">
-                <button class="action-btn" onclick="sendToCard('\${escapeJs(c)}')">🎨 Put on Card</button>
-                <button class="action-btn" onclick="copyText('\${escapeJs(c)}')">📋 Copy</button>
-              </div>
-            </div>
-          \`).join('');
+          renderErrorCard(resContainer, data?.error?.message || 'Generation failed');
+        } else if ((data.captions && data.captions.length) || (data.hooks && data.hooks.length)) {
+          const allTags = (data.hashtags || []).map(h => String(h).startsWith('#') ? h : '#' + h).join(' ');
+          const ctas = (data.call_to_actions || []).filter(Boolean);
+
+          if (data.hooks && data.hooks.length) {
+            const hooksHeader = document.createElement('div');
+            hooksHeader.style.cssText = 'font-size:12px; font-weight:700; margin:8px 0 6px 4px; color:#a78bfa;';
+            hooksHeader.textContent = 'SCROLL-STOPPING HOOKS';
+            resContainer.appendChild(hooksHeader);
+            data.hooks.forEach(h => resContainer.appendChild(createActionCard(String(h || ''), '')));
+          }
+
+          if (data.captions && data.captions.length) {
+            const capHeader = document.createElement('div');
+            capHeader.style.cssText = 'font-size:12px; font-weight:700; margin:12px 0 6px 4px; color:#a78bfa;';
+            capHeader.textContent = 'CAPTIONS';
+            resContainer.appendChild(capHeader);
+            data.captions.forEach((c, i) => {
+              const meta = i === 0 ? [allTags, ctas[0] ? 'CTA: ' + ctas[0] : ''].filter(Boolean).join(' • ') : (ctas[i] ? 'CTA: ' + ctas[i] : '');
+              resContainer.appendChild(createActionCard(String(c || ''), meta));
+            });
+          }
+
+          if (ctas.length) {
+            const ctaHeader = document.createElement('div');
+            ctaHeader.style.cssText = 'font-size:12px; font-weight:700; margin:12px 0 6px 4px; color:#a78bfa;';
+            ctaHeader.textContent = 'CALLS TO ACTION';
+            resContainer.appendChild(ctaHeader);
+            ctas.forEach(cta => resContainer.appendChild(createActionCard(String(cta || ''), '')));
+          }
         } else {
           resContainer.innerHTML = '<div class="result-card">No captions returned. Try another topic!</div>';
         }
       } catch (err) {
-        resContainer.innerHTML = '<div class="result-card" style="color: #f87171;">Error: ' + err.message + '</div>';
+        renderErrorCard(resContainer, 'Error: ' + (err?.message || 'Request failed'));
       } finally {
         btn.disabled = false;
         btn.innerText = '✨ Generate Captions';
@@ -565,32 +624,27 @@ export function getWebDemoHtml(): string {
         });
         const data = await res.json();
         if (!res.ok) {
-          resContainer.innerHTML = '<div class="result-card" style="color: #f87171;">' + escapeHtml(data?.error?.message || 'Analysis failed') + '</div>';
+          renderErrorCard(resContainer, data?.error?.message || 'Analysis failed');
         } else {
-          const score = data.score ?? 42;
+          const score = Math.max(0, Math.min(100, Number(data.score ?? 42) || 42));
           resContainer.innerHTML = \`
             <div class="result-card" style="text-align: center;">
-              <div class="score-circle" style="--score: \${Number(score)};" data-score="\${Number(score)}"></div>
+              <div class="score-circle" style="--score: \${score};" data-score="\${score}"></div>
               <div style="font-size: 16px; font-weight: 800; margin-bottom: 4px;">\${escapeHtml(data.title || 'Vibe Check Result')}</div>
               <div style="font-size: 13px; color: #f87171; margin-bottom: 12px; font-style: italic;">"\${escapeHtml(data.verdict || '')}"</div>
               \${data.tags ? data.tags.map(t => '<span class="chip" style="pointer-events:none; margin:2px;">' + escapeHtml(String(t).startsWith('#') ? t : '#' + t) + '</span>').join(' ') : ''}
             </div>
-            \${data.rewrites ? \`
-              <div style="font-size: 13px; font-weight: 700; margin: 16px 0 8px 4px; color: #a78bfa;">UPGRADED REWRITES:</div>
-              \${data.rewrites.map(rw => \`
-                <div class="result-card">
-                  <div class="result-text">\${escapeHtml(rw)}</div>
-                  <div class="card-actions">
-                    <button class="action-btn" onclick="sendToCard('\${escapeJs(rw)}')">🎨 Put on Card</button>
-                    <button class="action-btn" onclick="copyText('\${escapeJs(rw)}')">📋 Copy</button>
-                  </div>
-                </div>
-              \`).join('')}
-            \` : ''}
           \`;
+          if (data.rewrites && data.rewrites.length) {
+            const label = document.createElement('div');
+            label.style.cssText = 'font-size: 13px; font-weight: 700; margin: 16px 0 8px 4px; color: #a78bfa;';
+            label.textContent = 'UPGRADED REWRITES:';
+            resContainer.appendChild(label);
+            data.rewrites.forEach(rw => resContainer.appendChild(createActionCard(String(rw || ''), '')));
+          }
         }
       } catch (err) {
-        resContainer.innerHTML = '<div class="result-card" style="color: #f87171;">Error: ' + err.message + '</div>';
+        renderErrorCard(resContainer, 'Error: ' + (err?.message || 'Request failed'));
       } finally {
         btn.disabled = false;
         btn.innerText = '🔥 Rate & Roast My Message';
@@ -616,17 +670,27 @@ export function getWebDemoHtml(): string {
       copyText(val);
     }
 
-    function copyText(str) {
-      navigator.clipboard.writeText(str);
+    async function copyText(str) {
+      try {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          await navigator.clipboard.writeText(str);
+          alert('Copied to clipboard!');
+          return;
+        }
+      } catch (_) {}
+      const ta = document.createElement('textarea');
+      ta.value = str;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      try { document.execCommand('copy'); } catch (_) {}
+      document.body.removeChild(ta);
       alert('Copied to clipboard!');
     }
 
     function escapeHtml(str) {
-      return (str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-    }
-
-    function escapeJs(str) {
-      return (str || '').replace(/\\\\/g, '\\\\\\\\').replace(/'/g, "\\\\'").replace(/"/g, '&quot;');
+      return String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     }
   </script>
 </body>

@@ -71,45 +71,57 @@ class AppBottomNav extends StatelessWidget {
                   ? AppColors.textMutedDark
                   : AppColors.textSecondaryLight;
 
-              return InkWell(
-                onTap: () {
-                  if (isSelected) return;
-                  HapticFeedback.selectionClick();
-                  context.go(item.route);
-                },
-                borderRadius: BorderRadius.circular(16),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      AnimatedContainer(
-                        duration: const Duration(milliseconds: 200),
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: isSelected
-                              ? (isDark
-                                  ? AppColors.primary.withOpacity(0.35)
-                                  : AppColors.primary.withOpacity(0.12))
-                              : Colors.transparent,
-                          borderRadius: BorderRadius.circular(14),
+              final currentRoute = GoRouter.maybeOf(context)
+                  ?.routerDelegate
+                  .currentConfiguration
+                  .uri
+                  .path;
+
+              return Expanded(
+                child: InkWell(
+                  onTap: () {
+                    if (isSelected && (currentRoute == null || currentRoute == item.route)) {
+                      return;
+                    }
+                    HapticFeedback.selectionClick();
+                    context.go(item.route);
+                  },
+                  borderRadius: BorderRadius.circular(16),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        AnimatedContainer(
+                          duration: const Duration(milliseconds: 200),
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: isSelected
+                                ? (isDark
+                                    ? AppColors.primary.withOpacity(0.35)
+                                    : AppColors.primary.withOpacity(0.12))
+                                : Colors.transparent,
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          child: Icon(
+                            isSelected ? item.activeIcon : item.icon,
+                            size: 20,
+                            color: isSelected ? activeColor : inactiveColor,
+                          ),
                         ),
-                        child: Icon(
-                          isSelected ? item.activeIcon : item.icon,
-                          size: 20,
-                          color: isSelected ? activeColor : inactiveColor,
+                        const SizedBox(height: 3),
+                        Text(
+                          item.label,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 10,
+                            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                            color: isSelected ? activeColor : inactiveColor,
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 3),
-                      Text(
-                        item.label,
-                        style: GoogleFonts.plusJakartaSans(
-                          fontSize: 10,
-                          fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                          color: isSelected ? activeColor : inactiveColor,
-                        ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               );

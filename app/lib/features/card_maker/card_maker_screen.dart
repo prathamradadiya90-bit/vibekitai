@@ -1,4 +1,6 @@
+import 'dart:convert';
 import 'dart:math';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -12,6 +14,8 @@ import '../../core/services/analytics_service.dart';
 import '../../core/services/achievement_service.dart';
 import '../../core/widgets/app_bottom_nav.dart';
 import '../../models/history_item.dart';
+import '../../models/streak_model.dart';
+import '../streaks/providers/streak_provider.dart';
 import 'card_canvas.dart';
 import 'card_templates.dart';
 
@@ -36,6 +40,7 @@ class _CardMakerScreenState extends ConsumerState<CardMakerScreen> {
   TextAlign _textAlign = TextAlign.center;
   double _fontSize = 20.0;
   bool _isExporting = false;
+  bool _isSavingFavorite = false;
   int _activeEditorTab = 0; // 0: Content, 1: Style & Templates, 2: Typography & Ratio
 
   final List<Map<String, dynamic>> _aspectRatios = [
@@ -126,12 +131,29 @@ class _CardMakerScreenState extends ConsumerState<CardMakerScreen> {
     super.dispose();
   }
 
+  bool _isTemplateUnlocked(
+    CardTemplate template,
+    bool isPro,
+    StreakModel streak,
+  ) {
+    if (!template.isProOnly || isPro) return true;
+    if (template.id == 'aura_glow' && streak.isMilestoneClaimed(7)) return true;
+    if (template.id == 'cyberpunk_neon' && streak.isMilestoneClaimed(14)) return true;
+    return false;
+  }
+
   void _shuffleInspiration() {
     HapticFeedback.lightImpact();
     final random = Random();
     final prompt = _viralIdeaPrompts[random.nextInt(_viralIdeaPrompts.length)];
-    const availableTemplates = CardTemplates.all;
-    final template = availableTemplates[random.nextInt(availableTemplates.length)];
+    final isPro = ref.read(quotaProvider).isPro;
+    final streak = ref.read(streakProvider);
+    final unlockedTemplates = CardTemplates.all
+        .where((t) => _isTemplateUnlocked(t, isPro, streak))
+        .toList();
+    final template = unlockedTemplates.isNotEmpty
+        ? unlockedTemplates[random.nextInt(unlockedTemplates.length)]
+        : CardTemplates.all.first;
     const styles = CardStyle.values;
     final style = styles[random.nextInt(styles.length)];
 
@@ -198,7 +220,7 @@ class _CardMakerScreenState extends ConsumerState<CardMakerScreen> {
             type: 'card',
             category: _selectedTemplate.name,
             createdAt: DateTime.now(),
-            extraData: filePath ?? 'web_export',
+            extraData: _encodeExtraData(filePath, pngBytes),
           ),
         );
         ref.read(historyRevisionProvider.notifier).state++;
@@ -210,6 +232,7 @@ class _CardMakerScreenState extends ConsumerState<CardMakerScreen> {
           imageBytes: pngBytes,
         );
         AnalyticsService.instance.logShareCard();
+        ref.read(streakProvider.notifier).recordAction('card_export');
 
         await ref.read(preferencesServiceProvider).incrementCardsExported();
         if (mounted) {
@@ -231,28 +254,53 @@ class _CardMakerScreenState extends ConsumerState<CardMakerScreen> {
     }
   }
 
+  String? _encodeExtraData(String? filePath, Uint8List? pngBytes) {
+    if (kIsWeb && pngBytes != null && pngBytes.lengthInBytes <= 180000) {
+      return 'data:image/png;base64,${base64Encode(pngBytes)}';
+    }
+    return filePath;
+  }
+
   Future<void> _saveToFavorites() async {
     final text = _textController.text.trim();
-    if (text.isEmpty) return;
+    if (text.isEmpty || _isSavingFavorite) return;
 
-    final filePath = await CardExportService.captureAndSaveCard(_repaintKey, persistent: true);
-    final db = ref.read(localDatabaseProvider);
-    await db.insertItem(
-      HistoryItem(
-        id: const Uuid().v4(),
-        title: text.length > 30 ? '${text.substring(0, 30)}...' : text,
-        content: text,
-        type: 'card',
-        category: _selectedTemplate.name,
-        createdAt: DateTime.now(),
-        isFavorite: true,
-        extraData: filePath,
-      ),
-    );
-    ref.read(historyRevisionProvider.notifier).state++;
+    setState(() => _isSavingFavorite = true);
+    try {
+      final pngBytes = await CardExportService.captureCardBytes(_repaintKey);
+      final filePath = pngBytes != null
+          ? await CardExportService.saveCardBytes(pngBytes, persistent: true)
+          : null;
+      if (!mounted) return;
 
-    HapticFeedback.selectionClick();
-    if (mounted) {
+      if (pngBytes == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Could not capture card preview. Please try again.'),
+            backgroundColor: AppColors.error,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        return;
+      }
+
+      final db = ref.read(localDatabaseProvider);
+      await db.insertItem(
+        HistoryItem(
+          id: const Uuid().v4(),
+          title: text.length > 30 ? '${text.substring(0, 30)}...' : text,
+          content: text,
+          type: 'card',
+          category: _selectedTemplate.name,
+          createdAt: DateTime.now(),
+          isFavorite: true,
+          extraData: _encodeExtraData(filePath, pngBytes),
+        ),
+      );
+      if (!mounted) return;
+      ref.read(historyRevisionProvider.notifier).state++;
+
+      HapticFeedback.selectionClick();
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Card saved to Favorites & History!'),
@@ -260,12 +308,25 @@ class _CardMakerScreenState extends ConsumerState<CardMakerScreen> {
           behavior: SnackBarBehavior.floating,
         ),
       );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to save favorite card: $e'),
+            backgroundColor: AppColors.error,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isSavingFavorite = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final quota = ref.watch(quotaProvider);
+    final streak = ref.watch(streakProvider);
     final showWatermark = !quota.isPro;
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
@@ -349,7 +410,7 @@ class _CardMakerScreenState extends ConsumerState<CardMakerScreen> {
               ),
 
               // 3. Tab Contents
-              _buildActiveTabContent(isDark, quota.isPro),
+              _buildActiveTabContent(isDark, quota.isPro, streak),
 
               const SizedBox(height: 16),
 
@@ -420,12 +481,12 @@ class _CardMakerScreenState extends ConsumerState<CardMakerScreen> {
     );
   }
 
-  Widget _buildActiveTabContent(bool isDark, bool isPro) {
+  Widget _buildActiveTabContent(bool isDark, bool isPro, StreakModel streak) {
     switch (_activeEditorTab) {
       case 0:
         return _buildContentTab(isDark);
       case 1:
-        return _buildStyleTab(isDark, isPro);
+        return _buildStyleTab(isDark, isPro, streak);
       case 2:
       default:
         return _buildLayoutTab(isDark, isPro);
@@ -575,7 +636,7 @@ class _CardMakerScreenState extends ConsumerState<CardMakerScreen> {
   }
 
   // TAB 1: CARD STYLE & TEMPLATES
-  Widget _buildStyleTab(bool isDark, bool isPro) {
+  Widget _buildStyleTab(bool isDark, bool isPro, StreakModel streak) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -675,10 +736,11 @@ class _CardMakerScreenState extends ConsumerState<CardMakerScreen> {
             separatorBuilder: (_, __) => const SizedBox(width: 10),
             itemBuilder: (context, index) {
               final t = CardTemplates.all[index];
+              final isUnlocked = _isTemplateUnlocked(t, isPro, streak);
               final isSelected = _selectedTemplate.id == t.id;
               return InkWell(
                 onTap: () {
-                  if (t.isProOnly && !isPro) {
+                  if (!isUnlocked) {
                     context.push('/paywall');
                     return;
                   }
@@ -723,7 +785,7 @@ class _CardMakerScreenState extends ConsumerState<CardMakerScreen> {
                           ),
                         ),
                       ),
-                      if (t.isProOnly && !isPro)
+                      if (!isUnlocked)
                         Positioned(
                           top: 6,
                           right: 6,

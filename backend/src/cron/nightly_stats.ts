@@ -11,31 +11,28 @@ export async function handleScheduledTask(
   const statsRepo = new StatsRepository(env.DB);
   const quotaManager = new QuotaManager(env);
 
-  // Compute yesterday's stats
   const yesterday = new Date(Date.now() - 86400000).toISOString().substring(0, 10);
   const today = new Date().toISOString().substring(0, 10);
 
   ctx.waitUntil(
     (async () => {
       try {
+        // Reconcile expired entitlements BEFORE saving today's active Pro snapshot
+        await quotaManager.reconcileEntitlementsNightly();
         await statsRepo.aggregateAndSaveDailyStats(yesterday);
         await statsRepo.aggregateAndSaveDailyStats(today);
-        await quotaManager.reconcileEntitlementsNightly();
 
-        // Purge expired edge rate limit counters older than 1 hour and expired idempotency responses (24h TTL)
-        if (env.DB) {
-          const oneHourAgoSec = Math.floor(Date.now() / 1000) - 3600;
-          await env.DB.prepare('DELETE FROM rate_limit_counters WHERE expires_at < ?')
-            .bind(oneHourAgoSec)
-            .run()
-            .catch((err) => console.warn('Failed to purge expired rate_limit_counters:', err));
+        const oneHourAgoSec = Math.floor(Date.now() / 1000) - 3600;
+        await env.DB.prepare('DELETE FROM rate_limit_counters WHERE expires_at < ?')
+          .bind(oneHourAgoSec)
+          .run()
+          .catch((err) => console.warn('Failed to purge expired rate_limit_counters:', err));
 
-          const nowIso = new Date().toISOString();
-          await env.DB.prepare('DELETE FROM idempotency_keys WHERE expires_at <= ?')
-            .bind(nowIso)
-            .run()
-            .catch((err) => console.warn('Failed to purge expired idempotency_keys:', err));
-        }
+        const nowIso = new Date().toISOString();
+        await env.DB.prepare('DELETE FROM idempotency_keys WHERE expires_at <= ?')
+          .bind(nowIso)
+          .run()
+          .catch((err) => console.warn('Failed to purge expired idempotency_keys:', err));
       } catch (err) {
         console.error('Failed nightly scheduled task:', err);
       }

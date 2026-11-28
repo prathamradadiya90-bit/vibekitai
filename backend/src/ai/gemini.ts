@@ -30,6 +30,39 @@ export interface GenerationResult {
 
 declare const process: any;
 
+const GEMINI_SAFETY_FINISH_REASONS = new Set([
+  'SAFETY',
+  'PROHIBITED_CONTENT',
+  'BLOCKLIST',
+  'SPII',
+  'RECITATION',
+]);
+
+function extractJsonObject(raw: string): GenerationResult | null {
+  try {
+    return JSON.parse(raw) as GenerationResult;
+  } catch {
+    const fenced = raw.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
+    if (fenced && fenced[1] && fenced[1].trim()) {
+      try {
+        return JSON.parse(fenced[1]) as GenerationResult;
+      } catch {
+        // fall through to brace matching
+      }
+    }
+    const start = raw.indexOf('{');
+    const end = raw.lastIndexOf('}');
+    if (start !== -1 && end > start) {
+      try {
+        return JSON.parse(raw.slice(start, end + 1)) as GenerationResult;
+      } catch {
+        return null;
+      }
+    }
+    return null;
+  }
+}
+
 export class GeminiProvider {
   private apiKey?: string;
   private model: string;
@@ -37,7 +70,7 @@ export class GeminiProvider {
 
   constructor(env: Env) {
     this.apiKey = env.GEMINI_API_KEY || (typeof process !== 'undefined' ? process.env?.GEMINI_API_KEY : undefined);
-    this.model = env.GEMINI_MODEL || (typeof process !== 'undefined' ? process.env?.GEMINI_MODEL : undefined) || 'gemini-3.5-flash-lite';
+    this.model = env.GEMINI_MODEL || (typeof process !== 'undefined' ? process.env?.GEMINI_MODEL : undefined) || 'gemini-2.0-flash';
     this.isDevelopmentOrTest = env.ENVIRONMENT === 'development' || env.ENVIRONMENT === 'test';
   }
 
@@ -137,15 +170,26 @@ export class GeminiProvider {
 
     const prompt = buildVibeCheckPrompt(params);
     const result = await this.callGeminiWithSafety(prompt.system, prompt.user, 'vibe_check');
-    if (result && typeof result.score === 'number' && Array.isArray(result.rewrites) && result.rewrites.length > 0) {
+    const rewrites = humanizeList(result?.rewrites, 3);
+    const score = typeof result?.score === 'number' && Number.isFinite(result.score) ? result.score : NaN;
+    if (result && Number.isFinite(score) && rewrites.length > 0) {
+      const normalizedTags = humanizeList(result.tags, 4).map((t) =>
+        t.startsWith('#') ? t : `#${t.replace(/\s+/g, '')}`
+      );
+      const title =
+        typeof result.title === 'string' && result.title.trim().length > 0
+          ? result.title.trim()
+          : 'Vibe Check';
+      const verdict =
+        typeof result.verdict === 'string' && result.verdict.trim().length > 0
+          ? result.verdict.trim()
+          : 'Analysis completed.';
       return {
-        score: Math.min(100, Math.max(0, Math.round(result.score))),
-        title: result.title || 'Vibe Check',
-        verdict: result.verdict || 'Analysis completed.',
-        tags: Array.isArray(result.tags) && result.tags.length > 0
-          ? result.tags.slice(0, 4).map(t => t.startsWith('#') ? t : `#${t.replace(/\s+/g, '')}`)
-          : ['#VibeCheck', '#SocialTone', '#LeveledUp'],
-        rewrites: humanizeList(result.rewrites, 3),
+        score: Math.min(100, Math.max(0, Math.round(score))),
+        title,
+        verdict,
+        tags: normalizedTags.length > 0 ? normalizedTags : ['#VibeCheck', '#SocialTone', '#LeveledUp'],
+        rewrites,
       };
     }
 
@@ -161,15 +205,18 @@ export class GeminiProvider {
       return await this.callGeminiApi(systemInstruction, prompt, task);
     } catch (err: any) {
       const msg = String(err?.message || err);
-      if (msg.toUpperCase().includes('SAFETY')) {
+      if (msg.toUpperCase().includes('SAFETY_VIOLATION')) {
         throw err;
       }
-      // Propagate real upstream failures so FallbackChainAIProvider & pipeline credit-refund work properly
       throw err instanceof Error ? err : new Error(msg);
     }
   }
 
-  private async callGeminiApi(systemInstruction: string, prompt: string, task: TaskKind): Promise<GenerationResult | null> {
+  private async callGeminiApi(
+    systemInstruction: string,
+    prompt: string,
+    task: TaskKind
+  ): Promise<GenerationResult | null> {
     const sampling = SAMPLING[task];
     if (!this.apiKey) {
       throw new Error('GEMINI_API_KEY is not configured on the server.');
@@ -204,62 +251,57 @@ export class GeminiProvider {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 15000);
 
-    let response: Response;
     try {
-      response = await safeFetch(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-goog-api-key': this.apiKey,
+      const response = await safeFetch(
+        url,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-goog-api-key': this.apiKey,
+          },
+          body: JSON.stringify(payload),
+          signal: controller.signal,
         },
-        body: JSON.stringify(payload),
-        signal: controller.signal,
-      }, this.isDevelopmentOrTest);
+        this.isDevelopmentOrTest
+      );
+
+      if (!response.ok) {
+        const errText = await response.text().catch(() => '');
+        console.warn(`Gemini upstream HTTP ${response.status}:`, errText.slice(0, 200));
+        throw new Error(`Gemini API HTTP ${response.status}`);
+      }
+
+      interface GeminiCandidate {
+        finishReason?: string;
+        content?: {
+          parts?: Array<{ text?: string }>;
+        };
+      }
+      interface GeminiApiResponse {
+        promptFeedback?: { blockReason?: string };
+        candidates?: GeminiCandidate[];
+      }
+
+      const data = (await response.json()) as GeminiApiResponse;
+      if (data.promptFeedback?.blockReason) {
+        throw new Error(`SAFETY_VIOLATION: The prompt was blocked (${data.promptFeedback.blockReason}).`);
+      }
+
+      const candidate = data.candidates?.[0];
+      if (candidate?.finishReason && GEMINI_SAFETY_FINISH_REASONS.has(candidate.finishReason)) {
+        throw new Error(`SAFETY_VIOLATION: The prompt triggered safety filter (${candidate.finishReason}).`);
+      }
+
+      const text = (candidate?.content?.parts ?? [])
+        .map((p) => p.text ?? '')
+        .join('')
+        .trim();
+      if (!text) return null;
+
+      return extractJsonObject(text);
     } finally {
       clearTimeout(timer);
-    }
-
-    if (!response.ok) {
-      const errText = await response.text();
-      throw new Error(`Gemini API error (${response.status}): ${errText}`);
-    }
-
-    interface GeminiCandidate {
-      finishReason?: string;
-      content?: {
-        parts?: Array<{ text?: string }>;
-      };
-    }
-    interface GeminiApiResponse {
-      promptFeedback?: { blockReason?: string };
-      candidates?: GeminiCandidate[];
-    }
-
-    const data = (await response.json()) as GeminiApiResponse;
-    if (data.promptFeedback?.blockReason) {
-      throw new Error(`SAFETY_VIOLATION: The prompt was blocked (${data.promptFeedback.blockReason}).`);
-    }
-
-    const candidate = data.candidates?.[0];
-    if (candidate?.finishReason === 'SAFETY') {
-      throw new Error('SAFETY_VIOLATION: The prompt triggered automated safety filters.');
-    }
-
-    const text = candidate?.content?.parts?.[0]?.text;
-    if (!text) return null;
-
-    try {
-      return JSON.parse(text) as GenerationResult;
-    } catch {
-      const jsonMatch = text.match(/```json\s*([\s\S]*?)\s*```/) || text.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        try {
-          return JSON.parse(jsonMatch[1] || jsonMatch[0] || '{}') as GenerationResult;
-        } catch {
-          return null;
-        }
-      }
-      return null;
     }
   }
 }

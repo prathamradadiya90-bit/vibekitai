@@ -15,6 +15,9 @@ import { FallbackChainAIProvider, resetFallbackCircuitBreaker } from '../src/ai/
 import type { AIProvider } from '../src/ai/factory';
 import { UsageRepository } from '../src/db/usage.repo';
 import { mintSessionToken, verifySessionToken } from '../src/security/session_tokens';
+import { adminAuthMiddleware } from '../src/admin/auth';
+import { verifyAdMobSsvSignature } from '../src/security/admob_ssv';
+import { globalErrorHandler } from '../src/middleware/error_handler';
 
 // Mock in-memory SQLite D1Database for isolated unit testing
 class MockD1Statement {
@@ -620,5 +623,279 @@ describe('Bug #22 & #23: CORS Preflight X-Timezone-Offset & Gujarati Mock Locali
     expect(vibeFlags.rewrites.some((r) => gujaratiRegex.test(r))).toBe(true);
     expect(vibeFlags.title).not.toBe(vibeRoast.title);
     expect(vibeFlags.verdict).not.toBe(vibeRoast.verdict);
+  });
+});
+
+describe('Security & Consistency Audit Regression Tests (CRIT & HIGH fixes)', () => {
+  it('CRIT-05: adminAuthMiddleware rejects unsigned Cf-Access-Jwt-Assertion in production', async () => {
+    const app = new Hono<any>();
+    app.onError(globalErrorHandler);
+    app.use('*', async (c, next) => {
+      c.env = {
+        ENVIRONMENT: 'production',
+        ADMIN_EMAILS: 'admin@vibekit.ai',
+      };
+      await next();
+    });
+    app.use('/admin/*', adminAuthMiddleware());
+    app.get('/admin/stats', (c) => c.json({ ok: true }));
+
+    const header = btoa(JSON.stringify({ alg: 'RS256', typ: 'JWT' })).replace(/=+$/, '');
+    const payload = btoa(
+      JSON.stringify({
+        email: 'admin@vibekit.ai',
+        exp: Math.floor(Date.now() / 1000) + 3600,
+      })
+    ).replace(/=+$/, '');
+    const forgedJwt = `${header}.${payload}.forgedsig`;
+
+    const res = await app.request('/admin/stats', {
+      headers: { 'Cf-Access-Jwt-Assertion': forgedJwt },
+    });
+    expect(res.status).toBe(401);
+  });
+
+  it('CRIT-08: rateLimiterMiddleware enforces per-IP cap across rotating X-App-Instance-Id values', async () => {
+    const app = new Hono<any>();
+    app.use('*', rateLimiterMiddleware({ generalLimit: 2, windowSeconds: 60 }));
+    app.get('/test-ip-cap', (c) => c.text('ok'));
+
+    const sharedIp = '203.0.113.77';
+    // generalLimit = 2 -> per-IP cap is Math.max(2 * 3, 2 + 10) = 12 across unique installation IDs
+    for (let i = 0; i < 12; i++) {
+      const res = await app.request('/test-ip-cap', {
+        headers: {
+          'CF-Connecting-IP': sharedIp,
+          'X-App-Instance-Id': `rotating_inst_${i}`,
+        },
+      });
+      expect(res.status).toBe(200);
+    }
+
+    const blockedRes = await app.request('/test-ip-cap', {
+      headers: {
+        'CF-Connecting-IP': sharedIp,
+        'X-App-Instance-Id': 'rotating_inst_12',
+      },
+    });
+    expect(blockedRes.status).toBe(429);
+  });
+
+  it('HIGH-14: bodyLimitMiddleware rejects malformed or negative Content-Length headers', async () => {
+    const app = new Hono<any>();
+    app.onError(globalErrorHandler);
+    app.use('*', bodyLimitMiddleware(1024));
+    app.post('/test-cl', (c) => c.json({ ok: true }));
+
+    const badAlpha = await app.request('/test-cl', {
+      method: 'POST',
+      headers: { 'Content-Length': '10abc', 'Content-Type': 'application/json' },
+      body: '{}',
+    });
+    expect(badAlpha.status).toBe(400);
+
+    const badNeg = await app.request('/test-cl', {
+      method: 'POST',
+      headers: { 'Content-Length': '-5', 'Content-Type': 'application/json' },
+      body: '{}',
+    });
+    expect(badNeg.status).toBe(400);
+  });
+
+  it('HIGH-01 & HIGH-02: /privacy/delete-data moved to /v1, rejects anonymous_default, and preserves bans table', async () => {
+    const { default: appEntry } = await import('../src/index');
+    const deletedTables: string[] = [];
+
+    const mockDb = {
+      prepare: (sql: string) => {
+        const makeExec = () => ({
+          first: async () => null,
+          all: async () => ({ results: [] }),
+          run: async () => {
+            const match = sql.match(/DELETE FROM\s+([a-z_]+)/i);
+            if (match?.[1]) deletedTables.push(match[1].toLowerCase());
+            return { meta: { changes: 1 } };
+          },
+        });
+        return {
+          bind: (..._args: unknown[]) => makeExec(),
+          ...makeExec(),
+        };
+      },
+      batch: async (stmts: Array<{ run: () => Promise<unknown> }>) => {
+        return Promise.all(stmts.map((s) => s.run()));
+      },
+    };
+
+    const rootRes = await appEntry.request('/privacy/delete-data', { method: 'POST' }, {
+      ENVIRONMENT: 'test',
+      DB: mockDb,
+    } as any);
+    expect(rootRes.status).toBe(404);
+
+    const anonRes = await appEntry.request(
+      '/v1/privacy/delete-data',
+      { method: 'POST' },
+      { ENVIRONMENT: 'test', DB: mockDb } as any
+    );
+    expect(anonRes.status).toBe(401);
+
+    const validRes = await appEntry.request(
+      '/v1/privacy/delete-data',
+      {
+        method: 'POST',
+        headers: { 'X-App-Instance-Id': 'user_delete_test_1' },
+      },
+      { ENVIRONMENT: 'test', DB: mockDb } as any
+    );
+    expect(validRes.status).toBe(200);
+    expect(deletedTables).toContain('installations');
+    expect(deletedTables).not.toContain('bans');
+  });
+
+  it('CRIT-01, CRIT-02 & HIGH-03: QuotaManager Pro rewarded fallback and Lifetime Pro preservation', async () => {
+    const futureIso = new Date(Date.now() + 86400_000).toISOString();
+    const pastIso = new Date(Date.now() - 86400_000).toISOString();
+    const state = {
+      installation: { id: 'inst_pro_1', is_pro: 1, pro_expires_at: null as string | null },
+      cycle: {
+        id: 'cyc_1',
+        installation_id: 'inst_pro_1',
+        cycle_start: pastIso,
+        cycle_end: futureIso,
+        credits_used: 200,
+      },
+      dailyUsage: {
+        id: 'du_1',
+        installation_id: 'inst_pro_1',
+        usage_date: new Date().toISOString().split('T')[0] ?? '',
+        free_credits_used: 0,
+        rewarded_credits_earned: 3,
+        rewarded_ads_watched: 1,
+      },
+      entitlements: [
+        {
+          id: 'ent_life_1',
+          installation_id: 'inst_pro_1',
+          product_id: 'vibekit_pro_lifetime',
+          purchase_token: 'tok_life_1',
+          status: 'ACTIVE',
+          expires_at: null as string | null,
+        },
+      ],
+    };
+
+    const mockDb = {
+      prepare: (sql: string) => ({
+        bind: (...args: unknown[]) => ({
+          first: async () => {
+            const s = sql.toLowerCase();
+            if (s.includes('from installations where id = ?')) return { ...state.installation };
+            if (s.includes('from pro_cycle_usage')) return { ...state.cycle };
+            if (s.includes('from subscription_entitlements')) {
+              if (s.includes('purchase_token = ?')) {
+                return state.entitlements.find((e) => e.purchase_token === args[0]) ?? null;
+              }
+              return state.entitlements.find((e) => e.installation_id === args[0] && e.expires_at === null) ?? null;
+            }
+            if (s.includes('from daily_usage') && s.includes('usage_date = ?')) return { ...state.dailyUsage };
+            if (s.includes('sum(rewarded_credits_earned)')) {
+              return { total_rewarded: state.dailyUsage.rewarded_credits_earned };
+            }
+            if (s.includes('sum(pro_credits_used)')) return { total: 0 };
+            return null;
+          },
+          all: async () => {
+            const s = sql.toLowerCase();
+            if (s.includes('from daily_usage') && s.includes('rewarded_credits_earned > 0')) {
+              return { results: state.dailyUsage.rewarded_credits_earned > 0 ? [{ ...state.dailyUsage }] : [] };
+            }
+            return { results: [] };
+          },
+          run: async () => {
+            const s = sql.toLowerCase();
+            if (s.includes('insert into installations') && s.includes('pro_expires_at')) {
+              const incomingExpires = args[3] as string | null;
+              state.installation.is_pro = 1;
+              if (incomingExpires === null) {
+                state.installation.pro_expires_at = null;
+              } else {
+                state.installation.pro_expires_at = incomingExpires ?? state.installation.pro_expires_at;
+              }
+            }
+            if (s.includes('update pro_cycle_usage') && s.includes('credits_used = credits_used + 1')) {
+              const limit = Number(args[2] ?? 200);
+              if (state.cycle.credits_used < limit) {
+                state.cycle.credits_used += 1;
+                return { meta: { changes: 1 } };
+              }
+              return { meta: { changes: 0 } };
+            }
+            if (s.includes('rewarded_credits_earned = rewarded_credits_earned - 1')) {
+              if (state.dailyUsage.rewarded_credits_earned > 0) {
+                state.dailyUsage.rewarded_credits_earned -= 1;
+                return { meta: { changes: 1 } };
+              }
+              return { meta: { changes: 0 } };
+            }
+            return { meta: { changes: 1 } };
+          },
+        }),
+      }),
+    };
+
+    const qm = new QuotaManager({ DB: mockDb as any } as any);
+
+    // Exhausted Pro cycle must still fall back to rewarded credits
+    const reserved = await qm.reserveCreditWithDate('inst_pro_1');
+    expect(reserved).toEqual({ bucket: 'rewarded', usageDate: state.dailyUsage.usage_date });
+    expect(state.dailyUsage.rewarded_credits_earned).toBe(2);
+
+    // Lifetime Pro (pro_expires_at = null) must never be overwritten by a timed expiry
+    await qm.activatePro('inst_pro_1', 'vibekit_pro_monthly', 'tok_m1', 'ord_m1', '2027-01-01T00:00:00.000Z');
+    expect(state.installation.pro_expires_at).toBeNull();
+  });
+
+  it('HIGH-05: verifyAdMobSsvSignature verifies callbacks even when signature param appears first', async () => {
+    const keyPair = (await crypto.subtle.generateKey(
+      { name: 'ECDSA', namedCurve: 'P-256' },
+      true,
+      ['sign', 'verify']
+    )) as CryptoKeyPair;
+    const spkiBuf = (await crypto.subtle.exportKey('spki', keyPair.publicKey)) as ArrayBuffer;
+    const spkiB64 = btoa(String.fromCharCode(...new Uint8Array(spkiBuf)));
+
+    const signedPayload = 'custom_data=user_1&key_id=777&reward_amount=3';
+    const sigBuf = await crypto.subtle.sign(
+      { name: 'ECDSA', hash: 'SHA-256' },
+      keyPair.privateKey,
+      new TextEncoder().encode(signedPayload)
+    );
+    const sigB64Url = btoa(String.fromCharCode(...new Uint8Array(sigBuf)))
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+      .replace(/=+$/, '');
+
+    const mockFetch = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ keys: [{ keyId: 777, base64: spkiB64 }] }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    );
+    vi.stubGlobal('fetch', mockFetch);
+
+    try {
+      const reorderedQuery = `signature=${encodeURIComponent(sigB64Url)}&${signedPayload}`;
+      const ok = await verifyAdMobSsvSignature(
+        reorderedQuery,
+        '777',
+        sigB64Url,
+        'https://gstatic.com/admob/reward/verifier-keys.json',
+        false
+      );
+      expect(ok).toBe(true);
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 });

@@ -13,7 +13,7 @@ const attestSchema = z.object({
 
 authRoute.post('/auth/attest', async (c) => {
   const installation = c.get('installation');
-  const body = await c.req.json().catch(() => ({}));
+  const body = await c.req.json();
   const parsed = attestSchema.safeParse(body);
 
   if (!parsed.success) {
@@ -28,12 +28,12 @@ authRoute.post('/auth/attest', async (c) => {
     true // isCreditGrant
   );
 
-  if (!verdict.isValid && c.env.ENVIRONMENT === 'production') {
+  const isDevOrTest = c.env.ENVIRONMENT === 'development' || c.env.ENVIRONMENT === 'test';
+  if (!verdict.isValid && !isDevOrTest) {
     throw new AuthError(`Hardware integrity attestation failed: ${verdict.error || 'INVALID_DEVICE'}`);
   }
 
   const deviceHash = await sha256Hex(parsed.data.integrityToken || installation.id);
-  const isDevOrTest = c.env.ENVIRONMENT === 'development' || c.env.ENVIRONMENT === 'test';
   const secret =
     c.env.SESSION_SECRET ||
     c.env.ADMIN_SECRET ||

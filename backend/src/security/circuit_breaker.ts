@@ -11,6 +11,15 @@ export class AICircuitBreaker {
   constructor(private db?: D1Database, private defaultMaxBudgetUsd: number = 25.0) {}
 
   public async checkBudgetGuard(estimatedCostUsd: number = 0.001): Promise<void> {
+    if (estimatedCostUsd > this.defaultMaxBudgetUsd) {
+      const today = new Date().toISOString().substring(0, 10);
+      throw new AppError(
+        'Service temporarily in protective maintenance. Daily AI generation budget limit reached.',
+        'RATE_LIMIT_EXCEEDED',
+        503,
+        { date: today, budgetUsd: this.defaultMaxBudgetUsd }
+      );
+    }
     if (!this.db) return;
 
     const today = new Date().toISOString().substring(0, 10);
@@ -40,13 +49,13 @@ export class AICircuitBreaker {
     await this.db
       .prepare(
         `INSERT INTO ai_daily_budget (stat_date, total_spend_usd, max_budget_usd, is_tripped, updated_at)
-         VALUES (?, ?, ?, 0, ?)
+         VALUES (?, ?, ?, CASE WHEN ? >= ? THEN 1 ELSE 0 END, ?)
          ON CONFLICT(stat_date) DO UPDATE SET
            total_spend_usd = total_spend_usd + excluded.total_spend_usd,
            is_tripped = CASE WHEN (total_spend_usd + excluded.total_spend_usd) >= max_budget_usd THEN 1 ELSE 0 END,
            updated_at = excluded.updated_at`
       )
-      .bind(today, actualCostUsd, this.defaultMaxBudgetUsd, now)
+      .bind(today, actualCostUsd, this.defaultMaxBudgetUsd, actualCostUsd, this.defaultMaxBudgetUsd, now)
       .run();
   }
 

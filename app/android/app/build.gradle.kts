@@ -32,9 +32,16 @@ android {
         versionCode = 4
         versionName = "1.0.3"
 
+        val isReleaseRequested = gradle.startParameter.taskNames.any {
+            it.contains("Release", ignoreCase = true)
+        }
         val resolvedAdmobAppId = (project.findProperty("admobAppId") as String?)
             ?: keystoreProperties.getProperty("admobAppId")
-            ?: "ca-app-pub-3940256099942544~3347511713"
+            ?: if (isReleaseRequested) {
+                throw GradleException("Missing production admobAppId property or key.properties entry for release build.")
+            } else {
+                "ca-app-pub-3940256099942544~3347511713"
+            }
         manifestPlaceholders["admobAppId"] = resolvedAdmobAppId
     }
 
@@ -54,15 +61,20 @@ android {
 
     buildTypes {
         release {
+            val isReleaseRequested = gradle.startParameter.taskNames.any {
+                it.contains("Release", ignoreCase = true)
+            }
             signingConfig = if (keystorePropertiesFile.exists()) {
                 signingConfigs.getByName("release")
+            } else if (isReleaseRequested) {
+                throw GradleException("Missing app/android/key.properties for release signing.")
             } else {
                 signingConfigs.getByName("debug")
             }
             isMinifyEnabled = true
             isShrinkResources = true
             ndk {
-                debugSymbolLevel = "SYMBOL_TABLE"
+                debugSymbolLevel = "FULL"
             }
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),

@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import { AppHonoEnv } from '../types';
 import { QuotaManager } from '../quota/quota_manager';
 
+export const privacyPublicRoute = new Hono<AppHonoEnv>();
 export const privacyRoute = new Hono<AppHonoEnv>();
 
 const privacyHtml = `<!DOCTYPE html>
@@ -178,32 +179,37 @@ privacyRoute.get('/privacy', (c) => {
   return c.html(privacyHtml);
 });
 
-privacyRoute.get('/privacy-policy', (c) => {
+privacyPublicRoute.get('/privacy-policy', (c) => {
   return c.html(privacyHtml);
 });
 
-privacyRoute.get('/terms', (c) => {
+privacyPublicRoute.get('/terms', (c) => {
   return c.html(termsHtml);
 });
 
-privacyRoute.get('/terms-of-service', (c) => {
+privacyPublicRoute.get('/terms-of-service', (c) => {
   return c.html(termsHtml);
 });
 
-privacyRoute.get('/delete-account', (c) => {
+privacyPublicRoute.get('/delete-account', (c) => {
   return c.html(deleteDataHtml);
 });
 
-privacyRoute.get('/delete-data', (c) => {
+privacyPublicRoute.get('/delete-data', (c) => {
   return c.html(deleteDataHtml);
 });
 
-privacyRoute.get('/privacy/delete-data', (c) => {
+privacyPublicRoute.get('/privacy/delete-data', (c) => {
   return c.html(deleteDataHtml);
 });
+
+privacyRoute.route('/', privacyPublicRoute as any);
 
 privacyRoute.post('/privacy/delete-data', async (c) => {
-  const installationId = c.get('installationId') || c.req.header('X-App-Instance-Id') || 'anonymous_default';
+  const installationId = c.get('installationId');
+  if (!installationId || installationId === 'anonymous_default') {
+    return c.json({ error: { code: 'UNAUTHORIZED', message: 'Valid installation ID required.' } }, 401);
+  }
   const quotaManager = new QuotaManager(c.env);
 
   await quotaManager.deleteUserData(installationId);

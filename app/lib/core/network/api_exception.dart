@@ -12,7 +12,10 @@ class ApiException implements Exception {
     this.details,
   });
 
-  bool get isQuotaExceeded => code == 'QUOTA_EXCEEDED' || statusCode == 429;
+  bool get isQuotaExceeded =>
+      code == 'QUOTA_EXCEEDED' ||
+      (statusCode == 429 && code != 'RATE_LIMIT_EXCEEDED');
+  bool get isRateLimited => code == 'RATE_LIMIT_EXCEEDED';
   bool get isNetworkError => statusCode == 0;
   bool get isServerError => statusCode >= 500;
 

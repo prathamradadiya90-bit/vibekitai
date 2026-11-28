@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -30,98 +31,98 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   static const List<Map<String, String>> _viralSparks = [
     {
-      'title': '“Is this text a red flag or am I tripping?”',
-      'subtitle': 'Scan messages for manipulation, love bombing, or genuine green flags.',
+      'title': 'Check a message for red flags',
+      'subtitle': 'Spot guilt-tripping, love bombing, or genuine green flags in seconds.',
       'prompt': "My ex was totally crazy, you are the only one who gets me so don't let me down.",
-      'buttonText': 'Scan for Red Flags',
+      'buttonText': 'Check Red Flags',
       'option': 'flags',
       'tab': 'vibe_check',
     },
     {
-      'title': '“They posted a food story with no caption”',
-      'subtitle': 'Slide into their DMs with effortless curiosity that guarantees a reply.',
+      'title': 'Reply to a silent story post',
+      'subtitle': 'Send a natural opener to an Instagram or Snapchat story without sounding forced.',
       'prompt': "Reacting to an aesthetic late night ramen story with no caption",
-      'buttonText': 'Slide into Story DMs',
+      'buttonText': 'Get Story Replies',
       'option': 'story',
       'tab': 'vibe_check',
     },
     {
-      'title': '“Testing our texting banter chemistry”',
-      'subtitle': 'Calculate texting compatibility score and discover your dynamic.',
-      'prompt': "Testing texting chemistry: Him: you have good music taste. Her: only took you 3 months to notice.",
-      'buttonText': 'Calculate Chemistry',
+      'title': 'Check your texting chemistry',
+      'subtitle': 'See how your conversation reads and get balanced, witty reply ideas.',
+      'prompt': "Him: you have good music taste. Her: only took you 3 months to notice.",
+      'buttonText': 'Check Chemistry',
       'option': 'chemistry',
       'tab': 'vibe_check',
     },
     {
-      'title': '“Replying to ‘k’ after 6 hours of silence”',
-      'subtitle': 'Generate savage, flirty, or diplomatic comeback options in 1 tap.',
+      'title': 'Reply to a one-word "k." text',
+      'subtitle': 'Turn a dry one-word text into a confident, funny, or playful reply.',
       'prompt': "Replying to 'k' after 6 hours of silence",
-      'buttonText': 'Spark Savage Comeback',
+      'buttonText': 'See Reply Ideas',
       'option': 'Savage',
       'tab': 'reply',
     },
     {
-      'title': '“When they text ‘wyd’ at 1:47 AM”',
-      'subtitle': 'Hit them with effortless high-charm banter or an unbothered boundary.',
+      'title': 'Handle a late-night "wyd?" text',
+      'subtitle': 'Choose between smooth charm or setting a clear, relaxed boundary.',
       'prompt': "Replying to 'wyd' at 1:47 AM",
-      'buttonText': 'Spark Magnetic Rizz',
+      'buttonText': 'See Reply Ideas',
       'option': 'Rizz',
       'tab': 'reply',
     },
     {
-      'title': '“They replied ‘we need to talk’ out of nowhere”',
-      'subtitle': 'Keep composure with calm, confident, and direct executive energy.',
+      'title': 'Reply calmly to "we need to talk"',
+      'subtitle': 'Keep your cool with calm, direct responses that stay composed.',
       'prompt': "Responding calmly to 'we need to talk'",
-      'buttonText': 'Stay Calm & Direct',
+      'buttonText': 'See Calm Replies',
       'option': 'Confident',
       'tab': 'reply',
     },
     {
-      'title': '“Re-igniting a chat that died 3 weeks ago”',
-      'subtitle': 'Effortless zombie revival text with zero awkwardness or guilt.',
+      'title': 'Restart a quiet conversation',
+      'subtitle': 'Reach back out naturally after weeks of silence with zero awkwardness.',
       'prompt': "Re-ignite a conversation that went cold 3 weeks ago",
-      'buttonText': 'Revive Dead Convo',
+      'buttonText': 'Get Icebreakers',
       'option': 'revival',
       'tab': 'vibe_check',
     },
     {
-      'title': '“Paralyzed overthinking a 4-paragraph text”',
-      'subtitle': 'Cut anxiety and distill it into centered, secure-attachment confidence.',
+      'title': 'Shorten an overthought draft',
+      'subtitle': 'Trim a nervous long paragraph into a clear, confident message.',
       'prompt': "Overthinking what to text without sounding desperate or anxious",
-      'buttonText': 'Fix Overthinking Draft',
+      'buttonText': 'Polish This Draft',
       'option': 'overthinking',
       'tab': 'vibe_check',
     },
     {
-      'title': '“Sent a harsh message in anger and regret it”',
-      'subtitle': 'Draft an emotionally mature apology that defuses conflict and restores trust.',
+      'title': 'Write a sincere apology text',
+      'subtitle': 'Say sorry thoughtfully and calm an argument without making excuses.',
       'prompt': "Sincere apology after losing my temper and sending a harsh text",
-      'buttonText': 'Defuse Conflict & Apologize',
+      'buttonText': 'Write Apology',
       'option': 'apology',
       'tab': 'vibe_check',
     },
     {
-      'title': '“Matched on Hinge & tired of saying ‘hey’”',
-      'subtitle': 'High-response opening line with magnetic curiosity and playful banter.',
+      'title': 'Send a better dating app opener',
+      'subtitle': 'Skip boring "hey" messages with playful openers based on their profile.',
       'prompt': "Creative icebreaker opening line for dating app match who loves hiking and dogs",
-      'buttonText': 'Craft Magnetic Opener',
+      'buttonText': 'Get Openers',
       'option': 'Opener',
       'tab': 'reply',
     },
     {
-      'title': '“Left on delivered all day? Keep your cool”',
-      'subtitle': 'Unbothered, secure-attachment reply with effortless main-character peace.',
+      'title': 'Respond when left on delivered',
+      'subtitle': 'Reply casually without sounding annoyed or overly eager.',
       'prompt': "Replying to someone who left me on delivered for 18 hours",
-      'buttonText': 'Send Unbothered Reply',
+      'buttonText': 'See Chill Replies',
       'option': 'Unbothered',
       'tab': 'reply',
     },
     {
-      'title': '“Need an excuse to cancel tonight without guilt”',
-      'subtitle': 'Gracious, polite boundary that saves your social battery completely.',
+      'title': 'Cancel plans politely',
+      'subtitle': 'Turn down plans kindly when you need rest without feeling guilty.',
       'prompt': "Polite excuse to cancel plans tonight because social battery is zero",
-      'buttonText': 'Craft Polite Exit',
+      'buttonText': 'Get Polite Excuses',
       'option': 'excuse',
       'tab': 'vibe_check',
     },
@@ -443,7 +444,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // Clean Top Row: Spark Tag & Shuffle Pill
+                          // Clean Top Row: Clear Demo Badge & Next Button
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
@@ -456,21 +457,21 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                 child: Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    const Icon(
-                                      Icons.local_fire_department_rounded,
+                                    Icon(
+                                      Icons.auto_awesome_rounded,
                                       size: 13,
-                                      color: Color(0xFFE05315),
+                                      color: isDark ? AppColors.accent : AppColors.primary,
                                     ),
                                     const SizedBox(width: 5),
                                     Text(
-                                      'VIRAL DILEMMA',
+                                      'EXAMPLE TO TRY',
                                       style: TextStyle(
                                         fontSize: 10,
                                         fontWeight: FontWeight.w800,
-                                        letterSpacing: 0.8,
+                                        letterSpacing: 0.7,
                                         color: isDark
-                                            ? const Color(0xFFFF9E66)
-                                            : const Color(0xFFB54708),
+                                            ? AppColors.accentWarm
+                                            : AppColors.primary,
                                       ),
                                     ),
                                   ],
@@ -494,13 +495,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
                                       Icon(
-                                        Icons.shuffle_rounded,
+                                        Icons.refresh_rounded,
                                         size: 13,
                                         color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
                                       ),
                                       const SizedBox(width: 4),
                                       Text(
-                                        'Next Scenario',
+                                        'Next',
                                         style: TextStyle(
                                           fontSize: 11,
                                           fontWeight: FontWeight.w600,
@@ -515,7 +516,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           ),
                           const SizedBox(height: 14),
 
-                          // Animated Scenario Content
+                          // Clear Example Content
                           AnimatedSwitcher(
                             duration: const Duration(milliseconds: 250),
                             transitionBuilder: (child, animation) => FadeTransition(
@@ -532,20 +533,29 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                               key: ValueKey<int>(_sparkIndex),
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                // Title / Question
+                                // Plain-English Title
                                 Text(
                                   currentSpark['title']!,
                                   style: GoogleFonts.outfit(
                                     fontSize: 18,
                                     fontWeight: FontWeight.w800,
                                     letterSpacing: -0.3,
-                                    height: 1.28,
+                                    height: 1.25,
                                     color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                                   ),
                                 ),
-                                const SizedBox(height: 10),
+                                const SizedBox(height: 4),
+                                Text(
+                                  currentSpark['subtitle']!,
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    height: 1.4,
+                                    color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                                  ),
+                                ),
+                                const SizedBox(height: 12),
 
-                                // Real Message Preview Bubble (Eliminates user confusion)
+                                // Clear Sample Quote Box
                                 Container(
                                   width: double.infinity,
                                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -557,64 +567,42 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                       width: 1,
                                     ),
                                   ),
-                                  child: Row(
+                                  child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      const Text('💬', style: TextStyle(fontSize: 14)),
-                                      const SizedBox(width: 8),
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              'INCOMING MESSAGE',
-                                              style: TextStyle(
-                                                fontSize: 9.5,
-                                                fontWeight: FontWeight.w700,
-                                                letterSpacing: 0.6,
-                                                color: isDark
-                                                    ? AppColors.textSecondaryDark
-                                                    : AppColors.textSecondaryLight,
-                                              ),
-                                            ),
-                                            const SizedBox(height: 3),
-                                            Text(
-                                              '"${currentSpark['prompt']!}"',
-                                              maxLines: 2,
-                                              overflow: TextOverflow.ellipsis,
-                                              style: GoogleFonts.plusJakartaSans(
-                                                fontSize: 12.5,
-                                                fontWeight: FontWeight.w600,
-                                                fontStyle: FontStyle.italic,
-                                                color: isDark
-                                                    ? const Color(0xFFFFD199)
-                                                    : const Color(0xFF4A2A14),
-                                                height: 1.35,
-                                              ),
-                                            ),
-                                          ],
+                                      Text(
+                                        'Sample text',
+                                        style: TextStyle(
+                                          fontSize: 10.5,
+                                          fontWeight: FontWeight.w600,
+                                          color: isDark
+                                              ? AppColors.textSecondaryDark
+                                              : AppColors.textSecondaryLight,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 3),
+                                      Text(
+                                        '"${currentSpark['prompt']!}"',
+                                        maxLines: 3,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: GoogleFonts.plusJakartaSans(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w500,
+                                          color: isDark
+                                              ? const Color(0xFFFFD199)
+                                              : const Color(0xFF4A2A14),
+                                          height: 1.4,
                                         ),
                                       ),
                                     ],
                                   ),
                                 ),
-                                const SizedBox(height: 10),
-
-                                // Subtitle
-                                Text(
-                                  currentSpark['subtitle']!,
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    height: 1.4,
-                                    color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
-                                  ),
-                                ),
                               ],
                             ),
                           ),
-                          const SizedBox(height: 16),
+                          const SizedBox(height: 14),
 
-                          // Single, Clear Primary CTA Button (Zero Conflicting Links)
+                          // Primary CTA Button: Try This Example
                           InkWell(
                             onTap: () {
                               HapticFeedback.mediumImpact();
@@ -654,41 +642,49 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                     color: Color(0xFFFFD199),
                                   ),
                                   const SizedBox(width: 6),
-                                  Text(
-                                    '${currentSpark['buttonText']!} →',
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.bold,
-                                      letterSpacing: 0.1,
+                                  Flexible(
+                                    child: Text(
+                                      '${currentSpark['buttonText']!} →',
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.bold,
+                                        letterSpacing: 0.1,
+                                      ),
                                     ),
                                   ),
                                 ],
                               ),
                             ),
                           ),
-                          const SizedBox(height: 8),
+                          const SizedBox(height: 6),
 
-                          // Clear reassurance note
+                          // Clear Secondary Link: Write/Paste Your Own Message
                           Center(
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  Icons.touch_app_outlined,
-                                  size: 12,
-                                  color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                            child: TextButton.icon(
+                              onPressed: () {
+                                HapticFeedback.selectionClick();
+                                final targetTab = currentSpark['tab'] ?? 'reply';
+                                context.push('/studio?tab=$targetTab&prompt=');
+                              },
+                              icon: Icon(
+                                Icons.edit_outlined,
+                                size: 14,
+                                color: isDark ? AppColors.accentWarm : AppColors.primary,
+                              ),
+                              label: Text(
+                                'Or paste your own message instead',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: isDark ? AppColors.accentWarm : AppColors.primary,
                                 ),
-                                const SizedBox(width: 4),
-                                Text(
-                                  'Pre-loads in Studio with 1-tap AI answer',
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w500,
-                                    color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
-                                  ),
-                                ),
-                              ],
+                              ),
+                              style: TextButton.styleFrom(
+                                visualDensity: VisualDensity.compact,
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                              ),
                             ),
                           ),
                         ],
@@ -1113,7 +1109,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             ),
                         ],
                       ),
-                      if (!quota.isPro && quota.canWatchRewardedAd) ...[
+                      if (!quota.isPro && quota.canWatchRewardedAd && (!kIsWeb || AppConfig.isDev)) ...[
                         Divider(
                           height: 24,
                           color: isDark ? AppColors.borderDark : AppColors.borderLight,
@@ -1151,7 +1147,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                   ),
                                 ),
                                 Text(
-                                  '${quota.rewardedAdsWatchedToday}/2',
+                                  '${quota.rewardedAdsWatchedToday}/${quota.maxRewardedAdsPerDay}',
                                   style: TextStyle(
                                     fontSize: 12,
                                     color: isDark
@@ -1345,12 +1341,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                               InkWell(
                                 onTap: () async {
                                   HapticFeedback.mediumImpact();
-                                  await ref.read(streakProvider.notifier).recordAction('checkin');
+                                  final awardedXp = await ref.read(streakProvider.notifier).recordAction('checkin');
                                   if (context.mounted) {
                                     ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                        content: Text('🎉 Daily Streak checked in! +10 XP awarded!'),
-                                        backgroundColor: AppColors.success,
+                                      SnackBar(
+                                        content: Text(
+                                          awardedXp > 0
+                                              ? '🎉 Daily Streak checked in! +$awardedXp XP awarded!'
+                                              : awardedXp == 0
+                                                  ? '✓ Already checked in today!'
+                                                  : 'Could not sync check-in right now. Please try again.',
+                                        ),
+                                        backgroundColor: awardedXp >= 0 ? AppColors.success : AppColors.error,
                                         behavior: SnackBarBehavior.floating,
                                       ),
                                     );

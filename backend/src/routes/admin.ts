@@ -8,6 +8,13 @@ import { AdminAuditRepository } from '../db/admin_audit.repo';
 import { RemoteConfigRepository } from '../db/remote_config.repo';
 import { ValidationError, NotFoundError } from '../errors/app_error';
 import { QuotaManager } from '../quota/quota_manager';
+import { LIFETIME_PRODUCTS, verifyProductPurchase, verifySubscriptionPurchase } from '../security/google_play';
+
+function parseBoundedInt(raw: string | undefined, fallback: number, min: number, max: number): number {
+  const n = raw ? parseInt(raw, 10) : fallback;
+  if (!Number.isFinite(n)) return fallback;
+  return Math.min(Math.max(n, min), max);
+}
 
 export const adminRoute = new Hono<AppHonoEnv>();
 
@@ -66,8 +73,12 @@ adminRoute.get('/dashboard', async (c) => {
 // Trigger daily aggregation
 adminRoute.post('/aggregate-daily', async (c) => {
   const adminUser = c.get('adminUser')!;
-  const body = await c.req.json().catch(() => ({}));
-  const dateStr = body.date || new Date().toISOString().substring(0, 10);
+  const body = (await c.req.json().catch(() => ({}))) as { date?: unknown } | null;
+  const rawDate = body && typeof body === 'object' ? body.date : undefined;
+  const dateStr =
+    typeof rawDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(rawDate)
+      ? rawDate
+      : new Date().toISOString().substring(0, 10);
 
   const statsRepo = new StatsRepository(c.env.DB);
   await statsRepo.aggregateAndSaveDailyStats(dateStr);
@@ -86,8 +97,8 @@ adminRoute.post('/aggregate-daily', async (c) => {
 adminRoute.get('/installations', async (c) => {
   const search = c.req.query('search')?.trim() || '';
   const isPro = c.req.query('is_pro');
-  const limit = Math.min(Math.max(parseInt(c.req.query('limit') || '50', 10), 1), 100);
-  const offset = Math.max(parseInt(c.req.query('offset') || '0', 10), 0);
+  const limit = parseBoundedInt(c.req.query('limit'), 50, 1, 100);
+  const offset = parseBoundedInt(c.req.query('offset'), 0, 0, 100000);
 
   let query = `
     SELECT i.id, i.created_at, i.last_active_at, i.is_pro, i.pro_expires_at,
@@ -278,24 +289,54 @@ adminRoute.post('/installations/:id/resync', async (c) => {
   const adminUser = c.get('adminUser')!;
   const id = c.req.param('id');
 
-  // Find existing entitlement
   const ent = await c.env.DB
     .prepare('SELECT * FROM subscription_entitlements WHERE installation_id = ? ORDER BY verified_at DESC LIMIT 1')
     .bind(id)
-    .first<{ id: string; product_id: string; status: string; purchase_token: string }>();
+    .first<{ id: string; product_id: string; status: string; purchase_token: string; order_id: string | null }>();
+
+  let syncedStatus = ent?.status || 'NO_SUBSCRIPTION';
+  if (ent) {
+    const quotaManager = new QuotaManager(c.env);
+    if (LIFETIME_PRODUCTS.has(ent.product_id)) {
+      const v = await verifyProductPurchase(c.env, ent.product_id, ent.purchase_token, { acknowledge: true });
+      if (v.ok) {
+        if (v.purchased) {
+          await quotaManager.activatePro(id, ent.product_id, ent.purchase_token, v.orderId ?? ent.order_id, null, 'ACTIVE');
+          syncedStatus = 'ACTIVE';
+        } else {
+          await quotaManager.handleSubscriptionLifecycleUpdate({
+            purchaseToken: ent.purchase_token,
+            status: 'REVOKED',
+            expiresAt: new Date().toISOString(),
+          });
+          syncedStatus = 'REVOKED';
+        }
+      }
+    } else {
+      const v = await verifySubscriptionPurchase(c.env, ent.product_id, ent.purchase_token);
+      if (v.ok) {
+        await quotaManager.handleSubscriptionLifecycleUpdate({
+          purchaseToken: ent.purchase_token,
+          status: v.status,
+          expiresAt: v.expiresAt ?? undefined,
+        });
+        syncedStatus = v.status;
+      }
+    }
+  }
 
   const auditRepo = new AdminAuditRepository(c.env.DB);
   await auditRepo.recordLog({
     adminEmail: adminUser.email,
     action: 'RESYNC_ENTITLEMENT',
     targetId: id,
-    details: { hasEntitlement: Boolean(ent), productId: ent?.product_id },
+    details: { hasEntitlement: Boolean(ent), productId: ent?.product_id, syncedStatus },
   });
 
   return c.json({
     success: true,
     message: `Entitlements for ${id} re-synchronized.`,
-    status: ent?.status || 'NO_SUBSCRIPTION',
+    status: syncedStatus,
   });
 });
 
@@ -324,8 +365,8 @@ adminRoute.delete('/installations/:id/data', async (c) => {
 // 9. Subscriptions List
 adminRoute.get('/subscriptions', async (c) => {
   const status = c.req.query('status')?.trim().toUpperCase();
-  const limit = Math.min(Math.max(parseInt(c.req.query('limit') || '50', 10), 1), 100);
-  const offset = Math.max(parseInt(c.req.query('offset') || '0', 10), 0);
+  const limit = parseBoundedInt(c.req.query('limit'), 50, 1, 100);
+  const offset = parseBoundedInt(c.req.query('offset'), 0, 0, 100000);
 
   let query = 'SELECT id, installation_id, product_id, order_id, status, verified_at, expires_at FROM subscription_entitlements WHERE 1=1';
   const binds: (string | number)[] = [];
@@ -428,8 +469,8 @@ adminRoute.post('/config/revert', async (c) => {
 
 // 11. Feedback Inbox
 adminRoute.get('/feedback', async (c) => {
-  const limit = Math.min(Math.max(parseInt(c.req.query('limit') || '50', 10), 1), 100);
-  const offset = Math.max(parseInt(c.req.query('offset') || '0', 10), 0);
+  const limit = parseBoundedInt(c.req.query('limit'), 50, 1, 100);
+  const offset = parseBoundedInt(c.req.query('offset'), 0, 0, 100000);
 
   const rows = await c.env.DB
     .prepare('SELECT id, installation_id, message, created_at, status, resolved_by, resolved_at FROM feedback_records ORDER BY created_at DESC LIMIT ? OFFSET ?')
@@ -513,7 +554,7 @@ adminRoute.get('/ai-health', async (c) => {
 
 // 13. Abuse Signals & One-Click Bans
 adminRoute.get('/abuse', async (c) => {
-  const limit = Math.min(Math.max(parseInt(c.req.query('limit') || '50', 10), 1), 100);
+  const limit = parseBoundedInt(c.req.query('limit'), 50, 1, 100);
 
   const rows = await c.env.DB
     .prepare(
@@ -532,8 +573,8 @@ adminRoute.get('/abuse', async (c) => {
 
 // 14. Audit Log Viewer (Append-only records)
 adminRoute.get('/audit-log', async (c) => {
-  const limit = Math.min(Math.max(parseInt(c.req.query('limit') || '50', 10), 1), 100);
-  const offset = Math.max(parseInt(c.req.query('offset') || '0', 10), 0);
+  const limit = parseBoundedInt(c.req.query('limit'), 50, 1, 100);
+  const offset = parseBoundedInt(c.req.query('offset'), 0, 0, 100000);
 
   const auditRepo = new AdminAuditRepository(c.env.DB);
   const logs = await auditRepo.listLogs(limit, offset);

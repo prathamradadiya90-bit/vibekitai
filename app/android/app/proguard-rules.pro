@@ -16,15 +16,17 @@
 
 # Google Play Billing (com.android.billingclient)
 -keep class com.android.billingclient.api.** { *; }
--keep class com.dooboolab.flutterinapppurchase.** { *; }
+-keep class io.flutter.plugins.inapppurchase.** { *; }
+-keep class com.google.gson.** { *; }
 
 # Google Play Integrity API
 -keep class com.google.android.play.core.integrity.** { *; }
 
-# Google Mobile Ads (AdMob)
+# Google Mobile Ads (AdMob & UMP Consent)
 -keep class com.google.android.gms.ads.** { *; }
 -keep public class com.google.ads.** { *; }
 -keep class com.google.android.gms.ads.mediation.** { *; }
+-keep class com.google.android.ump.** { *; }
 
 # SQLite (sqflite)
 -keep class com.tekartik.sqflite.** { *; }

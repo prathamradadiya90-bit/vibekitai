@@ -38,7 +38,6 @@ adsRoute.get('/ads/ssv', async (c) => {
     ad_network: adNetwork,
   } = queryResult.data;
 
-  // Verify signature (or skip if dev flag explicitly set)
   let isSignatureValid = false;
   const isDevOrTest = c.env.ENVIRONMENT === 'development' || c.env.ENVIRONMENT === 'test';
   if (c.env.SKIP_SSV_VERIFY_FOR_DEV === 'true' || c.env.ENVIRONMENT === 'test') {
@@ -58,7 +57,6 @@ adsRoute.get('/ads/ssv', async (c) => {
     return c.text('Signature verification failed', 403);
   }
 
-  // Extract nonce, rewardId, and installationId if encoded in custom_data
   let nonce: string | undefined;
   let rewardId: string | undefined;
   let targetInstallationId = installationId;
@@ -66,10 +64,12 @@ adsRoute.get('/ads/ssv', async (c) => {
   if (customData) {
     try {
       const parsed = JSON.parse(customData);
-      nonce = parsed.nonce;
-      rewardId = parsed.reward_id || parsed.rewardId;
-      if (!targetInstallationId && (parsed.userId || parsed.installationId || parsed.user_id)) {
-        targetInstallationId = parsed.userId || parsed.installationId || parsed.user_id;
+      if (parsed && typeof parsed === 'object') {
+        nonce = parsed.nonce;
+        rewardId = parsed.reward_id || parsed.rewardId;
+        if (!targetInstallationId && (parsed.userId || parsed.installationId || parsed.user_id)) {
+          targetInstallationId = parsed.userId || parsed.installationId || parsed.user_id;
+        }
       }
     } catch {
       if (customData.startsWith('nonce_')) {
@@ -94,7 +94,6 @@ adsRoute.get('/ads/ssv', async (c) => {
 
   if (!recordResult.success) {
     if (recordResult.reason === 'DUPLICATE_TRANSACTION') {
-      // Return 200 to AdMob so it stops retrying already processed callbacks
       return c.text('OK: Duplicate transaction ignored');
     }
     return c.text(`Reward rejected: ${recordResult.reason}`, 400);
@@ -106,23 +105,47 @@ adsRoute.get('/ads/ssv', async (c) => {
 // 3. Client polling / verification endpoint: checks if reward was recorded by SSV
 adsRoute.post('/ads/verify-reward', async (c) => {
   const installationId = c.get('installationId') || c.req.header('X-App-Instance-Id') || 'anonymous_default';
-  const bodyResult = RewardVerifySchema.safeParse(await c.req.json().catch(() => ({})));
+  const rawBody = await c.req.json().catch(() => null);
+  const bodyResult = RewardVerifySchema.safeParse(rawBody ?? {});
+
+  if (!bodyResult.success) {
+    return c.json(
+      {
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Invalid reward verification payload.',
+          details: bodyResult.error.format(),
+        },
+      },
+      400
+    );
+  }
 
   const quotaManager = new QuotaManager(c.env);
   const quota = await quotaManager.getQuotaStatus(installationId);
+  const creditsPerAd = parseInt(c.env.REWARD_CREDITS_PER_AD || '3', 10);
 
-  // If testing or dev mode without SSV server callback, allow dev credit grant
   if (c.env.SKIP_SSV_VERIFY_FOR_DEV === 'true' || c.env.ENVIRONMENT === 'test') {
-    const rewardId = bodyResult.success && bodyResult.data.reward_id ? bodyResult.data.reward_id : `dev_reward_${Date.now()}`;
+    const rewardId = bodyResult.data.reward_id || `dev_reward_${Date.now()}`;
     const recordResult = await quotaManager.recordSsvReward({
       installationId,
-      transactionId: `tx_${Date.now()}_${Math.random().toString(36).substring(7)}`,
+      transactionId: `tx_dev_${installationId}_${rewardId}`,
       rewardId,
       keyId: 1,
       adNetwork: 'admob_dev',
     });
     const updatedQuota = await quotaManager.getQuotaStatus(installationId);
     if (!recordResult.success) {
+      if (recordResult.reason === 'DUPLICATE_TRANSACTION') {
+        return c.json({
+          verified: true,
+          credits_added: 0,
+          already_processed: true,
+          credits_remaining: updatedQuota.total_credits_remaining,
+          rewarded_ads_watched_today: updatedQuota.rewarded_ads_watched_today,
+          max_rewarded_ads_per_day: updatedQuota.max_rewarded_ads_per_day,
+        });
+      }
       return c.json(
         {
           verified: false,
@@ -140,16 +163,15 @@ adsRoute.post('/ads/verify-reward', async (c) => {
 
     return c.json({
       verified: true,
-      credits_added: parseInt(c.env.REWARD_CREDITS_PER_AD || '3', 10),
+      credits_added: creditsPerAd,
       credits_remaining: updatedQuota.total_credits_remaining,
       rewarded_ads_watched_today: updatedQuota.rewarded_ads_watched_today,
       max_rewarded_ads_per_day: updatedQuota.max_rewarded_ads_per_day,
     });
   }
 
-  // Production check: reward credits are only verified if granted via SSV
   let isVerified = false;
-  if (c.env.DB && bodyResult.success) {
+  if (c.env.DB) {
     const adsRepo = new AdsRepository(c.env.DB);
     isVerified = await adsRepo.isTransactionRecorded(
       installationId,
@@ -163,6 +185,7 @@ adsRoute.post('/ads/verify-reward', async (c) => {
 
   return c.json({
     verified: isVerified,
+    credits_added: isVerified ? creditsPerAd : 0,
     credits_remaining: currentQuota.total_credits_remaining,
     rewarded_ads_watched_today: currentQuota.rewarded_ads_watched_today,
     max_rewarded_ads_per_day: currentQuota.max_rewarded_ads_per_day,

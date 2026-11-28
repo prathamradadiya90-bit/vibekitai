@@ -70,7 +70,9 @@ class QuotaModel {
       };
 
   bool get canGenerate =>
-      totalCreditsRemaining > 0 || (isPro && proCreditsRemaining > 0);
+      isPro
+          ? (proCreditsRemaining > 0 || rewardedCreditsRemaining > 0)
+          : totalCreditsRemaining > 0;
   bool get canWatchRewardedAd => rewardedAdsWatchedToday < maxRewardedAdsPerDay;
 
   QuotaModel copyWith({

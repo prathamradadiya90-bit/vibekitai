@@ -51,6 +51,22 @@ export interface AIProvider {
   }>;
 }
 
+function resolveKeyForProvider(providerType: string | undefined, explicitKey: string | undefined, env: Env): string | undefined {
+  if (explicitKey) return explicitKey;
+  switch (providerType) {
+    case 'groq':
+      return env.GROQ_API_KEY;
+    case 'openrouter':
+      return env.OPENROUTER_API_KEY;
+    case 'openai':
+      return env.OPENAI_API_KEY;
+    case 'gemini':
+      return env.GEMINI_API_KEY;
+    default:
+      return env.GEMINI_API_KEY;
+  }
+}
+
 function createSingleProvider(
   providerType: string | undefined,
   apiKey: string | undefined,
@@ -59,16 +75,21 @@ function createSingleProvider(
   env: Env
 ): AIProvider {
   const allowLocalhostInDev = env.ENVIRONMENT === 'development' || env.ENVIRONMENT === 'test';
+  const normalizedType = providerType?.toLowerCase().trim();
 
-  if (apiKey && (providerType === 'groq' || (!providerType && baseUrl?.includes('groq')))) {
+  if (normalizedType === 'gemini') {
+    return new GeminiProvider({ ...env, GEMINI_API_KEY: apiKey || env.GEMINI_API_KEY, GEMINI_MODEL: model || env.GEMINI_MODEL });
+  }
+
+  if (apiKey && (normalizedType === 'groq' || (!normalizedType && baseUrl?.includes('groq')))) {
     return new OpenAICompatibleProvider(apiKey, baseUrl || 'https://api.groq.com/openai/v1', model || 'llama-3.3-70b-versatile', allowLocalhostInDev);
   }
 
-  if (apiKey && (providerType === 'openrouter' || baseUrl?.includes('openrouter'))) {
+  if (apiKey && (normalizedType === 'openrouter' || (!normalizedType && baseUrl?.includes('openrouter')))) {
     return new OpenAICompatibleProvider(apiKey, baseUrl || 'https://openrouter.ai/api/v1', model || 'meta-llama/llama-3.3-70b-instruct:free', allowLocalhostInDev);
   }
 
-  if (apiKey && (providerType === 'openai' || baseUrl?.includes('openai.com'))) {
+  if (apiKey && (normalizedType === 'openai' || (!normalizedType && baseUrl?.includes('openai.com')))) {
     return new OpenAICompatibleProvider(apiKey, baseUrl || 'https://api.openai.com/v1', model || 'gpt-4o-mini', allowLocalhostInDev);
   }
 
@@ -80,27 +101,50 @@ function createSingleProvider(
 }
 
 export function createAIProvider(env: Env): AIProvider {
-  // Determine Primary Provider
+  const primaryType = env.AI_PROVIDER?.toLowerCase().trim();
+  const primaryKey = resolveKeyForProvider(primaryType, env.AI_API_KEY, env);
+  const primaryModel = env.AI_MODEL || (!primaryType || primaryType === 'gemini' ? env.GEMINI_MODEL : undefined);
+
   const primaryProvider = createSingleProvider(
-    env.AI_PROVIDER,
-    env.AI_API_KEY || env.GEMINI_API_KEY,
+    primaryType,
+    primaryKey,
     env.AI_BASE_URL,
-    env.AI_MODEL || env.GEMINI_MODEL,
+    primaryModel,
     env
   );
 
-  // Determine Secondary / Fallback Provider
+  // Secondary / Fallback Provider: match fallback provider key cleanly without bleeding Groq keys into OpenRouter
+  const fallbackType =
+    env.FALLBACK_AI_PROVIDER?.toLowerCase().trim() ||
+    (primaryType !== 'groq' && env.GROQ_API_KEY
+      ? 'groq'
+      : primaryType !== 'openrouter' && env.OPENROUTER_API_KEY
+      ? 'openrouter'
+      : primaryType !== 'openai' && env.OPENAI_API_KEY
+      ? 'openai'
+      : undefined);
+
   let fallbackProvider: AIProvider | undefined;
-  if (env.FALLBACK_AI_API_KEY || env.GROQ_API_KEY || env.OPENROUTER_API_KEY) {
+  if (fallbackType && fallbackType !== primaryType) {
+    const fallbackKey = resolveKeyForProvider(fallbackType, env.FALLBACK_AI_API_KEY, env);
+    if (fallbackKey || fallbackType === 'gemini') {
+      fallbackProvider = createSingleProvider(
+        fallbackType,
+        fallbackKey,
+        env.FALLBACK_AI_BASE_URL,
+        env.FALLBACK_AI_MODEL,
+        env
+      );
+    }
+  } else if (env.FALLBACK_AI_API_KEY && env.FALLBACK_AI_BASE_URL) {
     fallbackProvider = createSingleProvider(
-      env.FALLBACK_AI_PROVIDER || (env.GROQ_API_KEY ? 'groq' : 'openrouter'),
-      env.FALLBACK_AI_API_KEY || env.GROQ_API_KEY || env.OPENROUTER_API_KEY,
+      fallbackType,
+      env.FALLBACK_AI_API_KEY,
       env.FALLBACK_AI_BASE_URL,
       env.FALLBACK_AI_MODEL,
       env
     );
   }
 
-  // Wrap in Fallback Chain with Circuit Breaker
   return new FallbackChainAIProvider(primaryProvider, fallbackProvider);
 }

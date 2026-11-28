@@ -20,6 +20,7 @@ class AdMobService {
   // Interstitial Ad State
   InterstitialAd? _interstitialAd;
   bool _isInterstitialLoading = false;
+  bool _isShowingInterstitialAd = false;
   int _interstitialRetryCount = 0;
   DateTime? _lastInterstitialShownAt;
   int _interstitialsShownToday = 0;
@@ -78,25 +79,39 @@ class AdMobService {
   }
 
   Future<void> _requestConsent() async {
+    final completer = Completer<void>();
     try {
       final params = ConsentRequestParameters();
       ConsentInformation.instance.requestConsentInfoUpdate(
         params,
         () async {
-          if (await ConsentInformation.instance.isConsentFormAvailable()) {
-            ConsentForm.loadAndShowConsentFormIfRequired((formError) {
-              if (formError != null) {
-                debugPrint('Consent form error: ${formError.message}');
-              }
-            });
+          try {
+            if (await ConsentInformation.instance.isConsentFormAvailable()) {
+              ConsentForm.loadAndShowConsentFormIfRequired((formError) {
+                if (formError != null) {
+                  debugPrint('Consent form error: ${formError.message}');
+                }
+                if (!completer.isCompleted) completer.complete();
+              });
+              return;
+            }
+          } catch (e) {
+            debugPrint('Consent check error: $e');
           }
+          if (!completer.isCompleted) completer.complete();
         },
         (formError) {
           debugPrint('Consent info update failed: ${formError.message}');
+          if (!completer.isCompleted) completer.complete();
         },
+      );
+      await completer.future.timeout(
+        const Duration(seconds: 5),
+        onTimeout: () {},
       );
     } catch (e) {
       debugPrint('Consent error: $e');
+      if (!completer.isCompleted) completer.complete();
     }
   }
 
@@ -156,7 +171,11 @@ class AdMobService {
     }
 
     if (kIsWeb) {
-      debugPrint('[AdMob] Web platform detected. Simulating rewarded ad for web testing.');
+      if (!kDebugMode) {
+        onAdFailed?.call();
+        return false;
+      }
+      debugPrint('[AdMob] Web debug build detected. Simulating rewarded ad for local testing.');
       await Future.delayed(const Duration(milliseconds: 600));
       onRewardEarned(RewardItem(3, 'credits'));
       onAdClosed?.call();
@@ -220,15 +239,24 @@ class AdMobService {
       },
     );
 
-    await _rewardedAd!.show(
-      onUserEarnedReward: (adWithoutView, reward) {
-        userEarnedReward = true;
-        AnalyticsService.instance.logAdRewardGranted();
-        onRewardEarned(reward);
-      },
-    );
-
-    return true;
+    try {
+      await _rewardedAd!.show(
+        onUserEarnedReward: (adWithoutView, reward) {
+          userEarnedReward = true;
+          AnalyticsService.instance.logAdRewardGranted();
+          onRewardEarned(reward);
+        },
+      );
+      return true;
+    } catch (e) {
+      debugPrint('[AdMob] Rewarded show exception: $e');
+      _rewardedAd?.dispose();
+      _rewardedAd = null;
+      _isShowingRewardedAd = false;
+      loadRewardedAd();
+      onAdFailed?.call();
+      return false;
+    }
   }
 
   // ==========================================
@@ -283,7 +311,7 @@ class AdMobService {
   Future<bool> showInterstitialIfEligible({
     VoidCallback? onDismissed,
   }) async {
-    if (kIsWeb || !_isInitialized || _isProUser || AppConfig.interstitialAdUnitId.isEmpty) {
+    if (kIsWeb || !_isInitialized || _isProUser || _isShowingInterstitialAd || AppConfig.interstitialAdUnitId.isEmpty) {
       return false;
     }
 
@@ -319,6 +347,7 @@ class AdMobService {
       onAdDismissedFullScreenContent: (ad) {
         ad.dispose();
         _interstitialAd = null;
+        _isShowingInterstitialAd = false;
         _lastInterstitialShownAt = DateTime.now();
         _interstitialsShownToday++;
         loadInterstitialAd();
@@ -327,13 +356,24 @@ class AdMobService {
       onAdFailedToShowFullScreenContent: (ad, error) {
         ad.dispose();
         _interstitialAd = null;
+        _isShowingInterstitialAd = false;
         loadInterstitialAd();
         onDismissed?.call();
       },
     );
 
-    await _interstitialAd!.show();
-    return true;
+    _isShowingInterstitialAd = true;
+    try {
+      await _interstitialAd!.show();
+      return true;
+    } catch (e) {
+      debugPrint('[AdMob] Interstitial show exception: $e');
+      _interstitialAd?.dispose();
+      _interstitialAd = null;
+      _isShowingInterstitialAd = false;
+      loadInterstitialAd();
+      return false;
+    }
   }
 
   // ==========================================
@@ -373,6 +413,9 @@ class AdMobService {
     _rewardedAd = null;
     _interstitialAd?.dispose();
     _interstitialAd = null;
+    _isRewardedAdLoading = false;
+    _isInterstitialLoading = false;
     _isShowingRewardedAd = false;
+    _isShowingInterstitialAd = false;
   }
 }

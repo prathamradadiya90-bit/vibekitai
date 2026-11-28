@@ -58,9 +58,13 @@ function mockPeriodDays(productId: string): number {
 }
 
 // ---------------------------------------------------------------------------
-// OAuth2 service-account access token (RS256 JWT bearer grant), cached per isolate
+// OAuth2 service-account access token (RS256 JWT bearer grant), keyed per creds+scope
 // ---------------------------------------------------------------------------
-let cachedToken: { token: string; expiresAtMs: number } | null = null;
+const tokenCache = new Map<string, { token: string; expiresAtMs: number }>();
+
+function cacheKeyFor(serviceAccountJson: string, scope: string): string {
+  return `${serviceAccountJson.length}:${serviceAccountJson.slice(0, 64)}:${serviceAccountJson.slice(-32)}:${scope}`;
+}
 
 function base64UrlEncode(data: ArrayBuffer | Uint8Array | string): string {
   const bytes =
@@ -88,10 +92,13 @@ function pemToDer(pem: string): ArrayBuffer {
 
 export async function getGoogleAccessToken(
   serviceAccountJson: string,
-  scope: string = 'https://www.googleapis.com/auth/androidpublisher https://www.googleapis.com/auth/playintegrity'
+  scope: string = 'https://www.googleapis.com/auth/androidpublisher https://www.googleapis.com/auth/playintegrity',
+  forceRefresh: boolean = false
 ): Promise<string> {
-  if (cachedToken && cachedToken.expiresAtMs - 60_000 > Date.now()) {
-    return cachedToken.token;
+  const cacheKey = cacheKeyFor(serviceAccountJson, scope);
+  const cached = tokenCache.get(cacheKey);
+  if (!forceRefresh && cached && cached.expiresAtMs - 60_000 > Date.now()) {
+    return cached.token;
   }
 
   const creds = JSON.parse(serviceAccountJson) as { client_email: string; private_key: string };
@@ -122,16 +129,20 @@ export async function getGoogleAccessToken(
     body: `grant_type=${encodeURIComponent('urn:ietf:params:oauth:grant-type:jwt-bearer')}&assertion=${assertion}`,
   });
   if (!res.ok) {
+    tokenCache.delete(cacheKey);
     throw new Error(`Google OAuth token exchange failed: HTTP ${res.status}`);
   }
   const json = (await res.json()) as { access_token: string; expires_in: number };
-  cachedToken = { token: json.access_token, expiresAtMs: Date.now() + json.expires_in * 1000 };
+  tokenCache.set(cacheKey, { token: json.access_token, expiresAtMs: Date.now() + json.expires_in * 1000 });
   return json.access_token;
 }
 
 async function playApi(env: Env, path: string, method: 'GET' | 'POST' = 'GET'): Promise<Response> {
-  const accessToken = await getGoogleAccessToken(env.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON!);
-  return fetch(`${API_BASE}/${encodeURIComponent(packageNameOf(env))}${path}`, {
+  const serviceJson = env.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON!;
+  const targetUrl = `${API_BASE}/${encodeURIComponent(packageNameOf(env))}${path}`;
+  let accessToken = await getGoogleAccessToken(serviceJson);
+
+  let res = await fetch(targetUrl, {
     method,
     headers: {
       Authorization: `Bearer ${accessToken}`,
@@ -139,10 +150,24 @@ async function playApi(env: Env, path: string, method: 'GET' | 'POST' = 'GET'): 
     },
     body: method === 'POST' ? '{}' : undefined,
   });
+
+  if (res.status === 401) {
+    // Token may have been revoked early; force one token refresh before failing
+    accessToken = await getGoogleAccessToken(serviceJson, undefined, true);
+    res = await fetch(targetUrl, {
+      method,
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        ...(method === 'POST' ? { 'Content-Type': 'application/json' } : {}),
+      },
+      body: method === 'POST' ? '{}' : undefined,
+    });
+  }
+
+  return res;
 }
 
 function failureFromStatus(status: number): { ok: false; reason: string; retryable: boolean } {
-  // 400/404/410: token unknown/invalid for this app -> permanent rejection
   const retryable = status === 429 || status >= 500 || status === 401 || status === 403;
   return { ok: false, reason: `PLAY_API_HTTP_${status}`, retryable };
 }
@@ -197,13 +222,11 @@ export async function verifySubscriptionPurchase(
 
     const status = SUB_STATE_MAP[data.subscriptionState || ''];
     if (!status) {
-      // PENDING / UNSPECIFIED / PENDING_PURCHASE_CANCELED
       return { ok: false, reason: `SUBSCRIPTION_NOT_ACTIVE_${data.subscriptionState}`, retryable: false };
     }
 
     const expiresAt = lineItem.expiryTime ? new Date(lineItem.expiryTime).toISOString() : null;
     const notExpired = !!expiresAt && new Date(expiresAt) > new Date();
-    // CANCELED = auto-renew off; user keeps access until expiry
     const entitled =
       notExpired && (status === 'ACTIVE' || status === 'IN_GRACE_PERIOD' || status === 'CANCELED');
 
@@ -213,7 +236,10 @@ export async function verifySubscriptionPurchase(
         `/purchases/subscriptions/${encodeURIComponent(expectedProductId)}/tokens/${encodeURIComponent(purchaseToken)}:acknowledge`,
         'POST'
       );
-      if (!ack.ok) console.warn('Subscription acknowledge failed:', ack.status);
+      if (!ack.ok) {
+        console.warn('Subscription acknowledge failed:', ack.status);
+        return { ok: false, reason: `PLAY_ACK_FAILED_${ack.status}`, retryable: ack.status >= 500 || ack.status === 429 || ack.status === 401 };
+      }
     }
 
     return {
@@ -268,7 +294,10 @@ export async function verifyProductPurchase(
         `/purchases/products/${encodeURIComponent(productId)}/tokens/${encodeURIComponent(purchaseToken)}:acknowledge`,
         'POST'
       );
-      if (!ack.ok) console.warn('Product acknowledge failed:', ack.status);
+      if (!ack.ok) {
+        console.warn('Product acknowledge failed:', ack.status);
+        return { ok: false, reason: `PLAY_ACK_FAILED_${ack.status}`, retryable: ack.status >= 500 || ack.status === 429 || ack.status === 401 };
+      }
     }
 
     return {

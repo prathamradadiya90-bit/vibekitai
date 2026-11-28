@@ -25,9 +25,12 @@ class ApiClient {
     String? baseUrl,
   })  : _client = client ?? http.Client(),
         _prefs = prefs,
-        _baseUrl = baseUrl ?? prefs.getCustomApiUrl() ?? AppConfig.defaultApiUrl;
+        _baseUrl = (baseUrl ?? prefs.getCustomApiUrl() ?? AppConfig.defaultApiUrl)
+            .replaceFirst(RegExp(r'/+$'), '');
 
   String get baseUrl => _baseUrl;
+
+  void close() => _client.close();
 
   Map<String, String> _buildHeaders({String? idempotencyKey}) {
     final requestId = const Uuid().v4();
@@ -159,7 +162,10 @@ class ApiClient {
     Map<String, dynamic> data = {};
     try {
       if (response.body.isNotEmpty) {
-        data = jsonDecode(response.body) as Map<String, dynamic>;
+        final decoded = jsonDecode(response.body);
+        if (decoded is Map<String, dynamic>) {
+          data = decoded;
+        }
       }
     } catch (_) {
       // In case body was not valid JSON
@@ -169,16 +175,18 @@ class ApiClient {
       return data;
     }
 
+    final rawError = data['error'];
+    final errorMap = rawError is Map<String, dynamic> ? rawError : null;
     final errorCode =
-        (data['error']?['code'] as String?) ?? 'HTTP_${response.statusCode}';
-    final errorMessage = (data['error']?['message'] as String?) ??
+        (errorMap?['code'] as String?) ?? 'HTTP_${response.statusCode}';
+    final errorMessage = (errorMap?['message'] as String?) ??
         'Request failed with status ${response.statusCode}';
 
     throw ApiException(
       code: errorCode,
       message: errorMessage,
       statusCode: response.statusCode,
-      details: data['error']?['details'],
+      details: errorMap?['details'],
     );
   }
 
@@ -192,21 +200,24 @@ class ApiClient {
       await _prefs.setCachedCredits(quota.totalCreditsRemaining);
       await _prefs.setCachedRewardedCredits(quota.rewardedCreditsRemaining);
       await _prefs.setCachedIsPro(quota.isPro);
+      await _prefs.setCachedProCredits(quota.proCreditsRemaining);
+      await _prefs.setCachedRewardedAdsWatchedToday(quota.rewardedAdsWatchedToday);
       return quota;
     } catch (e) {
       debugPrint('ApiClient.getUsage error ($e). Returning cached quota.');
       final totalCached = _prefs.getCachedCredits();
       final rewardedCached = _prefs.getCachedRewardedCredits().clamp(0, totalCached);
       final freeCached = (totalCached - rewardedCached).clamp(0, 999);
+      final isProCached = _prefs.getCachedIsPro();
       return QuotaModel(
         freeCreditsRemaining: freeCached,
         rewardedCreditsRemaining: rewardedCached,
         totalCreditsRemaining: totalCached,
-        isPro: _prefs.getCachedIsPro(),
-        proCreditsRemaining: _prefs.getCachedIsPro() ? 200 : 0,
+        isPro: isProCached,
+        proCreditsRemaining: isProCached ? _prefs.getCachedProCredits() : 0,
         proCycleResetsAt: null,
-        rewardedAdsWatchedToday: 0,
-        maxRewardedAdsPerDay: 2,
+        rewardedAdsWatchedToday: _prefs.getCachedRewardedAdsWatchedToday(),
+        maxRewardedAdsPerDay: AppConfig.maxDailyRewardedAds,
         resetAtUtc: '',
       );
     }
@@ -226,12 +237,15 @@ class ApiClient {
       await _prefs.setCachedCredits(getCreditsRemaining(parsed));
       return parsed;
     } on ApiException catch (e) {
-      // Never mask quota, client validation, auth, ban, or safety errors with offline fallback
+      // Never mask quota, rate-limit, client validation, auth, ban, or safety errors with offline fallback
       final isClientOrPolicyError = e.statusCode == 400 ||
           e.statusCode == 401 ||
           e.statusCode == 403 ||
+          e.statusCode == 404 ||
+          e.statusCode == 422 ||
           e.statusCode == 429 ||
           e.code == 'QUOTA_EXCEEDED' ||
+          e.code == 'RATE_LIMIT_EXCEEDED' ||
           e.code == 'ACCOUNT_BANNED' ||
           e.code == 'VALIDATION_ERROR' ||
           e.message.toUpperCase().contains('SAFETY');
@@ -323,8 +337,11 @@ class ApiClient {
       'order_id': orderId,
     });
     if (res['credits_granted'] != null && (res['credits_granted'] as num) > 0) {
+      final granted = (res['credits_granted'] as num).toInt();
       final current = _prefs.getCachedCredits();
-      await _prefs.setCachedCredits(current + (res['credits_granted'] as num).toInt());
+      final currentRewarded = _prefs.getCachedRewardedCredits();
+      await _prefs.setCachedCredits(current + granted);
+      await _prefs.setCachedRewardedCredits(currentRewarded + granted);
     }
     return res;
   }
@@ -408,8 +425,13 @@ class ApiClient {
       if (integrityToken != null) 'integrity_token': integrityToken,
     });
     if (res['credits_awarded'] != null) {
-      final current = _prefs.getCachedCredits();
-      await _prefs.setCachedCredits(current + (res['credits_awarded'] as num).toInt());
+      final awarded = (res['credits_awarded'] as num).toInt();
+      if (awarded > 0) {
+        final current = _prefs.getCachedCredits();
+        final currentRewarded = _prefs.getCachedRewardedCredits();
+        await _prefs.setCachedCredits(current + awarded);
+        await _prefs.setCachedRewardedCredits(currentRewarded + awarded);
+      }
     }
     return res;
   }
@@ -420,7 +442,7 @@ class ApiClient {
       return await _get(ApiEndpoints.referralStats);
     } catch (e) {
       return {
-        'referral_code': _prefs.getAppInstanceId(),
+        'referral_code': '',
         'total_referred': 0,
         'max_referrals': 10,
         'credits_earned': 0,

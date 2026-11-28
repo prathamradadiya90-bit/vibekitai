@@ -83,6 +83,7 @@ class CardCanvas extends StatelessWidget {
             builder: (context, constraints) {
               final cardPadding = (constraints.maxWidth * 0.06).clamp(12.0, 28.0);
               return Container(
+                clipBehavior: Clip.antiAlias,
                 decoration: BoxDecoration(
                   gradient: template.backgroundGradient,
                   borderRadius: BorderRadius.circular(22),

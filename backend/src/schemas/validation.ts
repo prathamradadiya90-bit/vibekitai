@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 export const ReplyRequestSchema = z
   .object({
-    message: z.string().min(1, 'Message cannot be empty').max(500, 'Message cannot exceed 500 characters'),
+    message: z.string().trim().min(1, 'Message cannot be empty').max(500, 'Message cannot exceed 500 characters'),
     tone: z.enum([
       'Funny',
       'Friendly',
@@ -33,7 +33,7 @@ export const ReplyOutputSchema = z
 
 export const CaptionRequestSchema = z
   .object({
-    topic: z.string().min(1, 'Topic cannot be empty').max(400, 'Topic cannot exceed 400 characters'),
+    topic: z.string().trim().min(1, 'Topic cannot be empty').max(400, 'Topic cannot exceed 400 characters'),
     platform: z.enum([
       'Instagram',
       'Instagram Reels',
@@ -79,7 +79,7 @@ export const CaptionOutputSchema = z
 
 export const BioRequestSchema = z
   .object({
-    interests: z.string().min(1, 'Interests cannot be empty').max(300, 'Interests cannot exceed 300 characters'),
+    interests: z.string().trim().min(1, 'Interests cannot be empty').max(300, 'Interests cannot exceed 300 characters'),
     platform: z.enum(['Instagram', 'WhatsApp', 'LinkedIn', 'Twitter/X', 'Dating App', 'General Profile']),
     vibe: z.enum(['Aesthetic', 'Witty', 'Professional', 'Minimalist', 'Minimal', 'Creative', 'Bold']),
     language: z.enum(['English', 'Hindi', 'Hinglish', 'Gujarati']),
@@ -96,7 +96,7 @@ export const BioOutputSchema = z
 
 export const VibeCheckRequestSchema = z
   .object({
-    text: z.string().min(1, 'Text cannot be empty').max(600, 'Text cannot exceed 600 characters'),
+    text: z.string().trim().min(1, 'Text cannot be empty').max(600, 'Text cannot exceed 600 characters'),
     mode: z
       .enum([
         'roast',
@@ -128,9 +128,6 @@ export const VibeCheckOutputSchema = z
   })
   .strict();
 
-export type VibeCheckRequest = z.infer<typeof VibeCheckRequestSchema>;
-export type VibeCheckOutput = z.infer<typeof VibeCheckOutputSchema>;
-
 export const PurchaseVerifySchema = z
   .object({
     product_id: z.enum([
@@ -143,33 +140,10 @@ export const PurchaseVerifySchema = z
       'credit_pack_50',
       'vibekit_credits_25',
     ]),
-    purchase_token: z.string().min(5),
-    order_id: z.string().optional(),
+    purchase_token: z.string().trim().min(10, 'Invalid purchase token').max(2048),
+    order_id: z.string().max(255).optional(),
   })
   .strict();
-
-export const RewardVerifySchema = z
-  .object({
-    reward_id: z.string().optional(),
-    transaction_id: z.string().optional(),
-    nonce: z.string().optional(),
-    ad_network: z.string().optional(),
-  })
-  .strict();
-
-export const AdMobSsvQuerySchema = z
-  .object({
-    ad_network: z.string().optional(),
-    ad_unit: z.string().optional(),
-    custom_data: z.string().optional(),
-    key_id: z.string().min(1),
-    reward_amount: z.string().optional(),
-    reward_item: z.string().optional(),
-    timestamp: z.string().min(1),
-    transaction_id: z.string().min(1),
-    user_id: z.string().optional(),
-    signature: z.string().min(10),
-  });
 
 export const RtdnNotificationSchema = z
   .object({
@@ -179,20 +153,35 @@ export const RtdnNotificationSchema = z
       publishTime: z.string().optional(),
     }),
     subscription: z.string().optional(),
-  });
+  })
+  .strict();
+
+export const RewardVerifySchema = z
+  .object({
+    reward_id: z.string().max(255).optional(),
+    ad_network: z.string().max(64).optional(),
+    transaction_id: z.string().max(255).optional(),
+    nonce: z.string().max(128).optional(),
+  })
+  .strict();
+
+export const AdMobSsvQuerySchema = z.object({
+  ad_network: z.string().optional(),
+  ad_unit: z.string().optional(),
+  custom_data: z.string().optional(),
+  key_id: z.string().min(1),
+  reward_amount: z.string().optional(),
+  reward_item: z.string().optional(),
+  signature: z.string().min(1),
+  timestamp: z.string().optional(),
+  transaction_id: z.string().min(1),
+  user_id: z.string().optional(),
+});
 
 export const StreakCheckinSchema = z
   .object({
     utc_offset_minutes: z.number().int().min(-840).max(840).default(0),
-    action: z.enum([
-      'generate',
-      'card_export',
-      'challenge',
-      'share',
-      'save',
-      'checkin',
-      'aura_radar',
-    ]),
+    action: z.enum(['generate', 'card_export', 'challenge', 'share', 'save', 'checkin', 'aura_radar']).default('generate'),
   })
   .strict();
 
@@ -204,29 +193,22 @@ export const MilestoneClaimSchema = z
 
 export const ReferralClaimSchema = z
   .object({
-    referrer_code: z.string().min(1).max(64),
-    integrity_token: z.string().optional(),
+    referrer_code: z.string().trim().min(4).max(64),
+    integrity_token: z.string().max(4096).optional(),
   })
   .strict();
 
 export const FeedbackSchema = z
   .object({
-    message: z.string().min(3).max(1000),
+    message: z.string().trim().min(3, 'Feedback message is too short').max(1000, 'Feedback message cannot exceed 1000 characters'),
   })
   .strict();
 
-// Inferred TypeScript types (no manual duplication)
 export type ReplyRequest = z.infer<typeof ReplyRequestSchema>;
 export type ReplyOutput = z.infer<typeof ReplyOutputSchema>;
 export type CaptionRequest = z.infer<typeof CaptionRequestSchema>;
 export type CaptionOutput = z.infer<typeof CaptionOutputSchema>;
 export type BioRequest = z.infer<typeof BioRequestSchema>;
 export type BioOutput = z.infer<typeof BioOutputSchema>;
-export type PurchaseVerifyRequest = z.infer<typeof PurchaseVerifySchema>;
-export type RewardVerifyRequest = z.infer<typeof RewardVerifySchema>;
-export type AdMobSsvQuery = z.infer<typeof AdMobSsvQuerySchema>;
-export type RtdnNotification = z.infer<typeof RtdnNotificationSchema>;
-export type StreakCheckinRequest = z.infer<typeof StreakCheckinSchema>;
-export type MilestoneClaimRequest = z.infer<typeof MilestoneClaimSchema>;
-export type ReferralClaimRequest = z.infer<typeof ReferralClaimSchema>;
-export type FeedbackRequest = z.infer<typeof FeedbackSchema>;
+export type VibeCheckRequest = z.infer<typeof VibeCheckRequestSchema>;
+export type VibeCheckOutput = z.infer<typeof VibeCheckOutputSchema>;

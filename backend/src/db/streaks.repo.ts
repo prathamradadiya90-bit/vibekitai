@@ -6,6 +6,8 @@ export interface StreakRecord {
   freeze_count: number;
   pro_freeze_refilled_at?: string | null;
   last_freeze_used_date?: string | null;
+  last_freeze_ad_date?: string | null;
+  last_freeze_ads_count?: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -29,7 +31,6 @@ export class StreaksRepository {
     const nowIso = new Date().toISOString();
     const initialFreezes = isPro ? 1 : 0;
 
-    // Ensure installation exists before referencing it in foreign key
     await this.db
       .prepare(
         `INSERT INTO installations (id, created_at, last_active_at)
@@ -61,13 +62,16 @@ export class StreaksRepository {
     );
   }
 
-  async refillProFreeze(installationId: string, nowIso: string): Promise<void> {
-    await this.db
+  async refillProFreeze(installationId: string, nowIso: string): Promise<boolean> {
+    const res = await this.db
       .prepare(
-        'UPDATE streaks SET freeze_count = freeze_count + 1, pro_freeze_refilled_at = ?, updated_at = ? WHERE installation_id = ?'
+        `UPDATE streaks
+         SET freeze_count = freeze_count + 1, pro_freeze_refilled_at = ?, updated_at = ?
+         WHERE installation_id = ? AND freeze_count < 2`
       )
       .bind(nowIso, nowIso, installationId)
       .run();
+    return (res.meta?.changes ?? 0) > 0;
   }
 
   async getTotalXp(installationId: string): Promise<number> {
@@ -185,8 +189,12 @@ export class StreaksRepository {
     await this.db.batch(statements);
   }
 
-  async earnFreeze(installationId: string, nowIso: string): Promise<number> {
-    // Ensure installation exists before inserting foreign key
+  async earnFreeze(
+    installationId: string,
+    nowIso: string,
+    todayUtc: string,
+    currentAdsWatched: number
+  ): Promise<{ granted: boolean; freezeCount: number }> {
     await this.db
       .prepare(
         `INSERT INTO installations (id, created_at, last_active_at)
@@ -198,16 +206,30 @@ export class StreaksRepository {
 
     await this.db
       .prepare(
-        `INSERT INTO streaks (installation_id, current_streak, longest_streak, last_checkin_date, freeze_count, created_at, updated_at)
-         VALUES (?, 0, 0, '', 1, ?, ?)
-         ON CONFLICT(installation_id) DO UPDATE SET
-           freeze_count = freeze_count + 1,
-           updated_at = excluded.updated_at`
+        `INSERT INTO streaks (installation_id, current_streak, longest_streak, last_checkin_date, freeze_count, last_freeze_ad_date, last_freeze_ads_count, created_at, updated_at)
+         VALUES (?, 0, 0, '', 0, NULL, 0, ?, ?)
+         ON CONFLICT(installation_id) DO NOTHING`
       )
       .bind(installationId, nowIso, nowIso)
       .run();
 
+    // Enforce freeze_count < 2 atomically in SQL
+    const res = await this.db
+      .prepare(
+        `UPDATE streaks
+         SET freeze_count = freeze_count + 1,
+             last_freeze_ad_date = ?,
+             last_freeze_ads_count = ?,
+             updated_at = ?
+         WHERE installation_id = ? AND freeze_count < 2`
+      )
+      .bind(todayUtc, currentAdsWatched, nowIso, installationId)
+      .run();
+
     const updated = await this.getStreak(installationId);
-    return updated?.freeze_count ?? 1;
+    return {
+      granted: (res.meta?.changes ?? 0) > 0,
+      freezeCount: updated?.freeze_count ?? 1,
+    };
   }
 }

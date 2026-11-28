@@ -205,7 +205,13 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
             size: 20,
             color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
           ),
-          onPressed: () => context.pop(),
+          onPressed: () {
+            if (context.canPop()) {
+              context.pop();
+            } else {
+              context.go('/home');
+            }
+          },
         ),
         actions: [
           TextButton(

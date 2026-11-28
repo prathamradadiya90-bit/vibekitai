@@ -18,6 +18,7 @@ import '../../../core/widgets/tone_chips.dart';
 import '../../../models/generation_models.dart';
 import '../../../models/history_item.dart';
 import '../../../core/services/achievement_service.dart';
+import '../../../core/services/share_service.dart';
 import '../../streaks/providers/streak_provider.dart';
 
 class BioLabScreen extends ConsumerStatefulWidget {
@@ -313,9 +314,11 @@ class _BioLabScreenState extends ConsumerState<BioLabScreen> {
                     onChanged: (val) => setState(() => _includeUsernames = val ?? true),
                     activeColor: AppColors.primary,
                   ),
-                  Text(
-                    'Include Handle / Username Ideas',
-                    style: TextStyle(color: textCol, fontSize: 13),
+                  Flexible(
+                    child: Text(
+                      'Include Handle / Username Ideas',
+                      style: TextStyle(color: textCol, fontSize: 13),
+                    ),
                   ),
                 ],
               ),
@@ -409,7 +412,12 @@ class _BioLabScreenState extends ConsumerState<BioLabScreen> {
                   spacing: AppSpacing.sm,
                   runSpacing: AppSpacing.sm,
                   children: genState.result!.usernames.map(
-                    (username) => Chip(
+                    (username) => ActionChip(
+                      avatar: Icon(
+                        Icons.copy_rounded,
+                        size: 14,
+                        color: isDark ? AppColors.accentWarm : AppColors.primary,
+                      ),
                       label: Text(username),
                       backgroundColor: cardBg,
                       side: BorderSide(color: borderCol),
@@ -417,6 +425,14 @@ class _BioLabScreenState extends ConsumerState<BioLabScreen> {
                         color: isDark ? AppColors.accentWarm : AppColors.primary,
                         fontWeight: FontWeight.bold,
                       ),
+                      onPressed: () {
+                        HapticFeedback.selectionClick();
+                        ShareService.copyToClipboard(
+                          context,
+                          username,
+                          message: 'Copied handle $username!',
+                        );
+                      },
                     ),
                   ).toList(),
                 ),

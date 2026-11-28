@@ -1,4 +1,3 @@
-import { Env } from '../types';
 import { safeFetch } from '../security/safe_fetch';
 import {
   SAMPLING,
@@ -11,6 +10,31 @@ import {
   normalizeHashtags,
   normalizeUsernames,
 } from './prompts';
+
+function extractJsonObject(content: string): any {
+  try {
+    return JSON.parse(content);
+  } catch {
+    const fenced = content.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
+    if (fenced && fenced[1] && fenced[1].trim()) {
+      try {
+        return JSON.parse(fenced[1]);
+      } catch {
+        // fall through
+      }
+    }
+    const start = content.indexOf('{');
+    const end = content.lastIndexOf('}');
+    if (start !== -1 && end > start) {
+      try {
+        return JSON.parse(content.slice(start, end + 1));
+      } catch {
+        throw new Error('Failed to parse JSON response from AI provider.');
+      }
+    }
+    throw new Error('Failed to parse JSON response from AI provider.');
+  }
+}
 
 export class OpenAICompatibleProvider {
   private apiKey: string;
@@ -103,21 +127,31 @@ export class OpenAICompatibleProvider {
     const prompt = buildVibeCheckPrompt(params);
 
     const result = await this.callChatCompletion(prompt.system, prompt.user, 'vibe_check');
-    if (result && typeof result.score === 'number' && Array.isArray(result.rewrites) && result.rewrites.length > 0) {
+    const rewrites = humanizeList(result?.rewrites, 3);
+    const score = typeof result?.score === 'number' && Number.isFinite(result.score) ? result.score : NaN;
+    if (result && Number.isFinite(score) && rewrites.length > 0) {
+      const normalizedTags = humanizeList(result.tags, 4).map((t) =>
+        t.startsWith('#') ? t : `#${t.replace(/\s+/g, '')}`
+      );
+      const title =
+        typeof result.title === 'string' && result.title.trim().length > 0
+          ? result.title.trim()
+          : 'Vibe Check';
+      const verdict =
+        typeof result.verdict === 'string' && result.verdict.trim().length > 0
+          ? result.verdict.trim()
+          : 'Analysis completed.';
       return {
-        score: Math.min(100, Math.max(0, Math.round(result.score))),
-        title: result.title || 'Vibe Check',
-        verdict: result.verdict || 'Analysis completed.',
-        tags: Array.isArray(result.tags) && result.tags.length > 0
-          ? result.tags.slice(0, 4).map((t: string) => t.startsWith('#') ? t : `#${t.replace(/\s+/g, '')}`)
-          : ['#VibeCheck', '#SocialTone', '#LeveledUp'],
-        rewrites: humanizeList(result.rewrites, 3),
+        score: Math.min(100, Math.max(0, Math.round(score))),
+        title,
+        verdict,
+        tags: normalizedTags.length > 0 ? normalizedTags : ['#VibeCheck', '#SocialTone', '#LeveledUp'],
+        rewrites,
       };
     }
     throw new Error('AI provider returned an invalid format for vibe check.');
   }
 
-  /** Groq rejects non-zero presence/frequency penalties on some models; OpenAI & OpenRouter accept them. */
   private supportsPenalties(): boolean {
     return !this.baseUrl.includes('groq.com');
   }
@@ -136,71 +170,63 @@ export class OpenAICompatibleProvider {
       temperature: sampling.temperature,
       top_p: sampling.topP,
       max_tokens: 1024,
-      // Penalties reduce repetitive phrasing; Groq/OpenRouter ignore or accept them safely.
-      ...(this.supportsPenalties() ? {
-        presence_penalty: sampling.presencePenalty,
-        frequency_penalty: sampling.frequencyPenalty,
-      } : {}),
+      ...(this.supportsPenalties()
+        ? {
+            presence_penalty: sampling.presencePenalty,
+            frequency_penalty: sampling.frequencyPenalty,
+          }
+        : {}),
     };
 
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 15000);
 
-    let response: Response;
     try {
-      response = await safeFetch(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${this.apiKey}`,
+      const response = await safeFetch(
+        url,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${this.apiKey}`,
+          },
+          body: JSON.stringify(payload),
+          signal: controller.signal,
         },
-        body: JSON.stringify(payload),
-        signal: controller.signal,
-      }, this.allowLocalhostInDev);
+        this.allowLocalhostInDev
+      );
+
+      if (!response.ok) {
+        const errText = await response.text().catch(() => '');
+        console.warn(`OpenAI-compatible API HTTP ${response.status}:`, errText.slice(0, 200));
+        if (/content_filter|policy_violation|moderation/i.test(errText)) {
+          throw new Error('SAFETY_VIOLATION: Request blocked by AI content policy.');
+        }
+        throw new Error(`AI API HTTP ${response.status}`);
+      }
+
+      interface ChatCompletionResponse {
+        choices?: Array<{
+          finish_reason?: string;
+          message?: {
+            content?: string;
+          };
+        }>;
+      }
+
+      const data = (await response.json()) as ChatCompletionResponse;
+      const choice = data.choices?.[0];
+      if (choice?.finish_reason === 'content_filter') {
+        throw new Error('SAFETY_VIOLATION: The response triggered automated safety filters.');
+      }
+      const content = choice?.message?.content;
+      if (!content) {
+        throw new Error('Empty response from AI completion.');
+      }
+
+      return extractJsonObject(content);
     } finally {
       clearTimeout(timer);
-    }
-
-    if (!response.ok) {
-      const errText = await response.text();
-      if (/content_filter|safety|policy_violation|moderation/i.test(errText)) {
-        throw new Error(`SAFETY_VIOLATION: Request blocked by AI content policy.`);
-      }
-      throw new Error(`AI API error (${response.status}): ${errText}`);
-    }
-
-    interface ChatCompletionResponse {
-      choices?: Array<{
-        finish_reason?: string;
-        message?: {
-          content?: string;
-        };
-      }>;
-    }
-
-    const data = (await response.json()) as ChatCompletionResponse;
-    const choice = data.choices?.[0];
-    if (choice?.finish_reason === 'content_filter') {
-      throw new Error('SAFETY_VIOLATION: The response triggered automated safety filters.');
-    }
-    const content = choice?.message?.content;
-    if (!content) {
-      throw new Error('Empty response from AI completion.');
-    }
-
-    try {
-      return JSON.parse(content);
-    } catch {
-      // If model wrapped response in markdown json code block
-      const jsonMatch = content.match(/```json\s*([\s\S]*?)\s*```/) || content.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        try {
-          return JSON.parse(jsonMatch[1] || jsonMatch[0]);
-        } catch {
-          throw new Error('Failed to parse JSON response from AI provider.');
-        }
-      }
-      throw new Error('Failed to parse JSON response from AI provider.');
     }
   }
 }

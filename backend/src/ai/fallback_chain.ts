@@ -3,17 +3,19 @@ import { AIProvider } from './factory';
 // Shared circuit breaker state across requests within isolate
 let sharedFailureCount = 0;
 let sharedCircuitOpenUntil = 0;
+let halfOpenProbeInFlight = false;
 
 export function resetFallbackCircuitBreaker(): void {
   sharedFailureCount = 0;
   sharedCircuitOpenUntil = 0;
+  halfOpenProbeInFlight = false;
 }
 
 export class FallbackChainAIProvider implements AIProvider {
   private primary: AIProvider;
   private fallback?: AIProvider;
   private readonly failureThreshold = 3;
-  private readonly circuitCooldownMs = 60000; // 60 seconds
+  private readonly circuitCooldownMs = 60000;
 
   constructor(primary: AIProvider, fallback?: AIProvider) {
     this.primary = primary;
@@ -21,21 +23,28 @@ export class FallbackChainAIProvider implements AIProvider {
   }
 
   private isCircuitOpen(): boolean {
+    if (sharedCircuitOpenUntil === 0) return false;
     return Date.now() < sharedCircuitOpenUntil;
   }
 
   private recordSuccess(): void {
     sharedFailureCount = 0;
     sharedCircuitOpenUntil = 0;
+    halfOpenProbeInFlight = false;
   }
 
   private isSafetyOrPolicyError(error: any): boolean {
     const errMessage = (error?.message || String(error)).toUpperCase();
-    return errMessage.includes('SAFETY_VIOLATION') || errMessage.includes('SAFETY');
+    return (
+      errMessage.includes('SAFETY_VIOLATION') ||
+      errMessage.includes('SAFETY POLICY') ||
+      errMessage.includes('SAFETY FILTER') ||
+      errMessage.includes('BLOCKED BY SAFETY')
+    );
   }
 
   private recordFailure(error: any): void {
-    // Prompt safety violations are user input validation errors, not provider outages
+    halfOpenProbeInFlight = false;
     if (this.isSafetyOrPolicyError(error)) {
       return;
     }
@@ -60,12 +69,24 @@ export class FallbackChainAIProvider implements AIProvider {
       return runFallback();
     }
 
+    // Half-open probe gate: after cooldown expires, let only one request probe primary
+    const isHalfOpen = sharedCircuitOpenUntil > 0 && Date.now() >= sharedCircuitOpenUntil;
+    let acquiredProbe = false;
+    if (isHalfOpen) {
+      if (halfOpenProbeInFlight) {
+        return runFallback();
+      }
+      halfOpenProbeInFlight = true;
+      acquiredProbe = true;
+    }
+
     try {
       const result = await runPrimary();
       this.recordSuccess();
       return result;
     } catch (err) {
       if (this.isSafetyOrPolicyError(err)) {
+        if (acquiredProbe) halfOpenProbeInFlight = false;
         throw err;
       }
       this.recordFailure(err);

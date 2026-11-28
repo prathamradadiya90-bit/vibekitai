@@ -73,6 +73,10 @@ class PreferencesService {
   static const String _keyLastCreditResetDate = 'last_credit_reset_date';
   static const String _keyRewardedAdsWatched = 'rewarded_ads_watched_today';
   static const String _keyRewardedCredits = 'cached_rewarded_credits';
+  static const String _keyProCredits = 'cached_pro_credits';
+  static const String _keyAchievementBonusXp = 'achievement_bonus_xp';
+  static const String _keyWebHistoryJson = 'web_history_items_json';
+  static const String _keyNotificationsEnabled = 'streak_notifications_enabled';
 
   String getTodayLocalDateStr() {
     final now = DateTime.now();
@@ -96,6 +100,53 @@ class PreferencesService {
 
   Future<void> setCachedRewardedCredits(int credits) async {
     await _prefs.setInt(_keyRewardedCredits, credits.clamp(0, 9999));
+  }
+
+  int getCachedProCredits() {
+    return (_prefs.getInt(_keyProCredits) ?? 0).clamp(0, 99999);
+  }
+
+  Future<void> setCachedProCredits(int credits) async {
+    await _prefs.setInt(_keyProCredits, credits.clamp(0, 99999));
+  }
+
+  int getCachedRewardedAdsWatchedToday() {
+    checkAndPerformDailyLocalReset();
+    return (_prefs.getInt(_keyRewardedAdsWatched) ?? 0).clamp(0, 100);
+  }
+
+  Future<void> setCachedRewardedAdsWatchedToday(int count) async {
+    await _prefs.setInt(_keyRewardedAdsWatched, count.clamp(0, 100));
+  }
+
+  int getAchievementBonusXp() {
+    return (_prefs.getInt(_keyAchievementBonusXp) ?? 0).clamp(0, 1000000);
+  }
+
+  Future<int> addAchievementBonusXp(int delta) async {
+    final updated = (getAchievementBonusXp() + delta).clamp(0, 1000000);
+    await _prefs.setInt(_keyAchievementBonusXp, updated);
+    return updated;
+  }
+
+  bool getNotificationsEnabled() {
+    return _prefs.getBool(_keyNotificationsEnabled) ?? true;
+  }
+
+  Future<void> setNotificationsEnabled(bool enabled) async {
+    await _prefs.setBool(_keyNotificationsEnabled, enabled);
+  }
+
+  String? getWebHistoryJson() {
+    return _prefs.getString(_keyWebHistoryJson);
+  }
+
+  Future<void> setWebHistoryJson(String? json) async {
+    if (json == null || json.isEmpty) {
+      await _prefs.remove(_keyWebHistoryJson);
+    } else {
+      await _prefs.setString(_keyWebHistoryJson, json);
+    }
   }
 
   /// Automatically verifies if a new calendar day has started.
@@ -123,7 +174,7 @@ class PreferencesService {
   }
 
   Future<void> setCachedCredits(int credits) async {
-    await _prefs.setInt(_keyCredits, credits);
+    await _prefs.setInt(_keyCredits, credits.clamp(0, 9999));
   }
 
   bool getCachedIsPro() {

@@ -61,6 +61,7 @@ const REPLY_TONES: Record<string, string> = {
   Savage: 'nonchalant mic-drop comeback; dismantles dry texts, ghosting, disrespect, or lazy effort with cool, unbothered wit',
   Unbothered: 'peak detachment and secure attachment; relaxed peace, zero neediness, does not take the bait, completely unfazed',
   Opener: 'high-response conversation starter; creative curiosity hook, intriguing low-stakes debate, or funny observation based on their profile/vibe',
+  Chill: 'laid-back, warm, low-key easygoing cadence; relaxed, friendly, zero intensity or pressure',
 };
 
 const LENGTHS: Record<string, string> = {
@@ -74,7 +75,9 @@ const PLATFORM_GUIDES: Record<string, string> = {
   'Instagram Post': 'Can be a little longer and more personal/storytelling; first line still matters.',
   'WhatsApp Status': 'Very short, personal, no hashtags feel, reads like a status line to friends and family.',
   'YouTube Shorts': 'Title-like, curiosity driven, searchable keywords, short.',
+  YouTube: 'Engaging creator video caption/description opener: hook early, concise, natural storytelling.',
   'TikTok & Shorts': 'Ultra-punchy hook for short vertical video, curiosity gap in first 3 words, searchable sound tags.',
+  TikTok: 'Ultra-punchy short vertical video caption with curiosity gap and relatable energy.',
   'Threads & X': 'Bite-sized opinion, thought-provoking observation or dry humor that sparks replies and reposts.',
   'General Social Media': 'Works across platforms; short and relatable.',
   Instagram: 'Max ~150 characters, line breaks and a few emojis allowed, can end with a light CTA.',
@@ -86,8 +89,14 @@ const PLATFORM_GUIDES: Record<string, string> = {
 };
 
 function sanitize(input: string): string {
-  // Neutralise attempts to break out of the delimited block.
-  return input.replace(/<\/?user_input>/gi, '').replace(/```/g, "'''").trim();
+  // Iteratively neutralise nested tag obfuscations like `<user<user_input>_input>`
+  let out = input;
+  let prev: string;
+  do {
+    prev = out;
+    out = out.replace(/<\/?user_input>/gi, '');
+  } while (out !== prev);
+  return out.replace(/```/g, "'''").trim();
 }
 
 function languageGuide(language: string): string {

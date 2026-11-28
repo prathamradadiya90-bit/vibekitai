@@ -196,7 +196,6 @@ purchasesRoute.post('/purchases/rtdn', async (c) => {
         expiresAt = verified.expiresAt ?? undefined;
       }
 
-      // Check event ordering to prevent out-of-order race conditions
       if (c.env.DB) {
         const purchasesRepo = new PurchasesRepository(c.env.DB);
         const isOutdated = await purchasesRepo.isRtdnEventOutdated(purchaseToken, eventTimeMillis);
@@ -204,52 +203,86 @@ purchasesRoute.post('/purchases/rtdn', async (c) => {
           return c.json({ success: true, processed: false, reason: 'OUT_OF_ORDER_EVENT' });
         }
 
-        await purchasesRepo.recordRtdnEvent({
+        const recordedNew = await purchasesRepo.recordRtdnEvent({
           eventId: messageId,
           purchaseToken,
           notificationType,
           eventTimeMillis,
           status,
         });
+        if (!recordedNew) {
+          return c.json({ success: true, processed: false, reason: 'DUPLICATE_EVENT' });
+        }
       }
 
       await quotaManager.handleSubscriptionLifecycleUpdate({ purchaseToken, status, expiresAt });
     } else if (voidedNotice?.purchaseToken) {
-      // Refund / chargeback (covers the one-time lifetime pass, which has no subscription events)
       const purchaseToken: string = voidedNotice.purchaseToken;
+      const purchasesRepo = c.env.DB ? new PurchasesRepository(c.env.DB) : null;
       const entitlement = c.env.DB
         ? await c.env.DB.prepare('SELECT product_id FROM subscription_entitlements WHERE purchase_token = ?')
             .bind(purchaseToken)
             .first<{ product_id: string }>()
         : null;
 
-      if (!entitlement && c.env.DB) {
-        return c.json({ success: true, processed: false, reason: 'UNKNOWN_TOKEN' });
-      }
-
-      let revoke = devMode;
-      if (!devMode && entitlement) {
-        if (LIFETIME_PRODUCTS.has(entitlement.product_id)) {
-          const v = await verifyProductPurchase(c.env, entitlement.product_id, purchaseToken, { acknowledge: false });
-          if (!v.ok && v.retryable) {
-            return c.json({ error: { code: 'VERIFICATION_UNAVAILABLE', message: v.reason } }, 503);
+      if (entitlement) {
+        let revoke = devMode;
+        if (!devMode) {
+          if (LIFETIME_PRODUCTS.has(entitlement.product_id)) {
+            const v = await verifyProductPurchase(c.env, entitlement.product_id, purchaseToken, { acknowledge: false });
+            if (!v.ok && v.retryable) {
+              return c.json({ error: { code: 'VERIFICATION_UNAVAILABLE', message: v.reason } }, 503);
+            }
+            revoke = !v.ok || !v.purchased;
+          } else {
+            const v = await verifySubscriptionPurchase(c.env, entitlement.product_id, purchaseToken);
+            if (!v.ok && v.retryable) {
+              return c.json({ error: { code: 'VERIFICATION_UNAVAILABLE', message: v.reason } }, 503);
+            }
+            revoke = !v.ok || !v.entitled;
           }
-          revoke = !v.ok || !v.purchased;
-        } else {
-          const v = await verifySubscriptionPurchase(c.env, entitlement.product_id, purchaseToken);
-          if (!v.ok && v.retryable) {
-            return c.json({ error: { code: 'VERIFICATION_UNAVAILABLE', message: v.reason } }, 503);
-          }
-          revoke = !v.ok || !v.entitled;
         }
-      }
 
-      if (revoke) {
-        await quotaManager.handleSubscriptionLifecycleUpdate({
-          purchaseToken,
-          status: 'REVOKED',
-          expiresAt: new Date().toISOString(),
-        });
+        if (revoke) {
+          if (purchasesRepo) {
+            await purchasesRepo.recordRtdnEvent({
+              eventId: messageId,
+              purchaseToken,
+              notificationType: -1,
+              eventTimeMillis,
+              status: 'REVOKED',
+            });
+          }
+          await quotaManager.handleSubscriptionLifecycleUpdate({
+            purchaseToken,
+            status: 'REVOKED',
+            expiresAt: new Date().toISOString(),
+          });
+        }
+      } else if (purchasesRepo) {
+        // Also handle voided / charged-back consumable credit packs
+        const creditPack = await purchasesRepo.findCreditPackByToken(purchaseToken);
+        if (!creditPack) {
+          return c.json({ success: true, processed: false, reason: 'UNKNOWN_TOKEN' });
+        }
+        let revokePack = devMode;
+        if (!devMode) {
+          const v = await verifyProductPurchase(c.env, creditPack.product_id, purchaseToken, { acknowledge: false });
+          if (!v.ok && v.retryable) {
+            return c.json({ error: { code: 'VERIFICATION_UNAVAILABLE', message: v.reason } }, 503);
+          }
+          revokePack = !v.ok || !v.purchased;
+        }
+        if (revokePack) {
+          await purchasesRepo.recordRtdnEvent({
+            eventId: messageId,
+            purchaseToken,
+            notificationType: -2,
+            eventTimeMillis,
+            status: 'REVOKED',
+          });
+          await purchasesRepo.revokeCreditPackAndClawBack(creditPack);
+        }
       }
     }
 
@@ -353,14 +386,24 @@ purchasesRoute.post('/purchases/credit-pack', async (c) => {
     });
   }
 
-  // Atomic batch: record purchase and grant credits to daily_usage
-  await purchasesRepo.recordCreditPackAndGrantCredits({
+  // Atomic batch: record purchase and grant credits idempotently
+  const grantResult = await purchasesRepo.recordCreditPackAndGrantCredits({
     orderId: effectiveOrderId,
     installationId,
     productId: product_id,
     creditsGranted: creditsToGrant,
     purchaseToken: purchase_token,
   });
+
+  if (grantResult === 'already_processed') {
+    return c.json({
+      success: true,
+      credits_granted: 0,
+      already_processed: true,
+      order_id: effectiveOrderId,
+      message: 'This credit pack purchase was already credited.',
+    });
+  }
 
   return c.json({
     success: true,
