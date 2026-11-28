@@ -9,7 +9,7 @@ class AppConfig {
   static const String appName = 'ReplyVibe AI';
   static const String appTagline =
       'Create your next reply, caption and shareable card.';
-  static const String appVersion = '1.0.3+4';
+  static const String appVersion = '1.0.4+5';
 
   static bool get isDev => kDebugMode;
 

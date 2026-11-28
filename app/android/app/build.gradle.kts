@@ -29,8 +29,8 @@ android {
         applicationId = "com.vibekit.vibekit_ai"
         minSdk = 24
         targetSdk = 36
-        versionCode = 4
-        versionName = "1.0.3"
+        versionCode = 5
+        versionName = "1.0.4"
 
         val isReleaseRequested = gradle.startParameter.taskNames.any {
             it.contains("Release", ignoreCase = true)
