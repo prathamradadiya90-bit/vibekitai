@@ -5,14 +5,18 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:uuid/uuid.dart';
 import '../../core/constants/app_colors.dart';
+import '../../core/constants/app_durations.dart';
+import '../../core/constants/app_typography.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/services/card_export_service.dart';
 import '../../core/services/share_service.dart';
 import '../../core/services/analytics_service.dart';
 import '../../core/services/achievement_service.dart';
 import '../../core/widgets/app_bottom_nav.dart';
+import '../../core/widgets/motion_widgets.dart';
 import '../../models/history_item.dart';
 import '../../models/streak_model.dart';
 import '../streaks/providers/streak_provider.dart';
@@ -360,13 +364,24 @@ class _CardMakerScreenState extends ConsumerState<CardMakerScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // 1. Live Interactive Canvas Area (Responsive, scalable preview)
-              Container(
+              // 1. Live Interactive Canvas Area (Ambient Darkroom Stage + Morph)
+              AnimatedContainer(
+                duration: AppDurations.normal,
+                curve: AppCurves.espressoPour,
                 constraints: const BoxConstraints(maxHeight: 340),
                 margin: const EdgeInsets.only(bottom: 12),
-                padding: const EdgeInsets.all(12),
+                padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
-                  color: isDark ? AppColors.surfaceElevatedDark.withValues(alpha: 0.35) : const Color(0xFFF3EDE2),
+                  gradient: RadialGradient(
+                    center: Alignment.center,
+                    radius: 0.95,
+                    colors: [
+                      _selectedTemplate.accentColor.withValues(alpha: isDark ? 0.16 : 0.11),
+                      isDark
+                          ? AppColors.surfaceElevatedDark.withValues(alpha: 0.35)
+                          : const Color(0xFFF3EDE2),
+                    ],
+                  ),
                   borderRadius: BorderRadius.circular(24),
                   border: Border.all(
                     color: isDark ? AppColors.borderDark : AppColors.borderLight,
@@ -389,28 +404,33 @@ class _CardMakerScreenState extends ConsumerState<CardMakerScreen> {
                 ),
               ),
 
-              // 2. Editor Segmented Tab Bar (Clean, DRY, Modern)
-              Container(
-                margin: const EdgeInsets.only(bottom: 12),
-                padding: const EdgeInsets.all(4),
-                decoration: BoxDecoration(
-                  color: isDark ? AppColors.surfaceCardDark : AppColors.surfaceCardLight,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: isDark ? AppColors.borderDark : AppColors.borderLight,
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    _buildTabButton(0, 'Content', Icons.edit_note_rounded, isDark),
-                    _buildTabButton(1, 'Style', Icons.palette_outlined, isDark),
-                    _buildTabButton(2, 'Layout', Icons.tune_rounded, isDark),
-                  ],
-                ),
+              // 2. Editor Gliding Segmented Tab Bar
+              SlidingSegmentedPill<int>(
+                items: const [0, 1, 2],
+                selectedItem: _activeEditorTab,
+                labelBuilder: (idx) => switch (idx) {
+                  0 => 'Content',
+                  1 => 'Style',
+                  _ => 'Layout',
+                },
+                iconBuilder: (idx) => switch (idx) {
+                  0 => Icons.edit_note_rounded,
+                  1 => Icons.palette_outlined,
+                  _ => Icons.tune_rounded,
+                },
+                onSelected: (idx) => setState(() => _activeEditorTab = idx),
               ),
+              const SizedBox(height: 12),
 
               // 3. Tab Contents
-              _buildActiveTabContent(isDark, quota.isPro, streak),
+              AnimatedSwitcher(
+                duration: AppDurations.fast,
+                switchInCurve: AppCurves.espressoPour,
+                child: KeyedSubtree(
+                  key: ValueKey<int>(_activeEditorTab),
+                  child: _buildActiveTabContent(isDark, quota.isPro, streak),
+                ),
+              ),
 
               const SizedBox(height: 16),
 
@@ -423,61 +443,6 @@ class _CardMakerScreenState extends ConsumerState<CardMakerScreen> {
         ),
       ),
       bottomNavigationBar: const AppBottomNav(currentIndex: 2),
-    );
-  }
-
-  Widget _buildTabButton(int index, String label, IconData icon, bool isDark) {
-    final isSelected = _activeEditorTab == index;
-    return Expanded(
-      child: InkWell(
-        onTap: () {
-          HapticFeedback.selectionClick();
-          setState(() => _activeEditorTab = index);
-        },
-        borderRadius: BorderRadius.circular(12),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 180),
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          decoration: BoxDecoration(
-            color: isSelected
-                ? (isDark ? AppColors.surfaceElevatedDark : Colors.white)
-                : Colors.transparent,
-            borderRadius: BorderRadius.circular(12),
-            boxShadow: isSelected && !isDark
-                ? [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.05),
-                      blurRadius: 4,
-                      offset: const Offset(0, 1),
-                    ),
-                  ]
-                : null,
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                icon,
-                size: 16,
-                color: isSelected
-                    ? (isDark ? AppColors.accentWarm : AppColors.primary)
-                    : (isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight),
-              ),
-              const SizedBox(width: 6),
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                  color: isSelected
-                      ? (isDark ? AppColors.accentWarm : AppColors.primary)
-                      : (isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
     );
   }
 
@@ -656,48 +621,52 @@ class _CardMakerScreenState extends ConsumerState<CardMakerScreen> {
             return Expanded(
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 3),
-                child: InkWell(
-                  onTap: () {
-                    HapticFeedback.selectionClick();
-                    setState(() {
-                      _selectedStyle = style;
-                      if (style == CardStyle.socialPost) {
-                        _textAlign = TextAlign.left;
-                      }
-                    });
-                  },
-                  borderRadius: BorderRadius.circular(12),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(vertical: 8),
-                    decoration: BoxDecoration(
-                      color: isSelected
-                          ? AppColors.primary
-                          : (isDark ? AppColors.surfaceCardDark : AppColors.surfaceCardLight),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
+                child: TactileScale(
+                  child: InkWell(
+                    onTap: () {
+                      HapticFeedback.selectionClick();
+                      setState(() {
+                        _selectedStyle = style;
+                        if (style == CardStyle.socialPost) {
+                          _textAlign = TextAlign.left;
+                        }
+                      });
+                    },
+                    borderRadius: BorderRadius.circular(12),
+                    child: AnimatedContainer(
+                      duration: AppDurations.fast,
+                      curve: AppCurves.espressoPour,
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      decoration: BoxDecoration(
                         color: isSelected
                             ? AppColors.primary
-                            : (isDark ? AppColors.borderDark : AppColors.borderLight),
-                      ),
-                    ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          style.icon,
-                          size: 18,
-                          color: isSelected ? Colors.white : (isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight),
+                            : (isDark ? AppColors.surfaceCardDark : AppColors.surfaceCardLight),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: isSelected
+                              ? AppColors.primary
+                              : (isDark ? AppColors.borderDark : AppColors.borderLight),
                         ),
-                        const SizedBox(height: 4),
-                        Text(
-                          style.label,
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                      ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            style.icon,
+                            size: 18,
                             color: isSelected ? Colors.white : (isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight),
                           ),
-                        ),
-                      ],
+                          const SizedBox(height: 4),
+                          Text(
+                            style.label,
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                              color: isSelected ? Colors.white : (isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
@@ -738,35 +707,38 @@ class _CardMakerScreenState extends ConsumerState<CardMakerScreen> {
               final t = CardTemplates.all[index];
               final isUnlocked = _isTemplateUnlocked(t, isPro, streak);
               final isSelected = _selectedTemplate.id == t.id;
-              return InkWell(
-                onTap: () {
-                  if (!isUnlocked) {
-                    context.push('/paywall');
-                    return;
-                  }
-                  HapticFeedback.selectionClick();
-                  setState(() => _selectedTemplate = t);
-                },
-                borderRadius: BorderRadius.circular(16),
-                child: Container(
-                  width: 82,
-                  decoration: BoxDecoration(
-                    gradient: t.backgroundGradient,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                      color: isSelected ? AppColors.primary : Colors.white.withValues(alpha: 0.15),
-                      width: isSelected ? 3 : 1,
+              return TactileScale(
+                child: InkWell(
+                  onTap: () {
+                    if (!isUnlocked) {
+                      context.push('/paywall');
+                      return;
+                    }
+                    HapticFeedback.selectionClick();
+                    setState(() => _selectedTemplate = t);
+                  },
+                  borderRadius: BorderRadius.circular(16),
+                  child: AnimatedContainer(
+                    duration: AppDurations.fast,
+                    curve: AppCurves.espressoPour,
+                    width: 82,
+                    decoration: BoxDecoration(
+                      gradient: t.backgroundGradient,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: isSelected ? AppColors.accent : Colors.white.withValues(alpha: 0.15),
+                        width: isSelected ? 2.8 : 1,
+                      ),
+                      boxShadow: isSelected
+                          ? [
+                              BoxShadow(
+                                color: AppColors.primary.withValues(alpha: 0.4),
+                                blurRadius: 8,
+                                offset: const Offset(0, 2),
+                              ),
+                            ]
+                          : null,
                     ),
-                    boxShadow: isSelected
-                        ? [
-                            BoxShadow(
-                              color: AppColors.primary.withValues(alpha: 0.4),
-                              blurRadius: 8,
-                              offset: const Offset(0, 2),
-                            ),
-                          ]
-                        : null,
-                  ),
                   child: Stack(
                     children: [
                       Center(
@@ -801,6 +773,7 @@ class _CardMakerScreenState extends ConsumerState<CardMakerScreen> {
                     ],
                   ),
                 ),
+              ),
               );
             },
           ),
@@ -809,12 +782,33 @@ class _CardMakerScreenState extends ConsumerState<CardMakerScreen> {
     );
   }
 
+  TextStyle _previewFontStyle(
+    CardFontFamily font,
+    bool isSelected,
+    bool isDark,
+  ) {
+    final color = isSelected
+        ? Colors.white
+        : (isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight);
+    final weight = isSelected ? FontWeight.bold : FontWeight.w500;
+    return switch (font) {
+      CardFontFamily.modernSans =>
+        GoogleFonts.outfit(fontSize: 11, fontWeight: weight, color: color),
+      CardFontFamily.editorialSerif =>
+        GoogleFonts.playfairDisplay(fontSize: 11, fontWeight: weight, color: color),
+      CardFontFamily.boldImpact =>
+        GoogleFonts.anton(fontSize: 11, fontWeight: weight, color: color, letterSpacing: 0.4),
+      CardFontFamily.techMono =>
+        GoogleFonts.spaceMono(fontSize: 10.5, fontWeight: weight, color: color),
+    };
+  }
+
   // TAB 2: TYPOGRAPHY, ALIGNMENT & RATIOS
   Widget _buildLayoutTab(bool isDark, bool isPro) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // 1. Font Family Picker
+        // 1. Font Family Picker (rendered in each typeface!)
         Text(
           'Font Family',
           style: TextStyle(
@@ -830,32 +824,32 @@ class _CardMakerScreenState extends ConsumerState<CardMakerScreen> {
             return Expanded(
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 3),
-                child: InkWell(
-                  onTap: () {
-                    HapticFeedback.selectionClick();
-                    setState(() => _selectedFont = font);
-                  },
-                  borderRadius: BorderRadius.circular(12),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(vertical: 8),
-                    decoration: BoxDecoration(
-                      color: isSelected
-                          ? AppColors.primary
-                          : (isDark ? AppColors.surfaceCardDark : AppColors.surfaceCardLight),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
+                child: TactileScale(
+                  child: InkWell(
+                    onTap: () {
+                      HapticFeedback.selectionClick();
+                      setState(() => _selectedFont = font);
+                    },
+                    borderRadius: BorderRadius.circular(12),
+                    child: AnimatedContainer(
+                      duration: AppDurations.fast,
+                      curve: AppCurves.espressoPour,
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      decoration: BoxDecoration(
                         color: isSelected
                             ? AppColors.primary
-                            : (isDark ? AppColors.borderDark : AppColors.borderLight),
+                            : (isDark ? AppColors.surfaceCardDark : AppColors.surfaceCardLight),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: isSelected
+                              ? AppColors.primary
+                              : (isDark ? AppColors.borderDark : AppColors.borderLight),
+                        ),
                       ),
-                    ),
-                    child: Center(
-                      child: Text(
-                        font.label.split(' ').last,
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                          color: isSelected ? Colors.white : (isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight),
+                      child: Center(
+                        child: Text(
+                          font.label.split(' ').last,
+                          style: _previewFontStyle(font, isSelected, isDark),
                         ),
                       ),
                     ),
@@ -916,6 +910,7 @@ class _CardMakerScreenState extends ConsumerState<CardMakerScreen> {
                         style: const TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.bold,
+                          fontFeatures: AppTypography.tabularFigures,
                           color: AppColors.accent,
                         ),
                       ),
@@ -948,46 +943,76 @@ class _CardMakerScreenState extends ConsumerState<CardMakerScreen> {
         const SizedBox(height: 8),
         Row(
           children: _aspectRatios.map((ar) {
-            final isSelected = _aspectRatio == ar['ratio'];
+            final ratio = ar['ratio'] as double;
+            final isSelected = _aspectRatio == ratio;
             final selectedAccent = isDark ? AppColors.accentWarm : AppColors.primary;
+            final frameColor = isSelected
+                ? selectedAccent
+                : (isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight);
+            final Size boxSize = ratio == 1.0
+                ? const Size(15, 15)
+                : (ratio < 0.7
+                    ? const Size(10, 17)
+                    : (ratio < 1.0
+                        ? const Size(13, 16)
+                        : const Size(18, 11)));
+
             return Expanded(
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 3),
-                child: OutlinedButton(
-                  onPressed: () {
-                    HapticFeedback.selectionClick();
-                    setState(() => _aspectRatio = ar['ratio'] as double);
-                  },
-                  style: OutlinedButton.styleFrom(
-                    side: BorderSide(
-                      color: isSelected
-                          ? selectedAccent
-                          : (isDark ? AppColors.borderDark : AppColors.borderLight),
-                      width: isSelected ? 1.5 : 1,
+                child: TactileScale(
+                  child: OutlinedButton(
+                    onPressed: () {
+                      HapticFeedback.selectionClick();
+                      setState(() => _aspectRatio = ratio);
+                    },
+                    style: OutlinedButton.styleFrom(
+                      side: BorderSide(
+                        color: isSelected
+                            ? selectedAccent
+                            : (isDark ? AppColors.borderDark : AppColors.borderLight),
+                        width: isSelected ? 1.5 : 1,
+                      ),
+                      backgroundColor:
+                          isSelected ? selectedAccent.withValues(alpha: 0.14) : null,
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),
-                    backgroundColor:
-                        isSelected ? selectedAccent.withValues(alpha: 0.14) : null,
-                    padding: const EdgeInsets.symmetric(vertical: 8),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        ar['icon'] as IconData,
-                        size: 16,
-                        color: isSelected ? selectedAccent : null,
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        ar['name'] as String,
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                          color: isSelected ? selectedAccent : null,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        SizedBox(
+                          height: 18,
+                          child: Center(
+                            child: AnimatedContainer(
+                              duration: AppDurations.fast,
+                              width: boxSize.width,
+                              height: boxSize.height,
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(3),
+                                border: Border.all(
+                                  color: frameColor,
+                                  width: isSelected ? 1.8 : 1.3,
+                                ),
+                                color: isSelected
+                                    ? selectedAccent.withValues(alpha: 0.2)
+                                    : Colors.transparent,
+                              ),
+                            ),
+                          ),
                         ),
-                      ),
-                    ],
+                        const SizedBox(height: 3),
+                        Text(
+                          ar['name'] as String,
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                            fontFeatures: AppTypography.tabularFigures,
+                            color: isSelected ? selectedAccent : null,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -1032,25 +1057,29 @@ class _CardMakerScreenState extends ConsumerState<CardMakerScreen> {
 
   Widget _buildAlignButton(TextAlign align, IconData icon, bool isDark) {
     final isSelected = _textAlign == align;
-    return InkWell(
-      onTap: () {
-        HapticFeedback.selectionClick();
-        setState(() => _textAlign = align);
-      },
-      borderRadius: BorderRadius.circular(8),
-      child: Container(
-        padding: const EdgeInsets.all(7),
-        decoration: BoxDecoration(
-          color: isSelected ? AppColors.primary : (isDark ? AppColors.surfaceCardDark : AppColors.surfaceCardLight),
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(
-            color: isSelected ? AppColors.primary : (isDark ? AppColors.borderDark : AppColors.borderLight),
+    return TactileScale(
+      child: InkWell(
+        onTap: () {
+          HapticFeedback.selectionClick();
+          setState(() => _textAlign = align);
+        },
+        borderRadius: BorderRadius.circular(8),
+        child: AnimatedContainer(
+          duration: AppDurations.fast,
+          curve: AppCurves.espressoPour,
+          padding: const EdgeInsets.all(7),
+          decoration: BoxDecoration(
+            color: isSelected ? AppColors.primary : (isDark ? AppColors.surfaceCardDark : AppColors.surfaceCardLight),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: isSelected ? AppColors.primary : (isDark ? AppColors.borderDark : AppColors.borderLight),
+            ),
           ),
-        ),
-        child: Icon(
-          icon,
-          size: 16,
-          color: isSelected ? Colors.white : (isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight),
+          child: Icon(
+            icon,
+            size: 16,
+            color: isSelected ? Colors.white : (isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight),
+          ),
         ),
       ),
     );
@@ -1058,27 +1087,30 @@ class _CardMakerScreenState extends ConsumerState<CardMakerScreen> {
 
   // 4. Modern Primary Action Bar
   Widget _buildBottomActionBar(bool isDark) {
-    return SizedBox(
-      height: 48,
-      width: double.infinity,
-      child: ElevatedButton.icon(
-        onPressed: _isExporting ? null : _exportAndShare,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.primary,
-          foregroundColor: Colors.white,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-          elevation: 2,
-        ),
-        icon: _isExporting
-            ? const SizedBox(
-                width: 18,
-                height: 18,
-                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-              )
-            : const Icon(Icons.share_rounded, size: 18),
-        label: Text(
-          _isExporting ? 'Exporting High-Res...' : 'Export & Share Card',
-          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+    return TactileScale(
+      enabled: !_isExporting,
+      child: SizedBox(
+        height: 48,
+        width: double.infinity,
+        child: ElevatedButton.icon(
+          onPressed: _isExporting ? null : _exportAndShare,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppColors.primary,
+            foregroundColor: Colors.white,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+            elevation: 2,
+          ),
+          icon: _isExporting
+              ? const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                )
+              : const Icon(Icons.share_rounded, size: 18),
+          label: Text(
+            _isExporting ? 'Exporting High-Res...' : 'Export & Share Card',
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+          ),
         ),
       ),
     );

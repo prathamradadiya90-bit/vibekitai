@@ -7,6 +7,7 @@ import '../../core/constants/app_colors.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/services/share_service.dart';
 import '../../core/widgets/app_bottom_nav.dart';
+import '../../core/widgets/motion_widgets.dart';
 import '../streaks/providers/streak_provider.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
@@ -637,7 +638,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                         onTap: () => context.push('/achievements'),
                         child: Row(
                           children: [
-                            const Icon(Icons.emoji_events_rounded, color: Colors.amber, size: 16),
+                            const Icon(Icons.emoji_events_rounded, color: AppColors.amberGold, size: 16),
                             const SizedBox(width: 6),
                             Text(
                               'Badges & XP',
@@ -813,7 +814,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 children: [
                   _buildSettingTile(
                     icon: Icons.developer_mode_rounded,
-                    iconColor: Colors.amber,
+                    iconColor: AppColors.amberGold,
                     title: 'API Server Endpoint',
                     subtitle: ref.watch(apiClientProvider).baseUrl,
                     trailing: const Icon(Icons.edit_outlined, size: 18),
@@ -910,57 +911,67 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     Widget? trailing,
     required VoidCallback onTap,
   }) {
-    return InkWell(
-      onTap: () {
-        HapticFeedback.lightImpact();
-        onTap();
-      },
-      borderRadius: BorderRadius.circular(18),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
-        child: Row(
-          children: [
-            Container(
-              width: 34,
-              height: 34,
-              decoration: BoxDecoration(
-                color: iconColor.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Center(
-                child: Icon(icon, color: iconColor, size: 18),
-              ),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+    return Builder(
+      builder: (context) {
+        final isDark = Theme.of(context).brightness == Brightness.dark;
+        return TactileScale(
+          pressedScale: 0.985,
+          child: InkWell(
+            onTap: () {
+              HapticFeedback.lightImpact();
+              onTap();
+            },
+            borderRadius: BorderRadius.circular(18),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+              child: Row(
                 children: [
-                  Text(
-                    title,
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: titleColor,
+                  Container(
+                    width: 34,
+                    height: 34,
+                    decoration: BoxDecoration(
+                      color: iconColor.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Center(
+                      child: Icon(icon, color: iconColor, size: 18),
                     ),
                   ),
-                  if (subtitle != null) ...[
-                    const SizedBox(height: 2),
-                    Text(
-                      subtitle,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey,
-                      ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          title,
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: titleColor,
+                          ),
+                        ),
+                        if (subtitle != null) ...[
+                          const SizedBox(height: 2),
+                          Text(
+                            subtitle,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: isDark
+                                  ? AppColors.textSecondaryDark
+                                  : AppColors.textSecondaryLight,
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
-                  ],
+                  ),
+                  if (trailing != null) trailing,
                 ],
               ),
             ),
-            if (trailing != null) trailing,
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 

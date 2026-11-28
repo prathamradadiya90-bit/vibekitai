@@ -1,11 +1,16 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../core/constants/app_colors.dart';
+import '../../../core/constants/app_durations.dart';
+import '../../../core/constants/app_typography.dart';
 import '../../../core/services/achievement_service.dart';
 import '../../../core/services/share_service.dart';
+import '../../../core/widgets/motion_widgets.dart';
 import '../../streaks/providers/streak_provider.dart';
 
 class AuraRadarScreen extends ConsumerStatefulWidget {
@@ -257,10 +262,20 @@ class _AuraRadarScreenState extends ConsumerState<AuraRadarScreen> {
       ),
       body: SafeArea(
         child: SingleChildScrollView(
+          physics: const BouncingScrollPhysics(),
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 600),
-            child: _quizCompleted ? _buildResultsView(isDark) : _buildQuizView(isDark),
+            child: AnimatedSwitcher(
+              duration: AppDurations.medium,
+              switchInCurve: AppCurves.espressoPour,
+              child: KeyedSubtree(
+                key: ValueKey<bool>(_quizCompleted),
+                child: _quizCompleted
+                    ? _buildResultsView(isDark)
+                    : _buildQuizView(isDark),
+              ),
+            ),
           ),
         ),
       ),
@@ -307,81 +322,108 @@ class _AuraRadarScreenState extends ConsumerState<AuraRadarScreen> {
         const SizedBox(height: 12),
 
         // Progress bar
-        ClipRRect(
-          borderRadius: BorderRadius.circular(6),
-          child: LinearProgressIndicator(
-            value: (_currentQuestionIndex + 1) / _questions.length,
-            backgroundColor: isDark ? AppColors.surfaceCardDark : AppColors.surfaceCardLight,
-            valueColor: AlwaysStoppedAnimation<Color>(
-              isDark ? AppColors.accentWarm : AppColors.primary,
-            ),
-            minHeight: 6,
-          ),
+        AnimatedProgressBar(
+          value: (_currentQuestionIndex + 1) / _questions.length,
+          backgroundColor: isDark ? AppColors.surfaceCardDark : AppColors.surfaceCardLight,
+          color: isDark ? AppColors.accentWarm : AppColors.primary,
+          minHeight: 6,
         ),
         const SizedBox(height: 28),
 
-        // Question card
-        Container(
-          padding: const EdgeInsets.all(22),
-          decoration: BoxDecoration(
-            color: isDark ? AppColors.surfaceCardDark : AppColors.surfaceCardLight,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
-          ),
-          child: Text(
-            currentQ['question'] as String,
-            style: GoogleFonts.outfit(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              height: 1.35,
-              color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+        // Smooth question card & options transition
+        AnimatedSwitcher(
+          duration: AppDurations.normal,
+          switchInCurve: AppCurves.espressoPour,
+          transitionBuilder: (child, animation) => FadeTransition(
+            opacity: animation,
+            child: SlideTransition(
+              position: Tween<Offset>(
+                begin: const Offset(0.04, 0),
+                end: Offset.zero,
+              ).animate(animation),
+              child: child,
             ),
           ),
-        ),
-        const SizedBox(height: 20),
-
-        // Options
-        ...options.map((opt) {
-          return Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: InkWell(
-              onTap: () => _selectOption(opt['type'] as String, opt['points'] as int),
-              borderRadius: BorderRadius.circular(16),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+          child: Column(
+            key: ValueKey<int>(_currentQuestionIndex),
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Question card
+              Container(
+                padding: const EdgeInsets.all(22),
                 decoration: BoxDecoration(
-                  color: isDark ? AppColors.surfaceElevatedDark : Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: isDark ? AppColors.borderDark : AppColors.borderLight,
-                    width: 1.2,
+                  color: isDark ? AppColors.surfaceCardDark : AppColors.surfaceCardLight,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
+                ),
+                child: Text(
+                  currentQ['question'] as String,
+                  style: GoogleFonts.outfit(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    height: 1.35,
+                    color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                   ),
                 ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        opt['text'] as String,
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                          color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
-                          height: 1.35,
+              ),
+              const SizedBox(height: 20),
+
+              // Options
+              ...options.asMap().entries.map((entry) {
+                final opt = entry.value;
+                return StaggeredEntrance(
+                  index: entry.key,
+                  stepMs: 40,
+                  offsetY: 10,
+                  child: Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: TactileScale(
+                      child: InkWell(
+                        onTap: () {
+                          HapticFeedback.selectionClick();
+                          _selectOption(opt['type'] as String, opt['points'] as int);
+                        },
+                        borderRadius: BorderRadius.circular(16),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+                          decoration: BoxDecoration(
+                            color: isDark ? AppColors.surfaceElevatedDark : Colors.white,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                              color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                              width: 1.2,
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  opt['text'] as String,
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w500,
+                                    color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                                    height: 1.35,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Icon(
+                                Icons.arrow_forward_ios_rounded,
+                                size: 14,
+                                color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ),
-                    const SizedBox(width: 8),
-                    Icon(
-                      Icons.arrow_forward_ios_rounded,
-                      size: 14,
-                      color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          );
-        }),
+                  ),
+                );
+              }),
+            ],
+          ),
+        ),
       ],
     );
   }
@@ -458,7 +500,7 @@ class _AuraRadarScreenState extends ConsumerState<AuraRadarScreen> {
         ),
         const SizedBox(height: 20),
 
-        // Vibe Radar Stats
+        // Vibe Radar Stats + Animated Radar Polygon
         Container(
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
@@ -477,7 +519,31 @@ class _AuraRadarScreenState extends ConsumerState<AuraRadarScreen> {
                   color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                 ),
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: 16),
+              Center(
+                child: SizedBox(
+                  width: 156,
+                  height: 156,
+                  child: TweenAnimationBuilder<double>(
+                    tween: Tween<double>(begin: 0.0, end: 1.0),
+                    duration: AppDurations.chart,
+                    curve: AppCurves.espressoPour,
+                    builder: (context, progress, _) {
+                      return CustomPaint(
+                        painter: _AuraPolygonPainter(
+                          values: stats
+                              .map((s) => (s['val'] as double).clamp(0.0, 1.0))
+                              .toList(),
+                          progress: progress,
+                          accentColor: isDark ? AppColors.accentWarm : AppColors.primary,
+                          gridColor: isDark ? AppColors.borderDark : AppColors.borderLight,
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
               ...stats.map((st) {
                 final double val = st['val'] as double;
                 final int pct = (val * 100).toInt();
@@ -495,27 +561,28 @@ class _AuraRadarScreenState extends ConsumerState<AuraRadarScreen> {
                               color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                             ),
                           ),
-                          Text(
-                            '$pct%',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                              color: isDark ? AppColors.accentWarm : AppColors.primary,
+                          TweenAnimationBuilder<int>(
+                            tween: IntTween(begin: 0, end: pct),
+                            duration: AppDurations.chart,
+                            curve: AppCurves.espressoPour,
+                            builder: (context, animatedPct, _) => Text(
+                              '$animatedPct%',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                fontFeatures: AppTypography.tabularFigures,
+                                color: isDark ? AppColors.accentWarm : AppColors.primary,
+                              ),
                             ),
                           ),
                         ],
                       ),
                       const SizedBox(height: 6),
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(4),
-                        child: LinearProgressIndicator(
-                          value: val,
-                          backgroundColor: isDark ? Colors.white10 : Colors.black12,
-                          valueColor: AlwaysStoppedAnimation<Color>(
-                            isDark ? AppColors.accentWarm : AppColors.primary,
-                          ),
-                          minHeight: 6,
-                        ),
+                      AnimatedProgressBar(
+                        value: val,
+                        backgroundColor: isDark ? Colors.white10 : Colors.black12,
+                        color: isDark ? AppColors.accentWarm : AppColors.primary,
+                        minHeight: 6,
                       ),
                     ],
                   ),
@@ -527,42 +594,46 @@ class _AuraRadarScreenState extends ConsumerState<AuraRadarScreen> {
         const SizedBox(height: 24),
 
         // Action Buttons
-        ElevatedButton.icon(
-          onPressed: () {
-            context.push('/card-maker', extra: {'text': res['cardQuote']});
-          },
-          style: ElevatedButton.styleFrom(
-            backgroundColor: isDark ? AppColors.accentWarm : AppColors.primary,
-            foregroundColor: isDark ? const Color(0xFF140E0A) : Colors.white,
-            padding: const EdgeInsets.symmetric(vertical: 14),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          ),
-          icon: const Icon(Icons.palette_outlined, size: 20),
-          label: const Text(
-            '🎨 Design My Aura Card',
-            style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+        TactileScale(
+          child: ElevatedButton.icon(
+            onPressed: () {
+              context.push('/card-maker', extra: {'text': res['cardQuote']});
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: isDark ? AppColors.accentWarm : AppColors.primary,
+              foregroundColor: isDark ? const Color(0xFF140E0A) : Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            ),
+            icon: const Icon(Icons.palette_outlined, size: 20),
+            label: const Text(
+              '🎨 Design My Aura Card',
+              style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+            ),
           ),
         ),
         const SizedBox(height: 12),
 
-        OutlinedButton.icon(
-          onPressed: () {
-            ShareService.shareText(
-              'My VibeKit AI Archetype is ${res['title']}! ${res['tagline']}\n\nQuote: ${res['cardQuote']}\n\nDiscover yours on VibeKit AI!',
-            );
-          },
-          style: OutlinedButton.styleFrom(
-            padding: const EdgeInsets.symmetric(vertical: 14),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            side: BorderSide(color: isDark ? AppColors.borderDark : AppColors.borderLight),
-          ),
-          icon: const Icon(Icons.share_outlined, size: 18),
-          label: Text(
-            'Share My Aura Result',
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+        TactileScale(
+          child: OutlinedButton.icon(
+            onPressed: () {
+              ShareService.shareText(
+                'My VibeKit AI Archetype is ${res['title']}! ${res['tagline']}\n\nQuote: ${res['cardQuote']}\n\nDiscover yours on VibeKit AI!',
+              );
+            },
+            style: OutlinedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              side: BorderSide(color: isDark ? AppColors.borderDark : AppColors.borderLight),
+            ),
+            icon: const Icon(Icons.share_outlined, size: 18),
+            label: Text(
+              'Share My Aura Result',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+              ),
             ),
           ),
         ),
@@ -579,5 +650,100 @@ class _AuraRadarScreenState extends ConsumerState<AuraRadarScreen> {
         ),
       ],
     );
+  }
+}
+
+class _AuraPolygonPainter extends CustomPainter {
+  final List<double> values;
+  final double progress;
+  final Color accentColor;
+  final Color gridColor;
+
+  const _AuraPolygonPainter({
+    required this.values,
+    required this.progress,
+    required this.accentColor,
+    required this.gridColor,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (values.isEmpty) return;
+    final center = Offset(size.width / 2, size.height / 2);
+    final radius = math.min(size.width, size.height) * 0.44;
+    final sides = values.length;
+
+    final gridPaint = Paint()
+      ..color = gridColor
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.0;
+
+    for (final ring in const [0.33, 0.66, 1.0]) {
+      final path = Path();
+      for (int i = 0; i < sides; i++) {
+        final angle = (-math.pi / 2) + (2 * math.pi * i / sides);
+        final pt = Offset(
+          center.dx + math.cos(angle) * radius * ring,
+          center.dy + math.sin(angle) * radius * ring,
+        );
+        if (i == 0) {
+          path.moveTo(pt.dx, pt.dy);
+        } else {
+          path.lineTo(pt.dx, pt.dy);
+        }
+      }
+      path.close();
+      canvas.drawPath(path, gridPaint);
+    }
+
+    for (int i = 0; i < sides; i++) {
+      final angle = (-math.pi / 2) + (2 * math.pi * i / sides);
+      final pt = Offset(
+        center.dx + math.cos(angle) * radius,
+        center.dy + math.sin(angle) * radius,
+      );
+      canvas.drawLine(center, pt, gridPaint);
+    }
+
+    final shape = Path();
+    final vertexPaint = Paint()..color = accentColor;
+    final points = <Offset>[];
+    for (int i = 0; i < sides; i++) {
+      final angle = (-math.pi / 2) + (2 * math.pi * i / sides);
+      final mag = (0.15 + values[i] * 0.85) * progress;
+      final pt = Offset(
+        center.dx + math.cos(angle) * radius * mag,
+        center.dy + math.sin(angle) * radius * mag,
+      );
+      points.add(pt);
+      if (i == 0) {
+        shape.moveTo(pt.dx, pt.dy);
+      } else {
+        shape.lineTo(pt.dx, pt.dy);
+      }
+    }
+    shape.close();
+
+    canvas.drawPath(
+      shape,
+      Paint()..color = accentColor.withValues(alpha: 0.22),
+    );
+    canvas.drawPath(
+      shape,
+      Paint()
+        ..color = accentColor
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2.0,
+    );
+    for (final pt in points) {
+      canvas.drawCircle(pt, 3.5, vertexPaint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _AuraPolygonPainter oldDelegate) {
+    return oldDelegate.progress != progress ||
+        oldDelegate.accentColor != accentColor ||
+        oldDelegate.gridColor != gridColor;
   }
 }

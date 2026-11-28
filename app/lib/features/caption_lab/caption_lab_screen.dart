@@ -10,6 +10,7 @@ import '../../core/widgets/app_bottom_nav.dart';
 import '../../core/widgets/error_view.dart';
 import '../../core/widgets/language_picker.dart';
 import '../../core/widgets/loading_shimmer.dart';
+import '../../core/widgets/motion_widgets.dart';
 import '../../core/widgets/primary_button.dart';
 import '../../core/widgets/quota_badge.dart';
 import '../../core/widgets/result_card.dart';
@@ -569,9 +570,8 @@ class _CaptionLabScreenState extends ConsumerState<CaptionLabScreen> {
 
             // 8. Loading Shimmer Placeholders
             if (genState.isGenerating) ...[
-              const LoadingShimmer(height: 120),
-              const SizedBox(height: AppSpacing.md),
-              const LoadingShimmer(height: 100),
+              const ResultCardSkeleton(),
+              const ResultCardSkeleton(),
             ],
 
             // 9. Results
@@ -586,16 +586,20 @@ class _CaptionLabScreenState extends ConsumerState<CaptionLabScreen> {
                 ),
               ),
               const SizedBox(height: AppSpacing.sm),
-              ...genState.result!.captions.map(
-                (caption) => ResultCard(
-                  content: caption,
-                  category: '$_selectedPlatform • $_selectedTone',
-                  isFavorite: _favoritedTexts.contains(caption),
-                  onFavoriteToggle: () => _toggleFavorite(
-                    caption,
-                    _topicController.text.trim().isNotEmpty
-                        ? 'Caption: ${_topicController.text.trim()}'
-                        : 'Caption',
+              ...genState.result!.captions.asMap().entries.map(
+                (entry) => StaggeredEntrance(
+                  key: ValueKey('cap_${entry.key}_${entry.value.hashCode}'),
+                  index: entry.key,
+                  child: ResultCard(
+                    content: entry.value,
+                    category: '$_selectedPlatform • $_selectedTone',
+                    isFavorite: _favoritedTexts.contains(entry.value),
+                    onFavoriteToggle: () => _toggleFavorite(
+                      entry.value,
+                      _topicController.text.trim().isNotEmpty
+                          ? 'Caption: ${_topicController.text.trim()}'
+                          : 'Caption',
+                    ),
                   ),
                 ),
               ),
@@ -612,13 +616,17 @@ class _CaptionLabScreenState extends ConsumerState<CaptionLabScreen> {
                   ),
                 ),
                 const SizedBox(height: AppSpacing.sm),
-                ...genState.result!.hooks.map(
-                  (hook) => ResultCard(
-                    content: hook,
-                    subtitle: 'HOOK',
-                    category: 'Reel Hook',
-                    isFavorite: _favoritedTexts.contains(hook),
-                    onFavoriteToggle: () => _toggleFavorite(hook, 'Reel Hook'),
+                ...genState.result!.hooks.asMap().entries.map(
+                  (entry) => StaggeredEntrance(
+                    key: ValueKey('hook_${entry.key}_${entry.value.hashCode}'),
+                    index: entry.key + 2,
+                    child: ResultCard(
+                      content: entry.value,
+                      subtitle: 'HOOK',
+                      category: 'Reel Hook',
+                      isFavorite: _favoritedTexts.contains(entry.value),
+                      onFavoriteToggle: () => _toggleFavorite(entry.value, 'Reel Hook'),
+                    ),
                   ),
                 ),
               ],
@@ -635,13 +643,17 @@ class _CaptionLabScreenState extends ConsumerState<CaptionLabScreen> {
                   ),
                 ),
                 const SizedBox(height: AppSpacing.sm),
-                ...genState.result!.callToActions.map(
-                  (cta) => ResultCard(
-                    content: cta,
-                    subtitle: 'CALL TO ACTION',
-                    category: 'Call to Action',
-                    isFavorite: _favoritedTexts.contains(cta),
-                    onFavoriteToggle: () => _toggleFavorite(cta, 'Call to Action'),
+                ...genState.result!.callToActions.asMap().entries.map(
+                  (entry) => StaggeredEntrance(
+                    key: ValueKey('cta_${entry.key}_${entry.value.hashCode}'),
+                    index: entry.key + 3,
+                    child: ResultCard(
+                      content: entry.value,
+                      subtitle: 'CALL TO ACTION',
+                      category: 'Call to Action',
+                      isFavorite: _favoritedTexts.contains(entry.value),
+                      onFavoriteToggle: () => _toggleFavorite(entry.value, 'Call to Action'),
+                    ),
                   ),
                 ),
               ],
@@ -658,14 +670,17 @@ class _CaptionLabScreenState extends ConsumerState<CaptionLabScreen> {
                   ),
                 ),
                 const SizedBox(height: AppSpacing.sm),
-                ResultCard(
-                  content: genState.result!.hashtags.join(' '),
-                  subtitle: 'CATEGORIZED HASHTAGS',
-                  category: 'Hashtags',
-                  isFavorite: _favoritedTexts.contains(genState.result!.hashtags.join(' ')),
-                  onFavoriteToggle: () => _toggleFavorite(
-                    genState.result!.hashtags.join(' '),
-                    'Hashtags',
+                StaggeredEntrance(
+                  index: 4,
+                  child: ResultCard(
+                    content: genState.result!.hashtags.join(' '),
+                    subtitle: 'CATEGORIZED HASHTAGS',
+                    category: 'Hashtags',
+                    isFavorite: _favoritedTexts.contains(genState.result!.hashtags.join(' ')),
+                    onFavoriteToggle: () => _toggleFavorite(
+                      genState.result!.hashtags.join(' '),
+                      'Hashtags',
+                    ),
                   ),
                 ),
               ],

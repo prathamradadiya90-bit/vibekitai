@@ -10,6 +10,9 @@ class AppTypography {
   static const String headingFontFamily = 'Outfit';
   static const String bodyFontFamily = 'Plus Jakarta Sans';
 
+  /// Ensures animated counters (credits, XP, timers, stats) stay jitter-free.
+  static const List<FontFeature> tabularFigures = [FontFeature.tabularFigures()];
+
   // Headings
   static TextStyle h1({Color color = AppColors.textPrimaryDark}) =>
       GoogleFonts.outfit(

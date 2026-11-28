@@ -5,9 +5,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/config/app_config.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/constants/app_durations.dart';
+import '../../../core/constants/app_typography.dart';
 import '../../../core/providers/app_providers.dart';
 import '../../../core/services/notification_service.dart';
 import '../../../core/services/review_prompt_service.dart';
+import '../../../core/widgets/motion_widgets.dart';
 import '../providers/streak_provider.dart';
 
 final notificationServiceProvider = Provider<NotificationService>((ref) {
@@ -68,18 +71,18 @@ class StreakScreen extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // 1. Flame & Streak Status Card
+            // 1. Flame & Streak Status Card + 7-Day Rhythm Strip
             Container(
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
                 gradient: AppColors.primaryGradient,
                 borderRadius: BorderRadius.circular(24),
-                border: Border.all(color: Colors.orange.withOpacity(0.3), width: 1.5),
+                border: Border.all(color: AppColors.warning.withValues(alpha: 0.4), width: 1.5),
                 boxShadow: kIsWeb
                     ? null
                     : [
                         BoxShadow(
-                          color: Colors.orange.withOpacity(0.15),
+                          color: AppColors.warning.withValues(alpha: 0.16),
                           blurRadius: 20,
                           offset: const Offset(0, 8),
                         ),
@@ -91,7 +94,7 @@ class StreakScreen extends ConsumerWidget {
                     width: 72,
                     height: 72,
                     decoration: BoxDecoration(
-                      color: Colors.orange.withOpacity(0.2),
+                      color: AppColors.warning.withValues(alpha: 0.2),
                       shape: BoxShape.circle,
                     ),
                     child: const Center(
@@ -104,6 +107,7 @@ class StreakScreen extends ConsumerWidget {
                     style: const TextStyle(
                       fontSize: 28,
                       fontWeight: FontWeight.w900,
+                      fontFeatures: AppTypography.tabularFigures,
                       color: Colors.white,
                       letterSpacing: -0.5,
                     ),
@@ -125,8 +129,8 @@ class StreakScreen extends ConsumerWidget {
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                     decoration: BoxDecoration(
                       color: streak.checkedInToday
-                          ? Colors.green.withOpacity(0.2)
-                          : Colors.amber.withOpacity(0.2),
+                          ? AppColors.success.withValues(alpha: 0.25)
+                          : AppColors.warning.withValues(alpha: 0.24),
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Text(
@@ -134,10 +138,14 @@ class StreakScreen extends ConsumerWidget {
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.bold,
-                        color: streak.checkedInToday ? Colors.greenAccent : Colors.amberAccent,
+                        color: streak.checkedInToday
+                            ? const Color(0xFF9AE6B4)
+                            : AppColors.accentWarm,
                       ),
                     ),
                   ),
+                  const SizedBox(height: 18),
+                  _buildWeekStreakStrip(streak.currentStreak, streak.checkedInToday),
                 ],
               ),
             ),
@@ -176,38 +184,40 @@ class StreakScreen extends ConsumerWidget {
                         style: TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w600,
+                          fontFeatures: AppTypography.tabularFigures,
                           color: activeAccent,
                         ),
                       ),
                     ],
                   ),
                   const SizedBox(height: 12),
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
-                    child: LinearProgressIndicator(
-                      value: progressToNextLevel,
-                      minHeight: 10,
-                      backgroundColor: isDark ? Colors.white.withOpacity(0.1) : Colors.black.withOpacity(0.06),
-                      valueColor: AlwaysStoppedAnimation<Color>(activeAccent),
-                    ),
+                  AnimatedProgressBar(
+                    value: progressToNextLevel,
+                    minHeight: 10,
+                    backgroundColor: isDark ? Colors.white.withOpacity(0.1) : Colors.black.withOpacity(0.06),
+                    color: activeAccent,
                   ),
                   const SizedBox(height: 8),
                   Text(
                     '$currentXpInLevel / 100 XP to Level ${streak.level + 1}',
-                    style: TextStyle(fontSize: 11, color: textSecCol),
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontFeatures: AppTypography.tabularFigures,
+                      color: textSecCol,
+                    ),
                   ),
                 ],
               ),
             ),
             const SizedBox(height: 20),
 
-            // 3. Streak Freeze Counter & Protection
+            // 3. Streak Freeze Counter & Protection (Warm Sage Harmony)
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
                 color: cardBg,
                 borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: Colors.cyan.withOpacity(0.2)),
+                border: Border.all(color: AppColors.sageGreen.withValues(alpha: 0.3)),
               ),
               child: Row(
                 children: [
@@ -215,7 +225,7 @@ class StreakScreen extends ConsumerWidget {
                     width: 48,
                     height: 48,
                     decoration: BoxDecoration(
-                      color: Colors.cyan.withOpacity(0.15),
+                      color: AppColors.sageGreen.withValues(alpha: 0.16),
                       shape: BoxShape.circle,
                     ),
                     child: const Center(
@@ -232,6 +242,7 @@ class StreakScreen extends ConsumerWidget {
                           style: TextStyle(
                             fontSize: 15,
                             fontWeight: FontWeight.bold,
+                            fontFeatures: AppTypography.tabularFigures,
                             color: textCol,
                           ),
                         ),
@@ -249,7 +260,8 @@ class StreakScreen extends ConsumerWidget {
                     ),
                   ),
                   if (!quota.isPro && streak.freezeCount < 2 && (!kIsWeb || AppConfig.isDev))
-                    ElevatedButton(
+                    TactileScale(
+                      child: ElevatedButton(
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.info.withValues(alpha: isDark ? 0.28 : 0.14),
                         foregroundColor: activeAccent,
@@ -333,6 +345,7 @@ class StreakScreen extends ConsumerWidget {
                               child: CircularProgressIndicator(strokeWidth: 2),
                             )
                           : const Text('+1 Freeze', style: TextStyle(fontSize: 12)),
+                    ),
                     ),
                 ],
               ),
@@ -447,6 +460,62 @@ class StreakScreen extends ConsumerWidget {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildWeekStreakStrip(int currentStreak, bool checkedInToday) {
+    const labels = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+    final todayIdx = (DateTime.now().weekday - 1).clamp(0, 6);
+    final activeCount = currentStreak.clamp(0, 7);
+
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      children: List.generate(7, (i) {
+        final daysBack = (todayIdx - i + 7) % 7;
+        final isActive = checkedInToday
+            ? daysBack < activeCount
+            : (daysBack >= 1 && daysBack <= activeCount);
+        final isToday = i == todayIdx;
+
+        return Column(
+          children: [
+            AnimatedContainer(
+              duration: AppDurations.normal,
+              curve: AppCurves.espressoPour,
+              width: 28,
+              height: 28,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: isActive
+                    ? AppColors.amberGold.withValues(alpha: 0.92)
+                    : Colors.white.withValues(alpha: 0.12),
+                border: Border.all(
+                  color: isToday
+                      ? Colors.white
+                      : (isActive ? AppColors.accentWarm : Colors.white24),
+                  width: isToday ? 1.8 : 1.0,
+                ),
+              ),
+              child: Center(
+                child: Icon(
+                  isActive ? Icons.local_fire_department_rounded : Icons.circle,
+                  size: isActive ? 15 : 6,
+                  color: isActive ? const Color(0xFF2E1A11) : Colors.white38,
+                ),
+              ),
+            ),
+            const SizedBox(height: 5),
+            Text(
+              labels[i],
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: isToday ? FontWeight.w800 : FontWeight.w500,
+                color: isToday ? Colors.white : Colors.white60,
+              ),
+            ),
+          ],
+        );
+      }),
     );
   }
 

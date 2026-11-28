@@ -6,11 +6,14 @@ import 'package:share_plus/share_plus.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../core/constants/app_colors.dart';
+import '../../core/constants/app_durations.dart';
 import '../../core/constants/app_spacing.dart';
+import '../../core/constants/app_typography.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/widgets/app_bottom_nav.dart';
 import '../../core/widgets/error_view.dart';
 import '../../core/widgets/loading_shimmer.dart';
+import '../../core/widgets/motion_widgets.dart';
 import '../../core/widgets/primary_button.dart';
 import '../../core/widgets/quota_badge.dart';
 import '../../core/widgets/report_ai_dialog.dart';
@@ -563,11 +566,9 @@ class _VibeCheckScreenState extends ConsumerState<VibeCheckScreen> {
                 if (genState.isGenerating) ...[
                   const Column(
                     children: [
-                      LoadingShimmer(height: 120),
-                      SizedBox(height: 12),
-                      LoadingShimmer(height: 80),
-                      SizedBox(height: 12),
-                      LoadingShimmer(height: 80),
+                      ResultCardSkeleton(),
+                      ResultCardSkeleton(),
+                      ResultCardSkeleton(),
                     ],
                   ),
                 ] else if (genState.result != null) ...[
@@ -590,41 +591,50 @@ class _VibeCheckScreenState extends ConsumerState<VibeCheckScreen> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         // Score & Title Card
-        Container(
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: isDark ? AppColors.surfaceCardDark : AppColors.surfaceCardLight,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(
-              color: isDark ? AppColors.borderDark : AppColors.borderLight,
+        StaggeredEntrance(
+          key: ValueKey('vcheck_score_${result.score}_${result.title}'),
+          index: 0,
+          child: Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: isDark ? AppColors.surfaceCardDark : AppColors.surfaceCardLight,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: isDark ? AppColors.borderDark : AppColors.borderLight,
+              ),
             ),
-          ),
-          child: Column(
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Container(
-                    width: 76,
-                    height: 76,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(color: scoreColor, width: 4),
-                      color: scoreColor.withValues(alpha: 0.1),
-                    ),
-                    alignment: Alignment.center,
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          '${result.score}',
-                          style: TextStyle(
-                            fontSize: 26,
-                            fontWeight: FontWeight.w900,
-                            color: scoreColor,
-                            height: 1.0,
+            child: Column(
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Container(
+                      width: 76,
+                      height: 76,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(color: scoreColor, width: 4),
+                        color: scoreColor.withValues(alpha: 0.1),
+                      ),
+                      alignment: Alignment.center,
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          TweenAnimationBuilder<int>(
+                            tween: IntTween(begin: 0, end: result.score),
+                            duration: AppDurations.chart,
+                            curve: AppCurves.espressoPour,
+                            builder: (context, val, _) => Text(
+                              '$val',
+                              style: TextStyle(
+                                fontSize: 26,
+                                fontWeight: FontWeight.w900,
+                                fontFeatures: AppTypography.tabularFigures,
+                                color: scoreColor,
+                                height: 1.0,
+                              ),
+                            ),
                           ),
-                        ),
                         Text(
                           '/100',
                           style: TextStyle(
@@ -729,6 +739,7 @@ class _VibeCheckScreenState extends ConsumerState<VibeCheckScreen> {
             ],
           ),
         ),
+        ),
         const SizedBox(height: AppSpacing.lg),
 
         // Section Title: Leveled-Up Rewrites
@@ -754,7 +765,10 @@ class _VibeCheckScreenState extends ConsumerState<VibeCheckScreen> {
           final index = entry.key;
           final rewrite = entry.value;
 
-          return Container(
+          return StaggeredEntrance(
+            key: ValueKey('vcheck_rw_${index}_${rewrite.hashCode}'),
+            index: index + 1,
+            child: Container(
             margin: const EdgeInsets.only(bottom: 12),
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
@@ -843,14 +857,21 @@ class _VibeCheckScreenState extends ConsumerState<VibeCheckScreen> {
                         ),
                       ),
                       // Make Card Action
-                      TextButton.icon(
-                        onPressed: () {
-                          context.push('/card-maker', extra: {'text': rewrite});
-                        },
-                        icon: const Icon(Icons.style_outlined, size: 15),
-                        label: const Text('Card', style: TextStyle(fontSize: 12)),
-                        style: TextButton.styleFrom(
-                          foregroundColor: isDark ? AppColors.textPrimaryDark : AppColors.primary,
+                      TactileScale(
+                        child: TextButton.icon(
+                          onPressed: () {
+                            context.push('/card-maker', extra: {'text': rewrite});
+                          },
+                          icon: const Icon(Icons.style_outlined, size: 15),
+                          label: const Text('Card', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+                          style: TextButton.styleFrom(
+                            backgroundColor: (isDark ? AppColors.accent : AppColors.primary)
+                                .withValues(alpha: 0.12),
+                            foregroundColor: isDark ? AppColors.accentWarm : AppColors.primary,
+                            shape: const RoundedRectangleBorder(
+                              borderRadius: AppSpacing.roundedFull,
+                            ),
+                          ),
                         ),
                       ),
                       // Share Action
@@ -892,6 +913,7 @@ class _VibeCheckScreenState extends ConsumerState<VibeCheckScreen> {
                 ),
               ],
             ),
+          ),
           );
         }),
       ],

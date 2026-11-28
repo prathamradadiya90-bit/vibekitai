@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import '../constants/app_durations.dart';
 import '../../features/onboarding/onboarding_screen.dart';
 import '../../features/home/home_screen.dart';
 import '../../features/reply_studio/reply_studio_screen.dart';
@@ -20,116 +21,232 @@ import '../../features/vibe_check/vibe_check_screen.dart';
 import '../../features/studio/studio_screen.dart';
 import '../../features/aura_radar/presentation/aura_radar_screen.dart';
 
+enum _RouteTransitionKind { tabCrossFade, drillSlide, modalRise }
+
+CustomTransitionPage<void> _buildTransitionPage({
+  required GoRouterState state,
+  required Widget child,
+  _RouteTransitionKind kind = _RouteTransitionKind.drillSlide,
+}) {
+  final duration = switch (kind) {
+    _RouteTransitionKind.tabCrossFade => AppDurations.fast,
+    _RouteTransitionKind.drillSlide => AppDurations.normal,
+    _RouteTransitionKind.modalRise => const Duration(milliseconds: 300),
+  };
+
+  return CustomTransitionPage<void>(
+    key: state.pageKey,
+    transitionDuration: duration,
+    reverseTransitionDuration: AppDurations.fast,
+    child: child,
+    transitionsBuilder: (context, animation, secondaryAnimation, pageChild) {
+      if (MediaQuery.disableAnimationsOf(context)) {
+        return pageChild;
+      }
+      final curved = CurvedAnimation(
+        parent: animation,
+        curve: AppCurves.espressoPour,
+        reverseCurve: Curves.easeInQuad,
+      );
+      if (kind == _RouteTransitionKind.tabCrossFade) {
+        return FadeTransition(opacity: curved, child: pageChild);
+      }
+      final beginOffset = kind == _RouteTransitionKind.modalRise
+          ? const Offset(0.0, 0.08)
+          : const Offset(0.05, 0.0);
+      return FadeTransition(
+        opacity: curved,
+        child: SlideTransition(
+          position: Tween<Offset>(
+            begin: beginOffset,
+            end: Offset.zero,
+          ).animate(curved),
+          child: pageChild,
+        ),
+      );
+    },
+  );
+}
+
 GoRouter createRouter({required bool initialOnboardingDone}) {
   return GoRouter(
     initialLocation: initialOnboardingDone ? '/home' : '/onboarding',
     routes: [
       GoRoute(
         path: '/onboarding',
-        builder: (context, state) => const OnboardingScreen(),
+        pageBuilder: (context, state) => _buildTransitionPage(
+          state: state,
+          kind: _RouteTransitionKind.tabCrossFade,
+          child: const OnboardingScreen(),
+        ),
       ),
       GoRoute(
         path: '/home',
-        builder: (context, state) => const HomeScreen(),
+        pageBuilder: (context, state) => _buildTransitionPage(
+          state: state,
+          kind: _RouteTransitionKind.tabCrossFade,
+          child: const HomeScreen(),
+        ),
       ),
       GoRoute(
         path: '/studio',
-        builder: (context, state) {
+        pageBuilder: (context, state) {
           final tab = state.uri.queryParameters['tab'];
-          final prompt = state.uri.queryParameters['prompt'] ?? state.uri.queryParameters['initialPrompt'];
-          final option = state.uri.queryParameters['option'] ?? state.uri.queryParameters['initialTone'];
-          return StudioScreen(
-            initialTabId: tab,
-            initialPrompt: prompt,
-            initialOption: option,
+          final prompt = state.uri.queryParameters['prompt'] ??
+              state.uri.queryParameters['initialPrompt'];
+          final option = state.uri.queryParameters['option'] ??
+              state.uri.queryParameters['initialTone'];
+          return _buildTransitionPage(
+            state: state,
+            kind: _RouteTransitionKind.tabCrossFade,
+            child: StudioScreen(
+              initialTabId: tab,
+              initialPrompt: prompt,
+              initialOption: option,
+            ),
           );
         },
       ),
       GoRoute(
         path: '/reply-studio',
-        builder: (context, state) {
+        pageBuilder: (context, state) {
           final prompt = state.uri.queryParameters['initialPrompt'];
           final tone = state.uri.queryParameters['initialTone'];
-          return ReplyStudioScreen(initialPrompt: prompt, initialTone: tone);
+          return _buildTransitionPage(
+            state: state,
+            child: ReplyStudioScreen(initialPrompt: prompt, initialTone: tone),
+          );
         },
       ),
       GoRoute(
         path: '/caption-lab',
-        builder: (context, state) {
+        pageBuilder: (context, state) {
           final prompt = state.uri.queryParameters['initialPrompt'];
           final tone = state.uri.queryParameters['initialTone'];
-          return CaptionLabScreen(initialPrompt: prompt, initialTone: tone);
+          return _buildTransitionPage(
+            state: state,
+            child: CaptionLabScreen(initialPrompt: prompt, initialTone: tone),
+          );
         },
       ),
       GoRoute(
         path: '/card-maker',
-        builder: (context, state) {
+        pageBuilder: (context, state) {
           String? prompt = state.uri.queryParameters['initialPrompt'];
           if (prompt == null && state.extra != null) {
             if (state.extra is String) {
               prompt = state.extra as String;
-            } else if (state.extra is Map && (state.extra as Map).containsKey('text')) {
+            } else if (state.extra is Map &&
+                (state.extra as Map).containsKey('text')) {
               prompt = (state.extra as Map)['text']?.toString();
             }
           }
-          return CardMakerScreen(initialText: prompt);
+          return _buildTransitionPage(
+            state: state,
+            kind: _RouteTransitionKind.tabCrossFade,
+            child: CardMakerScreen(initialText: prompt),
+          );
         },
       ),
       GoRoute(
         path: '/bio-lab',
-        builder: (context, state) => const BioLabScreen(),
+        pageBuilder: (context, state) => _buildTransitionPage(
+          state: state,
+          child: const BioLabScreen(),
+        ),
       ),
       GoRoute(
         path: '/vibe-check',
-        builder: (context, state) {
+        pageBuilder: (context, state) {
           final text = state.uri.queryParameters['text'] ??
-              (state.extra is Map ? (state.extra as Map)['text']?.toString() : null);
-          return VibeCheckScreen(initialText: text);
+              (state.extra is Map
+                  ? (state.extra as Map)['text']?.toString()
+                  : null);
+          return _buildTransitionPage(
+            state: state,
+            child: VibeCheckScreen(initialText: text),
+          );
         },
       ),
       GoRoute(
         path: '/challenge',
-        builder: (context, state) => const ChallengeScreen(),
+        pageBuilder: (context, state) => _buildTransitionPage(
+          state: state,
+          child: const ChallengeScreen(),
+        ),
       ),
       GoRoute(
         path: '/history',
-        builder: (context, state) => const HistoryScreen(),
+        pageBuilder: (context, state) => _buildTransitionPage(
+          state: state,
+          child: const HistoryScreen(),
+        ),
       ),
       GoRoute(
         path: '/settings',
-        builder: (context, state) => const SettingsScreen(),
+        pageBuilder: (context, state) => _buildTransitionPage(
+          state: state,
+          kind: _RouteTransitionKind.tabCrossFade,
+          child: const SettingsScreen(),
+        ),
       ),
       GoRoute(
         path: '/paywall',
-        builder: (context, state) => const PaywallScreen(),
+        pageBuilder: (context, state) => _buildTransitionPage(
+          state: state,
+          kind: _RouteTransitionKind.modalRise,
+          child: const PaywallScreen(),
+        ),
       ),
       GoRoute(
         path: '/streaks',
-        builder: (context, state) => const StreakScreen(),
+        pageBuilder: (context, state) => _buildTransitionPage(
+          state: state,
+          kind: _RouteTransitionKind.modalRise,
+          child: const StreakScreen(),
+        ),
       ),
       GoRoute(
         path: '/achievements',
-        builder: (context, state) => const AchievementsScreen(),
+        pageBuilder: (context, state) => _buildTransitionPage(
+          state: state,
+          child: const AchievementsScreen(),
+        ),
       ),
       GoRoute(
         path: '/help-support',
-        builder: (context, state) => const HelpSupportScreen(),
+        pageBuilder: (context, state) => _buildTransitionPage(
+          state: state,
+          child: const HelpSupportScreen(),
+        ),
       ),
       GoRoute(
         path: '/privacy-policy',
-        builder: (context, state) => const PrivacyPolicyScreen(),
+        pageBuilder: (context, state) => _buildTransitionPage(
+          state: state,
+          child: const PrivacyPolicyScreen(),
+        ),
       ),
       GoRoute(
         path: '/terms-of-service',
-        builder: (context, state) => const TermsOfServiceScreen(),
+        pageBuilder: (context, state) => _buildTransitionPage(
+          state: state,
+          child: const TermsOfServiceScreen(),
+        ),
       ),
       GoRoute(
         path: '/ai-disclosure',
-        builder: (context, state) => const AiDisclosureScreen(),
+        pageBuilder: (context, state) => _buildTransitionPage(
+          state: state,
+          child: const AiDisclosureScreen(),
+        ),
       ),
       GoRoute(
         path: '/aura-radar',
-        builder: (context, state) => const AuraRadarScreen(),
+        pageBuilder: (context, state) => _buildTransitionPage(
+          state: state,
+          child: const AuraRadarScreen(),
+        ),
       ),
     ],
     errorBuilder: (context, state) => Scaffold(

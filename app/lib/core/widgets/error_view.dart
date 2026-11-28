@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../constants/app_colors.dart';
 import '../constants/app_spacing.dart';
+import 'motion_widgets.dart';
 
 /// Reusable inline or banner error view with optional retry action.
 class ErrorView extends StatelessWidget {
@@ -18,49 +19,55 @@ class ErrorView extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final textCol = isDark ? Colors.white : AppColors.textPrimaryLight;
 
-    return Container(
-      width: double.infinity,
-      padding: AppSpacing.paddingMd,
-      decoration: BoxDecoration(
-        color: AppColors.error.withAlpha(25),
-        border: Border.all(color: AppColors.error.withAlpha(80)),
-        borderRadius: AppSpacing.roundedMd,
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Icon(Icons.error_outline, color: AppColors.error, size: 22),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  message,
-                  style: TextStyle(
-                    color: textCol,
-                    fontSize: 14,
-                    height: 1.4,
-                  ),
-                ),
-                if (onRetry != null) ...[
-                  const SizedBox(height: AppSpacing.xs),
-                  GestureDetector(
-                    onTap: onRetry,
-                    child: Text(
-                      'Tap to retry',
-                      style: TextStyle(
-                        color: isDark ? AppColors.accentWarm : AppColors.primary,
-                        fontSize: 13,
-                        fontWeight: FontWeight.bold,
-                      ),
+    return StaggeredEntrance(
+      index: 0,
+      offsetY: 8,
+      child: Container(
+        width: double.infinity,
+        padding: AppSpacing.paddingMd,
+        decoration: BoxDecoration(
+          color: AppColors.error.withAlpha(25),
+          border: Border.all(color: AppColors.error.withAlpha(80)),
+          borderRadius: AppSpacing.roundedMd,
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Icon(Icons.error_outline, color: AppColors.error, size: 22),
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    message,
+                    style: TextStyle(
+                      color: textCol,
+                      fontSize: 14,
+                      height: 1.4,
                     ),
                   ),
+                  if (onRetry != null) ...[
+                    const SizedBox(height: AppSpacing.xs),
+                    TactileScale(
+                      child: GestureDetector(
+                        onTap: onRetry,
+                        child: Text(
+                          'Tap to retry',
+                          style: TextStyle(
+                            color: isDark ? AppColors.accentWarm : AppColors.primary,
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ],
-              ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

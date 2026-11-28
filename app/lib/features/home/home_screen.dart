@@ -7,9 +7,12 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/config/app_config.dart';
 import '../../core/constants/app_colors.dart';
+import '../../core/constants/app_durations.dart';
+import '../../core/constants/app_typography.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/widgets/adaptive_banner_widget.dart';
 import '../../core/widgets/app_bottom_nav.dart';
+import '../../core/widgets/motion_widgets.dart';
 import '../../models/challenge_model.dart';
 import '../../models/history_item.dart';
 import '../streaks/providers/streak_provider.dart';
@@ -27,6 +30,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   ChallengeModel? _todaysChallenge;
   List<HistoryItem> _recentCreations = [];
   int _sparkIndex = 0;
+  int _sparkDirection = 1;
+  bool _showAllShortcuts = false;
   bool _isStartingRewardedAd = false;
 
   static const List<Map<String, String>> _viralSparks = [
@@ -363,49 +368,64 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             // Quick Light / Dark Theme Switcher
-                            IconButton(
-                              padding: EdgeInsets.zero,
-                              constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-                              onPressed: () {
-                                HapticFeedback.lightImpact();
-                                ref.read(themeModeProvider.notifier).toggleTheme();
-                              },
-                              icon: Icon(
-                                isDark
-                                    ? Icons.wb_sunny_rounded
-                                    : Icons.nightlight_round,
-                                color: AppColors.accent,
-                                size: 20,
+                            TactileScale(
+                              child: IconButton(
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                                onPressed: () {
+                                  HapticFeedback.lightImpact();
+                                  ref.read(themeModeProvider.notifier).toggleTheme();
+                                },
+                                icon: AnimatedSwitcher(
+                                  duration: AppDurations.fast,
+                                  switchInCurve: AppCurves.cremaSpring,
+                                  transitionBuilder: (child, animation) =>
+                                      ScaleTransition(scale: animation, child: child),
+                                  child: Icon(
+                                    isDark
+                                        ? Icons.wb_sunny_rounded
+                                        : Icons.nightlight_round,
+                                    key: ValueKey<bool>(isDark),
+                                    color: AppColors.accent,
+                                    size: 20,
+                                  ),
+                                ),
+                                tooltip: 'Toggle Theme',
                               ),
-                              tooltip: 'Toggle Theme',
                             ),
                             const SizedBox(width: 4),
-                            InkWell(
-                              onTap: () => context.push('/streaks'),
-                              borderRadius: BorderRadius.circular(20),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 8, vertical: 4),
-                                decoration: BoxDecoration(
-                                  color: Colors.orange.withOpacity(0.15),
-                                  borderRadius: BorderRadius.circular(20),
-                                  border: Border.all(
-                                      color: Colors.orange.withOpacity(0.4)),
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    const Text('🔥',
-                                        style: TextStyle(fontSize: 14)),
-                                    const SizedBox(width: 3),
-                                    Text(
-                                      '${streak.currentStreak}',
-                                      style: const TextStyle(
+                            TactileScale(
+                              child: InkWell(
+                                onTap: () => context.push('/streaks'),
+                                borderRadius: BorderRadius.circular(20),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 9, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.warning.withValues(alpha: 0.14),
+                                    borderRadius: BorderRadius.circular(20),
+                                    border: Border.all(
+                                        color: AppColors.warning.withValues(alpha: 0.38)),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Text('🔥',
+                                          style: TextStyle(fontSize: 14)),
+                                      const SizedBox(width: 3),
+                                      Text(
+                                        '${streak.currentStreak}',
+                                        style: TextStyle(
                                           fontWeight: FontWeight.bold,
                                           fontSize: 12,
-                                          color: Colors.orange),
-                                    ),
-                                  ],
+                                          fontFeatures: AppTypography.tabularFigures,
+                                          color: isDark
+                                              ? AppColors.amberGold
+                                              : const Color(0xFFB45309),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ),
                               ),
                             ),
@@ -418,276 +438,326 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
                 const SizedBox(height: 18),
 
-                // 1. Hero Daily Vibe Spark Card (Clean, Simple, Engaging)
+                // 1. Hero Daily Vibe Spark Card (Swipeable, Clean, Engaging)
                 Builder(
                   builder: (context) {
                     final currentSpark = _viralSparks[_sparkIndex % _viralSparks.length];
-                    return Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
-                      decoration: BoxDecoration(
-                        color: isDark ? const Color(0xFF221710) : Colors.white,
-                        borderRadius: BorderRadius.circular(24),
-                        border: Border.all(
-                          color: isDark ? AppColors.borderDark : const Color(0xFFEDE4D8),
-                          width: 1.2,
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: (isDark ? Colors.black : const Color(0xFF6B4226))
-                                .withOpacity(isDark ? 0.35 : 0.05),
-                            blurRadius: 18,
-                            offset: const Offset(0, 4),
+                    void stepSpark(int delta) {
+                      HapticFeedback.selectionClick();
+                      setState(() {
+                        _sparkDirection = delta >= 0 ? 1 : -1;
+                        _sparkIndex =
+                            (_sparkIndex + delta) % _viralSparks.length;
+                      });
+                    }
+
+                    return GestureDetector(
+                      onHorizontalDragEnd: (details) {
+                        final vx = details.primaryVelocity ?? 0;
+                        if (vx < -220) {
+                          stepSpark(1);
+                        } else if (vx > 220) {
+                          stepSpark(-1);
+                        }
+                      },
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+                        decoration: BoxDecoration(
+                          color: isDark ? const Color(0xFF221710) : Colors.white,
+                          borderRadius: BorderRadius.circular(24),
+                          border: Border.all(
+                            color: isDark ? AppColors.borderDark : const Color(0xFFEDE4D8),
+                            width: 1.2,
                           ),
-                        ],
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // Clean Top Row: Clear Demo Badge & Next Button
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                decoration: BoxDecoration(
-                                  color: isDark ? const Color(0xFF382315) : const Color(0xFFFFF3E8),
-                                  borderRadius: BorderRadius.circular(20),
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(
-                                      Icons.auto_awesome_rounded,
-                                      size: 13,
-                                      color: isDark ? AppColors.accent : AppColors.primary,
-                                    ),
-                                    const SizedBox(width: 5),
-                                    Text(
-                                      'EXAMPLE TO TRY',
-                                      style: TextStyle(
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.w800,
-                                        letterSpacing: 0.7,
-                                        color: isDark
-                                            ? AppColors.accentWarm
-                                            : AppColors.primary,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              InkWell(
-                                onTap: () {
-                                  HapticFeedback.selectionClick();
-                                  setState(() {
-                                    _sparkIndex = (_sparkIndex + 1) % _viralSparks.length;
-                                  });
-                                },
-                                borderRadius: BorderRadius.circular(20),
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                          boxShadow: [
+                            BoxShadow(
+                              color: (isDark ? Colors.black : const Color(0xFF6B4226))
+                                  .withOpacity(isDark ? 0.35 : 0.05),
+                              blurRadius: 18,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Clean Top Row: Clear Demo Badge & Next Button
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                                   decoration: BoxDecoration(
-                                    color: isDark ? AppColors.surfaceElevatedDark : const Color(0xFFF7F1E8),
+                                    color: isDark ? const Color(0xFF382315) : const Color(0xFFFFF3E8),
                                     borderRadius: BorderRadius.circular(20),
                                   ),
                                   child: Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
                                       Icon(
-                                        Icons.refresh_rounded,
+                                        Icons.auto_awesome_rounded,
                                         size: 13,
-                                        color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                                        color: isDark ? AppColors.accent : AppColors.primary,
                                       ),
-                                      const SizedBox(width: 4),
+                                      const SizedBox(width: 5),
                                       Text(
-                                        'Next',
+                                        'EXAMPLE TO TRY',
                                         style: TextStyle(
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.w600,
-                                          color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w800,
+                                          letterSpacing: 0.7,
+                                          color: isDark
+                                              ? AppColors.accentWarm
+                                              : AppColors.primary,
                                         ),
                                       ),
                                     ],
                                   ),
                                 ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 14),
-
-                          // Clear Example Content
-                          AnimatedSwitcher(
-                            duration: const Duration(milliseconds: 250),
-                            transitionBuilder: (child, animation) => FadeTransition(
-                              opacity: animation,
-                              child: SlideTransition(
-                                position: Tween<Offset>(
-                                  begin: const Offset(0.015, 0),
-                                  end: Offset.zero,
-                                ).animate(animation),
-                                child: child,
-                              ),
-                            ),
-                            child: Column(
-                              key: ValueKey<int>(_sparkIndex),
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                // Plain-English Title
-                                Text(
-                                  currentSpark['title']!,
-                                  style: GoogleFonts.outfit(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.w800,
-                                    letterSpacing: -0.3,
-                                    height: 1.25,
-                                    color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  currentSpark['subtitle']!,
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    height: 1.4,
-                                    color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
-                                  ),
-                                ),
-                                const SizedBox(height: 12),
-
-                                // Clear Sample Quote Box
-                                Container(
-                                  width: double.infinity,
-                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                                  decoration: BoxDecoration(
-                                    color: isDark ? const Color(0xFF1B110A) : const Color(0xFFFBF6EF),
-                                    borderRadius: BorderRadius.circular(14),
-                                    border: Border.all(
-                                      color: isDark ? AppColors.borderDark : const Color(0xFFE5DDD0),
-                                      width: 1,
+                                TactileScale(
+                                  child: InkWell(
+                                    onTap: () => stepSpark(1),
+                                    borderRadius: BorderRadius.circular(20),
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                                      decoration: BoxDecoration(
+                                        color: isDark ? AppColors.surfaceElevatedDark : const Color(0xFFF7F1E8),
+                                        borderRadius: BorderRadius.circular(20),
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(
+                                            Icons.refresh_rounded,
+                                            size: 13,
+                                            color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                                          ),
+                                          const SizedBox(width: 4),
+                                          Text(
+                                            'Next',
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.w600,
+                                              color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
                                     ),
-                                  ),
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        'Sample text',
-                                        style: TextStyle(
-                                          fontSize: 10.5,
-                                          fontWeight: FontWeight.w600,
-                                          color: isDark
-                                              ? AppColors.textSecondaryDark
-                                              : AppColors.textSecondaryLight,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 3),
-                                      Text(
-                                        '"${currentSpark['prompt']!}"',
-                                        maxLines: 3,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: GoogleFonts.plusJakartaSans(
-                                          fontSize: 13,
-                                          fontWeight: FontWeight.w500,
-                                          color: isDark
-                                              ? const Color(0xFFFFD199)
-                                              : const Color(0xFF4A2A14),
-                                          height: 1.4,
-                                        ),
-                                      ),
-                                    ],
                                   ),
                                 ),
                               ],
                             ),
-                          ),
-                          const SizedBox(height: 14),
+                            const SizedBox(height: 14),
 
-                          // Primary CTA Button: Try This Example
-                          InkWell(
-                            onTap: () {
-                              HapticFeedback.mediumImpact();
-                              final targetTab = currentSpark['tab'] ?? 'reply';
-                              context.push(
-                                '/studio?tab=$targetTab&prompt=${Uri.encodeComponent(currentSpark['prompt']!)}&option=${currentSpark['option']!}',
-                              );
-                            },
-                            borderRadius: BorderRadius.circular(16),
-                            child: Container(
-                              width: double.infinity,
-                              padding: const EdgeInsets.symmetric(vertical: 13),
-                              decoration: BoxDecoration(
-                                gradient: LinearGradient(
-                                  colors: isDark
-                                      ? [const Color(0xFFE27429), const Color(0xFFBD5417)]
-                                      : [const Color(0xFF5A2E14), const Color(0xFF381B09)],
-                                  begin: Alignment.topLeft,
-                                  end: Alignment.bottomRight,
+                            // Clear Example Content with Directional Pour Transition
+                            AnimatedSwitcher(
+                              duration: AppDurations.normal,
+                              switchInCurve: AppCurves.espressoPour,
+                              switchOutCurve: Curves.easeInQuad,
+                              transitionBuilder: (child, animation) => FadeTransition(
+                                opacity: animation,
+                                child: SlideTransition(
+                                  position: Tween<Offset>(
+                                    begin: Offset(0.03 * _sparkDirection, 0),
+                                    end: Offset.zero,
+                                  ).animate(animation),
+                                  child: child,
                                 ),
-                                borderRadius: BorderRadius.circular(16),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: (isDark ? const Color(0xFFE27429) : const Color(0xFF5A2E14))
-                                        .withOpacity(0.22),
-                                    blurRadius: 12,
-                                    offset: const Offset(0, 3),
-                                  ),
-                                ],
                               ),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
+                              child: Column(
+                                key: ValueKey<int>(_sparkIndex),
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  const Icon(
-                                    Icons.bolt_rounded,
-                                    size: 18,
-                                    color: Color(0xFFFFD199),
+                                  // Plain-English Title
+                                  Text(
+                                    currentSpark['title']!,
+                                    style: GoogleFonts.outfit(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.w800,
+                                      letterSpacing: -0.3,
+                                      height: 1.25,
+                                      color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                                    ),
                                   ),
-                                  const SizedBox(width: 6),
-                                  Flexible(
-                                    child: Text(
-                                      '${currentSpark['buttonText']!} →',
-                                      overflow: TextOverflow.ellipsis,
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.bold,
-                                        letterSpacing: 0.1,
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    currentSpark['subtitle']!,
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      height: 1.4,
+                                      color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 12),
+
+                                  // Clear Sample Quote Box
+                                  Container(
+                                    width: double.infinity,
+                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                                    decoration: BoxDecoration(
+                                      color: isDark ? const Color(0xFF1B110A) : const Color(0xFFFBF6EF),
+                                      borderRadius: BorderRadius.circular(14),
+                                      border: Border.all(
+                                        color: isDark ? AppColors.borderDark : const Color(0xFFE5DDD0),
+                                        width: 1,
                                       ),
+                                    ),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          'Sample text',
+                                          style: TextStyle(
+                                            fontSize: 10.5,
+                                            fontWeight: FontWeight.w600,
+                                            color: isDark
+                                                ? AppColors.textSecondaryDark
+                                                : AppColors.textSecondaryLight,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 3),
+                                        Text(
+                                          '"${currentSpark['prompt']!}"',
+                                          maxLines: 3,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: GoogleFonts.plusJakartaSans(
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w500,
+                                            color: isDark
+                                                ? const Color(0xFFFFD199)
+                                                : const Color(0xFF4A2A14),
+                                            height: 1.4,
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   ),
                                 ],
                               ),
                             ),
-                          ),
-                          const SizedBox(height: 6),
+                            const SizedBox(height: 10),
 
-                          // Clear Secondary Link: Write/Paste Your Own Message
-                          Center(
-                            child: TextButton.icon(
-                              onPressed: () {
-                                HapticFeedback.selectionClick();
-                                final targetTab = currentSpark['tab'] ?? 'reply';
-                                context.push('/studio?tab=$targetTab&prompt=');
-                              },
-                              icon: Icon(
-                                Icons.edit_outlined,
-                                size: 14,
-                                color: isDark ? AppColors.accentWarm : AppColors.primary,
-                              ),
-                              label: Text(
-                                'Or paste your own message instead',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                  color: isDark ? AppColors.accentWarm : AppColors.primary,
+                            // Subtle Swipeable Deck Progress Dots
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: List.generate(_viralSparks.length, (i) {
+                                final active = i == _sparkIndex % _viralSparks.length;
+                                return AnimatedContainer(
+                                  duration: AppDurations.normal,
+                                  curve: AppCurves.espressoPour,
+                                  margin: const EdgeInsets.symmetric(horizontal: 2.5),
+                                  height: 4,
+                                  width: active ? 16 : 4,
+                                  decoration: BoxDecoration(
+                                    color: active
+                                        ? (isDark ? AppColors.accent : AppColors.primary)
+                                        : (isDark ? AppColors.borderDark : AppColors.borderLight),
+                                    borderRadius: BorderRadius.circular(3),
+                                  ),
+                                );
+                              }),
+                            ),
+                            const SizedBox(height: 12),
+
+                            // Primary CTA Button: Try This Example
+                            TactileScale(
+                              child: InkWell(
+                                onTap: () {
+                                  HapticFeedback.mediumImpact();
+                                  final targetTab = currentSpark['tab'] ?? 'reply';
+                                  context.push(
+                                    '/studio?tab=$targetTab&prompt=${Uri.encodeComponent(currentSpark['prompt']!)}&option=${currentSpark['option']!}',
+                                  );
+                                },
+                                borderRadius: BorderRadius.circular(16),
+                                child: Container(
+                                  width: double.infinity,
+                                  padding: const EdgeInsets.symmetric(vertical: 13),
+                                  decoration: BoxDecoration(
+                                    gradient: isDark
+                                        ? const LinearGradient(
+                                            colors: [Color(0xFFD07A39), Color(0xFF9C4D1E)],
+                                            begin: Alignment.topLeft,
+                                            end: Alignment.bottomRight,
+                                          )
+                                        : AppColors.primaryGradient,
+                                    borderRadius: BorderRadius.circular(16),
+                                    border: isDark
+                                        ? Border.all(
+                                            color: AppColors.accent.withValues(alpha: 0.45),
+                                          )
+                                        : null,
+                                    boxShadow: !kIsWeb
+                                        ? [
+                                            BoxShadow(
+                                              color: AppColors.primary.withValues(alpha: 0.22),
+                                              blurRadius: 12,
+                                              offset: const Offset(0, 3),
+                                            ),
+                                          ]
+                                        : null,
+                                  ),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      const Icon(
+                                        Icons.bolt_rounded,
+                                        size: 18,
+                                        color: Color(0xFFFFD199),
+                                      ),
+                                      const SizedBox(width: 6),
+                                      Flexible(
+                                        child: Text(
+                                          '${currentSpark['buttonText']!} →',
+                                          overflow: TextOverflow.ellipsis,
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.bold,
+                                            letterSpacing: 0.1,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ),
                               ),
-                              style: TextButton.styleFrom(
-                                visualDensity: VisualDensity.compact,
-                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                            ),
+                            const SizedBox(height: 6),
+
+                            // Clear Secondary Link: Write/Paste Your Own Message
+                            Center(
+                              child: TactileScale(
+                                child: TextButton.icon(
+                                  onPressed: () {
+                                    HapticFeedback.selectionClick();
+                                    final targetTab = currentSpark['tab'] ?? 'reply';
+                                    context.push('/studio?tab=$targetTab&prompt=');
+                                  },
+                                  icon: Icon(
+                                    Icons.edit_outlined,
+                                    size: 14,
+                                    color: isDark ? AppColors.accentWarm : AppColors.primary,
+                                  ),
+                                  label: Text(
+                                    'Or paste your own message instead',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                      color: isDark ? AppColors.accentWarm : AppColors.primary,
+                                    ),
+                                  ),
+                                  style: TextButton.styleFrom(
+                                    visualDensity: VisualDensity.compact,
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                  ),
+                                ),
                               ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     );
                   },
@@ -759,7 +829,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         title: 'Vibe Check',
                         subtitle: 'Roast & rating',
                         icon: Icons.local_fire_department_outlined,
-                        color: const Color(0xFFD9531E),
+                        color: AppColors.emberOrange,
                         badgeText: '⚡ VIRAL',
                         route: '/studio?tab=vibe_check',
                       ),
@@ -787,8 +857,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         title: 'Bio Lab',
                         subtitle: 'Bios & handles',
                         icon: Icons.badge_outlined,
-                        color: Colors.cyan,
-                        badgeText: '💎 POPULAR',
+                        color: AppColors.sageGreen,
+                        badgeText: '🌿 FRESH',
                         route: '/studio?tab=bio',
                       ),
                     ),
@@ -821,20 +891,42 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
                 const SizedBox(height: 24),
 
-                // Quick Vibe Shortcuts
-                Text(
-                  'Quick Vibe Shortcuts',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    color: isDark ? Colors.white70 : AppColors.textSecondaryLight,
-                  ),
+                // Quick Vibe Shortcuts (Curated top 6 + expandable toggle)
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Quick Vibe Shortcuts',
+                      style: GoogleFonts.outfit(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: () {
+                        HapticFeedback.selectionClick();
+                        setState(() => _showAllShortcuts = !_showAllShortcuts);
+                      },
+                      style: TextButton.styleFrom(
+                        visualDensity: VisualDensity.compact,
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      ),
+                      child: Text(
+                        _showAllShortcuts ? 'Show top 6' : 'All 18',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: isDark ? AppColors.accentWarm : AppColors.primary,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 10),
-                SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    children: [
+                const SizedBox(height: 8),
+                Builder(
+                  builder: (context) {
+                    final allShortcuts = [
                       _buildQuickShortcut(
                         icon: '🚩',
                         label: 'Flag Scanner',
@@ -844,7 +936,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           prompt: "My ex was totally crazy, you are the only one who gets me so don't let me down.",
                         ),
                       ),
-                      const SizedBox(width: 8),
                       _buildQuickShortcut(
                         icon: '📸',
                         label: 'Story Reply',
@@ -854,7 +945,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           prompt: "They posted a late-night rooftop cocktail story with no caption.",
                         ),
                       ),
-                      const SizedBox(width: 8),
                       _buildQuickShortcut(
                         icon: '✨',
                         label: 'Chemistry Match',
@@ -864,7 +954,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           prompt: "Him: you have surprisingly good music taste. Her: only took you 3 months to notice.",
                         ),
                       ),
-                      const SizedBox(width: 8),
                       _buildQuickShortcut(
                         icon: '🧟',
                         label: 'Ghosting Revival',
@@ -874,7 +963,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           prompt: "Conversation died 3 weeks ago after great chemistry. Want a witty, zero-pressure text to reignite.",
                         ),
                       ),
-                      const SizedBox(width: 8),
                       _buildQuickShortcut(
                         icon: '🧠',
                         label: 'Overthinking Fix',
@@ -884,7 +972,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           prompt: "Hey sorry to bother you I know you are super busy and probably do not want to talk but if you have five minutes maybe we could call? If not totally fine no pressure!",
                         ),
                       ),
-                      const SizedBox(width: 8),
                       _buildQuickShortcut(
                         icon: '🎯',
                         label: 'Dating Opener',
@@ -894,7 +981,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           prompt: "Matched on Hinge: loves iced matcha, indie vinyl, and golden retrievers",
                         ),
                       ),
-                      const SizedBox(width: 8),
                       _buildQuickShortcut(
                         icon: '🕶️',
                         label: 'Unbothered',
@@ -904,7 +990,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           prompt: "Leaving me on delivered all day? I respect the mystery.",
                         ),
                       ),
-                      const SizedBox(width: 8),
                       _buildQuickShortcut(
                         icon: '🤝',
                         label: 'Conflict Defuser',
@@ -914,7 +999,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           prompt: "I lost my temper and snapped during our argument yesterday. Want a sincere, mature apology.",
                         ),
                       ),
-                      const SizedBox(width: 8),
                       _buildQuickShortcut(
                         icon: '⚡',
                         label: 'Magnetic Rizz',
@@ -924,7 +1008,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           prompt: "How do you manage to look this effortlessly stunning on a random Tuesday?",
                         ),
                       ),
-                      const SizedBox(width: 8),
                       _buildQuickShortcut(
                         icon: '🕵️',
                         label: 'Text Decrypter',
@@ -934,7 +1017,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           prompt: "It's totally fine. Do whatever you want.",
                         ),
                       ),
-                      const SizedBox(width: 8),
                       _buildQuickShortcut(
                         icon: '🏃',
                         label: 'Cancel Plans',
@@ -944,7 +1026,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           prompt: "Hey sorry I really cannot make it tonight my social battery is at zero. Can we do Sunday instead?",
                         ),
                       ),
-                      const SizedBox(width: 8),
                       _buildQuickShortcut(
                         icon: '🔥',
                         label: 'Savage Roast',
@@ -954,7 +1035,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           prompt: "You took 6 hours to reply with 'cool'.",
                         ),
                       ),
-                      const SizedBox(width: 8),
                       _buildQuickShortcut(
                         icon: '💬',
                         label: 'Funny Reply',
@@ -964,7 +1044,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           prompt: "Are you free this weekend or should I book an appointment with your secretary?",
                         ),
                       ),
-                      const SizedBox(width: 8),
                       _buildQuickShortcut(
                         icon: '💘',
                         label: 'Flirty Text',
@@ -974,7 +1053,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           prompt: "Stop looking at my story and just text me already.",
                         ),
                       ),
-                      const SizedBox(width: 8),
                       _buildQuickShortcut(
                         icon: '✨',
                         label: 'Reel Hook',
@@ -984,13 +1062,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           prompt: "3 harsh truths nobody tells you about moving to a new city alone.",
                         ),
                       ),
-                      const SizedBox(width: 8),
                       _buildQuickShortcut(
                         icon: '🎨',
                         label: 'Meme Card',
                         onTap: () => context.push('/card-maker'),
                       ),
-                      const SizedBox(width: 8),
                       _buildQuickShortcut(
                         icon: '👤',
                         label: 'Aesthetic Bio',
@@ -1000,7 +1076,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           prompt: "Living simply, reading deeply, chasing golden hour light. Based in SF / NYC.",
                         ),
                       ),
-                      const SizedBox(width: 8),
                       _buildQuickShortcut(
                         icon: '💼',
                         label: 'Boss Mode',
@@ -1010,8 +1085,35 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           prompt: "Following up on my scope expansion and compensation review from last quarter.",
                         ),
                       ),
-                    ],
-                  ),
+                    ];
+                    final visibleShortcuts = _showAllShortcuts
+                        ? allShortcuts
+                        : allShortcuts.take(6).toList();
+                    return AnimatedSize(
+                      duration: AppDurations.normal,
+                      curve: AppCurves.espressoPour,
+                      alignment: Alignment.topLeft,
+                      child: _showAllShortcuts
+                          ? Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              children: visibleShortcuts,
+                            )
+                          : SingleChildScrollView(
+                              scrollDirection: Axis.horizontal,
+                              physics: const BouncingScrollPhysics(),
+                              child: Row(
+                                children: [
+                                  for (int i = 0; i < visibleShortcuts.length; i++) ...[
+                                    visibleShortcuts[i],
+                                    if (i < visibleShortcuts.length - 1)
+                                      const SizedBox(width: 8),
+                                  ],
+                                ],
+                              ),
+                            ),
+                    );
+                  },
                 ),
 
                 const SizedBox(height: 24),
@@ -1019,10 +1121,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 // Daily Creator Perks & Credit Balance
                 Text(
                   'Daily Creator Perks',
-                  style: TextStyle(
-                    fontSize: 14,
+                  style: GoogleFonts.outfit(
+                    fontSize: 16,
                     fontWeight: FontWeight.bold,
-                    color: isDark ? Colors.white70 : AppColors.textSecondaryLight,
+                    color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                   ),
                 ),
                 const SizedBox(height: 10),
@@ -1093,19 +1195,21 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           ),
                           const SizedBox(width: 8),
                           if (!quota.isPro)
-                            OutlinedButton(
-                              onPressed: () => context.push('/paywall'),
-                              style: OutlinedButton.styleFrom(
-                                side: BorderSide(
-                                    color: isDark ? AppColors.accent : AppColors.primary),
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 14, vertical: 8),
+                            TactileScale(
+                              child: OutlinedButton(
+                                onPressed: () => context.push('/paywall'),
+                                style: OutlinedButton.styleFrom(
+                                  side: BorderSide(
+                                      color: isDark ? AppColors.accent : AppColors.primary),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 14, vertical: 8),
+                                ),
+                                child: Text('Get Pro',
+                                    style: TextStyle(
+                                        color: isDark ? AppColors.accent : AppColors.primary,
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.bold)),
                               ),
-                              child: Text('Get Pro',
-                                  style: TextStyle(
-                                      color: isDark ? AppColors.accent : AppColors.primary,
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.bold)),
                             ),
                         ],
                       ),
@@ -1114,9 +1218,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           height: 24,
                           color: isDark ? AppColors.borderDark : AppColors.borderLight,
                         ),
-                        InkWell(
-                          onTap: _watchRewardedAd,
-                          borderRadius: BorderRadius.circular(12),
+                        TactileScale(
+                          child: InkWell(
+                            onTap: _watchRewardedAd,
+                            borderRadius: BorderRadius.circular(12),
                           child: Container(
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 12, vertical: 8),
@@ -1160,6 +1265,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             ),
                           ),
                         ),
+                        ),
                       ],
                     ],
                   ),
@@ -1172,9 +1278,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 const SizedBox(height: 14),
 
                 // Refer & Earn Promo Banner
-                InkWell(
-                  onTap: () => ReferralModal.show(context),
-                  borderRadius: BorderRadius.circular(16),
+                TactileScale(
+                  child: InkWell(
+                    onTap: () => ReferralModal.show(context),
+                    borderRadius: BorderRadius.circular(16),
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                     decoration: BoxDecoration(
@@ -1234,13 +1341,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     ),
                   ),
                 ),
+                ),
 
                 const SizedBox(height: 14),
 
                 // Creator Level & Daily Streak Pulse (Gamified Retention Card)
-                InkWell(
-                  onTap: () => context.push('/streaks'),
-                  borderRadius: BorderRadius.circular(20),
+                TactileScale(
+                  child: InkWell(
+                    onTap: () => context.push('/streaks'),
+                    borderRadius: BorderRadius.circular(20),
                   child: Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
@@ -1260,7 +1369,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             Container(
                               padding: const EdgeInsets.all(10),
                               decoration: BoxDecoration(
-                                color: Colors.orange.withOpacity(0.18),
+                                color: AppColors.warning.withValues(alpha: 0.16),
                                 shape: BoxShape.circle,
                               ),
                               child: Text(
@@ -1292,21 +1401,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                           fontSize: 11,
                                           color: AppColors.accent,
                                           fontWeight: FontWeight.bold,
+                                          fontFeatures: AppTypography.tabularFigures,
                                         ),
                                       ),
                                     ],
                                   ),
                                   const SizedBox(height: 6),
-                                  ClipRRect(
-                                    borderRadius: BorderRadius.circular(6),
-                                    child: LinearProgressIndicator(
-                                      value: ((streak.totalXp % 100) / 100.0).clamp(0.0, 1.0),
-                                      minHeight: 6,
-                                      backgroundColor: isDark
-                                          ? Colors.white.withOpacity(0.08)
-                                          : AppColors.borderLight,
-                                      valueColor: const AlwaysStoppedAnimation<Color>(AppColors.accent),
-                                    ),
+                                  AnimatedProgressBar(
+                                    value: (streak.totalXp % 100) / 100.0,
+                                    minHeight: 6,
+                                    backgroundColor: isDark
+                                        ? Colors.white.withOpacity(0.08)
+                                        : AppColors.borderLight,
+                                    color: AppColors.accent,
                                   ),
                                 ],
                               ),
@@ -1329,10 +1436,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                 const SizedBox(width: 5),
                                 Text(
                                   '${streak.currentStreak}-Day Active Streak',
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontSize: 12,
                                     fontWeight: FontWeight.bold,
-                                    color: Colors.orange,
+                                    fontFeatures: AppTypography.tabularFigures,
+                                    color: isDark
+                                        ? AppColors.amberGold
+                                        : const Color(0xFFB45309),
                                   ),
                                 ),
                               ],
@@ -1412,6 +1522,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     ),
                   ),
                 ),
+                ),
 
                 const SizedBox(height: 24),
 
@@ -1442,21 +1553,22 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     ],
                   ),
                   const SizedBox(height: 8),
-                  InkWell(
-                    onTap: () {
-                      final c = _todaysChallenge!;
-                      if (c.targetFeature == 'reply') {
-                        context.push(
-                            '/studio?tab=reply&prompt=${Uri.encodeComponent(c.prompt)}&option=${c.tone}');
-                      } else if (c.targetFeature == 'caption') {
-                        context.push(
-                            '/studio?tab=caption&prompt=${Uri.encodeComponent(c.prompt)}&option=${c.tone}');
-                      } else {
-                        context.push(
-                            '/card-maker?initialPrompt=${Uri.encodeComponent(c.prompt)}');
-                      }
-                    },
-                    borderRadius: BorderRadius.circular(20),
+                  TactileScale(
+                    child: InkWell(
+                      onTap: () {
+                        final c = _todaysChallenge!;
+                        if (c.targetFeature == 'reply') {
+                          context.push(
+                              '/studio?tab=reply&prompt=${Uri.encodeComponent(c.prompt)}&option=${c.tone}');
+                        } else if (c.targetFeature == 'caption') {
+                          context.push(
+                              '/studio?tab=caption&prompt=${Uri.encodeComponent(c.prompt)}&option=${c.tone}');
+                        } else {
+                          context.push(
+                              '/card-maker?initialPrompt=${Uri.encodeComponent(c.prompt)}');
+                        }
+                      },
+                      borderRadius: BorderRadius.circular(20),
                     child: Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
@@ -1533,6 +1645,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       ),
                     ),
                   ),
+                  ),
                   const SizedBox(height: 24),
                 ],
 
@@ -1541,15 +1654,24 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text(
+                      Text(
                         'Recent Creations',
-                        style: TextStyle(
-                            fontSize: 16, fontWeight: FontWeight.bold),
+                        style: GoogleFonts.outfit(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                        ),
                       ),
                       TextButton(
                         onPressed: () => context.push('/history'),
-                        child: const Text('View All',
-                            style: TextStyle(fontSize: 12)),
+                        child: Text(
+                          'View All',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: isDark ? AppColors.accentWarm : AppColors.primary,
+                          ),
+                        ),
                       ),
                     ],
                   ),
@@ -1558,43 +1680,45 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     height: 125,
                     child: ListView.separated(
                       scrollDirection: Axis.horizontal,
+                      physics: const BouncingScrollPhysics(),
                       itemCount: _recentCreations.length,
                       separatorBuilder: (_, __) => const SizedBox(width: 12),
                       itemBuilder: (context, index) {
                         final item = _recentCreations[index];
-                        return InkWell(
-                          onTap: () => context.push('/history'),
-                          borderRadius: BorderRadius.circular(14),
-                          child: Container(
-                            width: 200,
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: isDark ? AppColors.surfaceCardDark : AppColors.surfaceCardLight,
-                              borderRadius: BorderRadius.circular(14),
-                              border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
-                                    Icon(
-                                      item.type == 'reply'
-                                          ? Icons.chat_bubble_outline_rounded
-                                          : item.type == 'caption'
-                                              ? Icons.auto_awesome_rounded
-                                              : item.type == 'bio'
-                                                  ? Icons.badge_outlined
-                                                  : item.type == 'vibe_check'
-                                                      ? Icons.local_fire_department_rounded
-                                                      : Icons.brush_outlined,
-                                      size: 14,
-                                      color: item.type == 'bio'
-                                          ? Colors.cyan
-                                          : item.type == 'vibe_check'
-                                              ? const Color(0xFFD9531E)
-                                              : AppColors.primaryLight,
-                                    ),
+                        return TactileScale(
+                          child: InkWell(
+                            onTap: () => context.push('/history'),
+                            borderRadius: BorderRadius.circular(14),
+                            child: Container(
+                              width: 200,
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: isDark ? AppColors.surfaceCardDark : AppColors.surfaceCardLight,
+                                borderRadius: BorderRadius.circular(14),
+                                border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Icon(
+                                        item.type == 'reply'
+                                            ? Icons.chat_bubble_outline_rounded
+                                            : item.type == 'caption'
+                                                ? Icons.auto_awesome_rounded
+                                                : item.type == 'bio'
+                                                    ? Icons.badge_outlined
+                                                    : item.type == 'vibe_check'
+                                                        ? Icons.local_fire_department_rounded
+                                                        : Icons.brush_outlined,
+                                        size: 14,
+                                        color: item.type == 'bio'
+                                            ? AppColors.sageGreen
+                                            : item.type == 'vibe_check'
+                                                ? AppColors.emberOrange
+                                                : AppColors.primaryLight,
+                                      ),
                                     const SizedBox(width: 6),
                                     Expanded(
                                       child: Text(
@@ -1627,8 +1751,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                               ],
                             ),
                           ),
-                        );
-                      },
+                        ),
+                      );
+                    },
                     ),
                   ),
                   const SizedBox(height: 20),
@@ -1658,13 +1783,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final cardBorder = isDark ? color.withOpacity(0.35) : color.withOpacity(0.25);
     final badgeCol = badgeColor ?? color;
 
-    return InkWell(
-      onTap: () {
-        HapticFeedback.lightImpact();
-        context.push(route);
-      },
-      borderRadius: BorderRadius.circular(22),
-      child: Container(
+    return TactileScale(
+      child: InkWell(
+        onTap: () {
+          HapticFeedback.lightImpact();
+          context.push(route);
+        },
+        borderRadius: BorderRadius.circular(22),
+        child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: cardBg,
@@ -1750,6 +1876,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ],
         ),
       ),
+    ),
     );
   }
 
@@ -1771,33 +1898,35 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     return Builder(
       builder: (context) {
         final isDark = Theme.of(context).brightness == Brightness.dark;
-        return InkWell(
-          onTap: () {
-            HapticFeedback.selectionClick();
-            onTap();
-          },
-          borderRadius: BorderRadius.circular(12),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            decoration: BoxDecoration(
-              color: isDark ? AppColors.surfaceCardDark : AppColors.surfaceCardLight,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(icon, style: const TextStyle(fontSize: 16)),
-                const SizedBox(width: 6),
-                Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+        return TactileScale(
+          child: InkWell(
+            onTap: () {
+              HapticFeedback.selectionClick();
+              onTap();
+            },
+            borderRadius: BorderRadius.circular(12),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: isDark ? AppColors.surfaceCardDark : AppColors.surfaceCardLight,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(icon, style: const TextStyle(fontSize: 16)),
+                  const SizedBox(width: 6),
+                  Text(
+                    label,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         );

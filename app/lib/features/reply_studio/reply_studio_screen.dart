@@ -10,6 +10,7 @@ import '../../core/widgets/app_bottom_nav.dart';
 import '../../core/widgets/error_view.dart';
 import '../../core/widgets/language_picker.dart';
 import '../../core/widgets/loading_shimmer.dart';
+import '../../core/widgets/motion_widgets.dart';
 import '../../core/widgets/primary_button.dart';
 import '../../core/widgets/quota_badge.dart';
 import '../../core/widgets/result_card.dart';
@@ -455,11 +456,9 @@ class _ReplyStudioScreenState extends ConsumerState<ReplyStudioScreen> {
 
             // 6. Loading Shimmer Placeholders
             if (genState.isGenerating) ...[
-              const LoadingShimmer(height: 100),
-              const SizedBox(height: AppSpacing.md),
-              const LoadingShimmer(height: 100),
-              const SizedBox(height: AppSpacing.md),
-              const LoadingShimmer(height: 100),
+              const ResultCardSkeleton(),
+              const ResultCardSkeleton(),
+              const ResultCardSkeleton(),
             ],
 
             // 7. Results
@@ -473,12 +472,16 @@ class _ReplyStudioScreenState extends ConsumerState<ReplyStudioScreen> {
                 ),
               ),
               const SizedBox(height: AppSpacing.md),
-              ...genState.result!.suggestions.map(
-                (suggestion) => ResultCard(
-                  content: suggestion,
-                  category: '$_selectedTone • $_selectedLanguage',
-                  isFavorite: _favoritedTexts.contains(suggestion),
-                  onFavoriteToggle: () => _toggleFavorite(suggestion),
+              ...genState.result!.suggestions.asMap().entries.map(
+                (entry) => StaggeredEntrance(
+                  key: ValueKey('rs_${entry.key}_${entry.value.hashCode}'),
+                  index: entry.key,
+                  child: ResultCard(
+                    content: entry.value,
+                    category: '$_selectedTone • $_selectedLanguage',
+                    isFavorite: _favoritedTexts.contains(entry.value),
+                    onFavoriteToggle: () => _toggleFavorite(entry.value),
+                  ),
                 ),
               ),
             ],

@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../constants/app_colors.dart';
+import '../constants/app_durations.dart';
+import 'motion_widgets.dart';
 
 /// Clean, user-friendly persistent bottom navigation bar.
 /// Provides immediate, confusion-free navigation across the 4 primary app pillars:
@@ -78,49 +80,58 @@ class AppBottomNav extends StatelessWidget {
                   .path;
 
               return Expanded(
-                child: InkWell(
-                  onTap: () {
-                    if (isSelected && (currentRoute == null || currentRoute == item.route)) {
-                      return;
-                    }
-                    HapticFeedback.selectionClick();
-                    context.go(item.route);
-                  },
-                  borderRadius: BorderRadius.circular(16),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        AnimatedContainer(
-                          duration: const Duration(milliseconds: 200),
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: isSelected
-                                ? (isDark
-                                    ? AppColors.primary.withOpacity(0.35)
-                                    : AppColors.primary.withOpacity(0.12))
-                                : Colors.transparent,
-                            borderRadius: BorderRadius.circular(14),
+                child: TactileScale(
+                  pressedScale: 0.94,
+                  child: InkWell(
+                    onTap: () {
+                      if (isSelected && (currentRoute == null || currentRoute == item.route)) {
+                        return;
+                      }
+                      HapticFeedback.selectionClick();
+                      context.go(item.route);
+                    },
+                    borderRadius: BorderRadius.circular(16),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          AnimatedContainer(
+                            duration: AppDurations.fast,
+                            curve: AppCurves.espressoPour,
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: isSelected
+                                  ? (isDark
+                                      ? AppColors.primary.withOpacity(0.35)
+                                      : AppColors.primary.withOpacity(0.12))
+                                  : Colors.transparent,
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            child: AnimatedScale(
+                              scale: isSelected ? 1.08 : 1.0,
+                              duration: AppDurations.normal,
+                              curve: AppCurves.cremaSpring,
+                              child: Icon(
+                                isSelected ? item.activeIcon : item.icon,
+                                size: 20,
+                                color: isSelected ? activeColor : inactiveColor,
+                              ),
+                            ),
                           ),
-                          child: Icon(
-                            isSelected ? item.activeIcon : item.icon,
-                            size: 20,
-                            color: isSelected ? activeColor : inactiveColor,
+                          const SizedBox(height: 3),
+                          Text(
+                            item.label,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 10,
+                              fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                              color: isSelected ? activeColor : inactiveColor,
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 3),
-                        Text(
-                          item.label,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: GoogleFonts.plusJakartaSans(
-                            fontSize: 10,
-                            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                            color: isSelected ? activeColor : inactiveColor,
-                          ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                 ),

@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/constants/app_colors.dart';
+import '../../core/constants/app_durations.dart';
 import '../../core/config/app_config.dart';
 import '../../core/providers/app_providers.dart';
+import '../../core/widgets/motion_widgets.dart';
 
 class OnboardingScreen extends ConsumerStatefulWidget {
   const OnboardingScreen({super.key});
@@ -158,55 +161,58 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                   const SizedBox(height: 20),
 
                   // High-End Pill CTA Button
-                  ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 400),
-                    child: Container(
-                      width: double.infinity,
-                      height: 54,
-                      decoration: BoxDecoration(
-                        gradient: AppColors.primaryGradient,
-                        borderRadius: BorderRadius.circular(28),
-                        border: Border.all(
-                          color: AppColors.accent.withOpacity(0.4),
-                          width: 1.2,
-                        ),
-                      ),
-                      child: Material(
-                        color: Colors.transparent,
-                        child: InkWell(
+                  TactileScale(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 400),
+                      child: Container(
+                        width: double.infinity,
+                        height: 54,
+                        decoration: BoxDecoration(
+                          gradient: AppColors.primaryGradient,
                           borderRadius: BorderRadius.circular(28),
-                          onTap: () {
-                            if (_currentPage < 3) {
-                              _pageController.nextPage(
-                                duration: const Duration(milliseconds: 320),
-                                curve: Curves.easeInOutCubic,
-                              );
-                            } else {
-                              _completeOnboarding();
-                            }
-                          },
-                          child: Center(
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Text(
-                                  _currentPage < 3 ? 'Continue' : 'Get Started — Free',
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                    letterSpacing: 0.3,
+                          border: Border.all(
+                            color: AppColors.accent.withOpacity(0.4),
+                            width: 1.2,
+                          ),
+                        ),
+                        child: Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(28),
+                            onTap: () {
+                              HapticFeedback.lightImpact();
+                              if (_currentPage < 3) {
+                                _pageController.nextPage(
+                                  duration: AppDurations.medium,
+                                  curve: AppCurves.espressoPour,
+                                );
+                              } else {
+                                _completeOnboarding();
+                              }
+                            },
+                            child: Center(
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Text(
+                                    _currentPage < 3 ? 'Continue' : 'Get Started — Free',
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                      letterSpacing: 0.3,
+                                    ),
                                   ),
-                                ),
-                                const SizedBox(width: 8),
-                                Icon(
-                                  _currentPage < 3
-                                      ? Icons.arrow_forward_rounded
-                                      : Icons.auto_awesome_rounded,
-                                  color: AppColors.accentWarm,
-                                  size: 18,
-                                ),
-                              ],
+                                  const SizedBox(width: 8),
+                                  Icon(
+                                    _currentPage < 3
+                                        ? Icons.arrow_forward_rounded
+                                        : Icons.auto_awesome_rounded,
+                                    color: AppColors.accentWarm,
+                                    size: 18,
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
                         ),
@@ -419,35 +425,42 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                         child: Row(
                           children: ['Savage', 'Flirty', 'Witty', 'Boss'].map((tone) {
                             final isSelected = _selectedTone == tone;
-                            return GestureDetector(
-                              onTap: () => setState(() => _selectedTone = tone),
-                              child: AnimatedContainer(
-                                duration: const Duration(milliseconds: 200),
-                                margin: const EdgeInsets.only(right: 6),
-                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                                decoration: BoxDecoration(
-                                  color: isSelected
-                                      ? AppColors.primary
-                                      : context.surfaceElevated,
-                                  borderRadius: BorderRadius.circular(14),
-                                  border: Border.all(
+                            return TactileScale(
+                              pressedScale: 0.94,
+                              child: GestureDetector(
+                                onTap: () {
+                                  HapticFeedback.selectionClick();
+                                  setState(() => _selectedTone = tone);
+                                },
+                                child: AnimatedContainer(
+                                  duration: AppDurations.fast,
+                                  curve: AppCurves.espressoPour,
+                                  margin: const EdgeInsets.only(right: 6),
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                                  decoration: BoxDecoration(
                                     color: isSelected
-                                        ? AppColors.accent
-                                        : context.borderCol,
+                                        ? AppColors.primary
+                                        : context.surfaceElevated,
+                                    borderRadius: BorderRadius.circular(14),
+                                    border: Border.all(
+                                      color: isSelected
+                                          ? AppColors.accent
+                                          : context.borderCol,
+                                    ),
                                   ),
-                                ),
-                                child: Text(
-                                  tone == 'Savage'
-                                      ? '🔥 Savage'
-                                      : tone == 'Flirty'
-                                          ? '✨ Flirty'
-                                          : tone == 'Witty'
-                                              ? '☕ Witty'
-                                              : '💼 Boss',
-                                  style: TextStyle(
-                                    color: isSelected ? Colors.white : context.textSecondary,
-                                    fontSize: 11,
-                                    fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                                  child: Text(
+                                    tone == 'Savage'
+                                        ? '🔥 Savage'
+                                        : tone == 'Flirty'
+                                            ? '✨ Flirty'
+                                            : tone == 'Witty'
+                                                ? '☕ Witty'
+                                                : '💼 Boss',
+                                    style: TextStyle(
+                                      color: isSelected ? Colors.white : context.textSecondary,
+                                      fontSize: 11,
+                                      fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                                    ),
                                   ),
                                 ),
                               ),
@@ -461,11 +474,12 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
                 const SizedBox(height: 12),
 
-                // Outbound AI Generated Bubble
+                // Outbound AI Generated Bubble with Morph Transition
                 Align(
                   alignment: Alignment.centerRight,
                   child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 250),
+                    duration: AppDurations.normal,
+                    curve: AppCurves.espressoPour,
                     constraints: const BoxConstraints(maxWidth: 300),
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                     decoration: BoxDecoration(
@@ -497,13 +511,18 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                           ],
                         ),
                         const SizedBox(height: 4),
-                        Text(
-                          _repliesByTone[_selectedTone] ?? '',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            height: 1.35,
+                        AnimatedSwitcher(
+                          duration: AppDurations.fast,
+                          switchInCurve: AppCurves.espressoPour,
+                          child: Text(
+                            _repliesByTone[_selectedTone] ?? '',
+                            key: ValueKey<String>(_selectedTone),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              height: 1.35,
+                            ),
                           ),
                         ),
                       ],

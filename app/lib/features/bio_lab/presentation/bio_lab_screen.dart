@@ -10,6 +10,7 @@ import '../../../core/widgets/app_bottom_nav.dart';
 import '../../../core/widgets/error_view.dart';
 import '../../../core/widgets/language_picker.dart';
 import '../../../core/widgets/loading_shimmer.dart';
+import '../../../core/widgets/motion_widgets.dart';
 import '../../../core/widgets/primary_button.dart';
 import '../../../core/widgets/quota_badge.dart';
 import '../../../core/widgets/report_ai_dialog.dart';
@@ -345,9 +346,8 @@ class _BioLabScreenState extends ConsumerState<BioLabScreen> {
 
             // 8. Loading Shimmers
             if (genState.isGenerating) ...[
-              const LoadingShimmer(height: 100),
-              const SizedBox(height: AppSpacing.md),
-              const LoadingShimmer(height: 100),
+              const ResultCardSkeleton(),
+              const ResultCardSkeleton(),
             ],
 
             // 9. Results
@@ -361,12 +361,16 @@ class _BioLabScreenState extends ConsumerState<BioLabScreen> {
                 ),
               ),
               const SizedBox(height: AppSpacing.sm),
-              ...genState.result!.bios.map(
-                (bio) => ResultCard(
-                  content: bio,
-                  category: '$_selectedPlatform Bio',
-                  isFavorite: _favoritedTexts.contains(bio),
-                  onFavoriteToggle: () => _toggleFavorite(bio),
+              ...genState.result!.bios.asMap().entries.map(
+                (entry) => StaggeredEntrance(
+                  key: ValueKey('bio_${entry.key}_${entry.value.hashCode}'),
+                  index: entry.key,
+                  child: ResultCard(
+                    content: entry.value,
+                    category: '$_selectedPlatform Bio',
+                    isFavorite: _favoritedTexts.contains(entry.value),
+                    onFavoriteToggle: () => _toggleFavorite(entry.value),
+                  ),
                 ),
               ),
 

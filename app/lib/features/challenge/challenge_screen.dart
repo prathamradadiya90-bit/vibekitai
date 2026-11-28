@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/services/achievement_service.dart';
+import '../../core/widgets/motion_widgets.dart';
 import '../../models/challenge_model.dart';
 import '../streaks/providers/streak_provider.dart';
 
@@ -149,7 +150,9 @@ class _ChallengeScreenState extends ConsumerState<ChallengeScreen> {
                           ? AppColors.accent
                           : AppColors.accentPink;
 
-                  return Container(
+                  return StaggeredEntrance(
+                    index: index,
+                    child: Container(
                     padding: const EdgeInsets.all(18),
                     decoration: BoxDecoration(
                       color: cardBg,
@@ -214,24 +217,30 @@ class _ChallengeScreenState extends ConsumerState<ChallengeScreen> {
                               height: 1.4),
                         ),
                         const SizedBox(height: 14),
-                        SizedBox(
-                          width: double.infinity,
-                          child: ElevatedButton.icon(
-                            onPressed: () => _startChallenge(item),
-                            icon:
-                                const Icon(Icons.play_arrow_rounded, size: 18),
-                            label: const Text('Accept Challenge (+25 XP)',
-                                style: TextStyle(
-                                    fontSize: 13, fontWeight: FontWeight.bold)),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: color,
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(vertical: 10),
+                        TactileScale(
+                          child: SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton.icon(
+                              onPressed: () {
+                                HapticFeedback.lightImpact();
+                                _startChallenge(item);
+                              },
+                              icon:
+                                  const Icon(Icons.play_arrow_rounded, size: 18),
+                              label: const Text('Accept Challenge (+25 XP)',
+                                  style: TextStyle(
+                                      fontSize: 13, fontWeight: FontWeight.bold)),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: color,
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(vertical: 10),
+                              ),
                             ),
                           ),
                         ),
                       ],
                     ),
+                  ),
                   );
                 },
               ),

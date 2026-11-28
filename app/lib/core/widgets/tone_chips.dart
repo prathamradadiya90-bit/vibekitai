@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../constants/app_colors.dart';
 import '../constants/app_spacing.dart';
+import 'motion_widgets.dart';
 
 /// Reusable horizontal or wrap selector for vibes and tones.
 class ToneChips extends StatelessWidget {
@@ -30,25 +32,31 @@ class ToneChips extends StatelessWidget {
           final isSelected = tone == selectedTone;
           return Padding(
             padding: const EdgeInsets.only(right: AppSpacing.sm),
-            child: ChoiceChip(
-              label: Text(tone),
-              selected: isSelected,
-              onSelected: (_) => onSelected(tone),
-              labelStyle: TextStyle(
-                color: isSelected ? Colors.white : unselectedText,
-                fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                fontSize: 13,
+            child: TactileScale(
+              pressedScale: 0.94,
+              child: ChoiceChip(
+                label: Text(tone),
+                selected: isSelected,
+                onSelected: (_) {
+                  HapticFeedback.selectionClick();
+                  onSelected(tone);
+                },
+                labelStyle: TextStyle(
+                  color: isSelected ? Colors.white : unselectedText,
+                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                  fontSize: 13,
+                ),
+                selectedColor: AppColors.primary,
+                backgroundColor: unselectedBg,
+                side: BorderSide(
+                  color: isSelected ? AppColors.primary : unselectedBorder,
+                  width: 1,
+                ),
+                shape: const RoundedRectangleBorder(
+                  borderRadius: AppSpacing.roundedFull,
+                ),
+                showCheckmark: false,
               ),
-              selectedColor: AppColors.primary,
-              backgroundColor: unselectedBg,
-              side: BorderSide(
-                color: isSelected ? AppColors.primary : unselectedBorder,
-                width: 1,
-              ),
-              shape: const RoundedRectangleBorder(
-                borderRadius: AppSpacing.roundedFull,
-              ),
-              showCheckmark: false,
             ),
           );
         }).toList(),

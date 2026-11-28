@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../../core/constants/app_durations.dart';
 import 'card_templates.dart';
 
 class CardCanvas extends StatelessWidget {
@@ -74,6 +75,7 @@ class CardCanvas extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final reduceMotion = MediaQuery.disableAnimationsOf(context);
     return Center(
       child: AspectRatio(
         aspectRatio: aspectRatio,
@@ -82,7 +84,9 @@ class CardCanvas extends StatelessWidget {
           child: LayoutBuilder(
             builder: (context, constraints) {
               final cardPadding = (constraints.maxWidth * 0.06).clamp(12.0, 28.0);
-              return Container(
+              return AnimatedContainer(
+                duration: reduceMotion ? Duration.zero : AppDurations.normal,
+                curve: AppCurves.espressoPour,
                 clipBehavior: Clip.antiAlias,
                 decoration: BoxDecoration(
                   gradient: template.backgroundGradient,
@@ -102,7 +106,14 @@ class CardCanvas extends StatelessWidget {
                         ],
                 ),
                 padding: EdgeInsets.all(cardPadding),
-                child: _buildLayout(constraints),
+                child: AnimatedSwitcher(
+                  duration: reduceMotion ? Duration.zero : AppDurations.fast,
+                  switchInCurve: AppCurves.espressoPour,
+                  child: KeyedSubtree(
+                    key: ValueKey<CardStyle>(style),
+                    child: _buildLayout(constraints),
+                  ),
+                ),
               );
             },
           ),

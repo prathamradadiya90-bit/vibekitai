@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../constants/app_colors.dart';
+import '../constants/app_durations.dart';
 import '../constants/app_spacing.dart';
 
 /// Reusable shimmer placeholder container for smooth loading states.
@@ -29,11 +30,11 @@ class _LoadingShimmerState extends State<LoadingShimmer>
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1400),
+      duration: AppDurations.shimmer,
     )..repeat();
 
     _animation = Tween<double>(begin: -1.0, end: 2.0).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeInOutSine),
+      CurvedAnimation(parent: _controller, curve: AppCurves.ambientBreath),
     );
   }
 
@@ -47,7 +48,7 @@ class _LoadingShimmerState extends State<LoadingShimmer>
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final baseColor = isDark ? AppColors.surfaceCardDark : const Color(0xFFEFE8DE);
-    final highlightColor = isDark ? AppColors.surfaceElevatedDark : const Color(0xFFDFD5C7);
+    final highlightColor = isDark ? AppColors.surfaceElevatedDark : const Color(0xFFE7DACA);
 
     return AnimatedBuilder(
       animation: _animation,
@@ -69,6 +70,59 @@ class _LoadingShimmerState extends State<LoadingShimmer>
           ),
         );
       },
+    );
+  }
+}
+
+/// Multi-line skeleton mimicking a generated result or history card anatomy.
+class ResultCardSkeleton extends StatelessWidget {
+  const ResultCardSkeleton({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.surfaceCardDark : AppColors.surfaceCardLight,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isDark ? AppColors.borderDark : AppColors.borderLight,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          LoadingShimmer(
+            height: 18,
+            width: 84,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          const SizedBox(height: 12),
+          LoadingShimmer(
+            height: 14,
+            borderRadius: BorderRadius.circular(6),
+          ),
+          const SizedBox(height: 8),
+          LoadingShimmer(
+            height: 14,
+            width: 220,
+            borderRadius: BorderRadius.circular(6),
+          ),
+          const SizedBox(height: 14),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              LoadingShimmer(height: 22, width: 54, borderRadius: BorderRadius.circular(10)),
+              const SizedBox(width: 8),
+              LoadingShimmer(height: 22, width: 54, borderRadius: BorderRadius.circular(10)),
+              const SizedBox(width: 8),
+              LoadingShimmer(height: 22, width: 72, borderRadius: BorderRadius.circular(10)),
+            ],
+          ),
+        ],
+      ),
     );
   }
 }

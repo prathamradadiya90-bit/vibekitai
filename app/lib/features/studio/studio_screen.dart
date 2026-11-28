@@ -6,11 +6,14 @@ import 'package:share_plus/share_plus.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../core/constants/app_colors.dart';
+import '../../core/constants/app_durations.dart';
 import '../../core/constants/app_spacing.dart';
+import '../../core/constants/app_typography.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/widgets/app_bottom_nav.dart';
 import '../../core/widgets/error_view.dart';
 import '../../core/widgets/loading_shimmer.dart';
+import '../../core/widgets/motion_widgets.dart';
 import '../../core/widgets/primary_button.dart';
 import '../../core/widgets/quota_badge.dart';
 import '../../core/widgets/report_ai_dialog.dart';
@@ -58,8 +61,10 @@ class StudioScreen extends ConsumerStatefulWidget {
 class _StudioScreenState extends ConsumerState<StudioScreen> {
   late StudioTab _activeTab;
   final TextEditingController _textController = TextEditingController();
+  final GlobalKey _resultsAnchorKey = GlobalKey();
   final Set<String> _favoritedTexts = {};
   final Set<String> _reportedContents = {};
+  final Set<String> _copiedContents = {};
 
   // Mode/Tone state per tab
   String _replyTone = 'Funny';
@@ -442,6 +447,17 @@ class _StudioScreenState extends ConsumerState<StudioScreen> {
         await prefs.recordToneUsed(activeOption);
         await prefs.recordLanguageUsed(_selectedLanguage);
         if (mounted) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            final resultsCtx = _resultsAnchorKey.currentContext;
+            if (resultsCtx != null) {
+              Scrollable.ensureVisible(
+                resultsCtx,
+                duration: AppDurations.slow,
+                curve: AppCurves.espressoPour,
+                alignment: 0.08,
+              );
+            }
+          });
           ref.read(reviewServiceProvider).checkAndPromptReview(context);
           await ref.read(achievementServiceProvider).checkAndUnlockAchievements(context: context);
         }
@@ -483,90 +499,46 @@ class _StudioScreenState extends ConsumerState<StudioScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // Top Segmented Mode Switcher
-                Container(
-                  padding: const EdgeInsets.all(4),
-                  decoration: BoxDecoration(
-                    color: isDark ? AppColors.surfaceCardDark : AppColors.surfaceCardLight,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                      color: isDark ? AppColors.borderDark : AppColors.borderLight,
-                    ),
-                  ),
-                  child: Row(
-                    children: StudioTab.values.map((tab) {
-                      final isSelected = _activeTab == tab;
-                      return Expanded(
-                        child: InkWell(
-                          onTap: () => _switchTab(tab),
-                          borderRadius: BorderRadius.circular(12),
-                          child: AnimatedContainer(
-                            duration: const Duration(milliseconds: 180),
-                            padding: const EdgeInsets.symmetric(vertical: 10),
-                            decoration: BoxDecoration(
-                              color: isSelected
-                                  ? (isDark ? AppColors.surfaceElevatedDark : Colors.white)
-                                  : Colors.transparent,
-                              borderRadius: BorderRadius.circular(12),
-                              boxShadow: isSelected && !isDark
-                                  ? [
-                                      BoxShadow(
-                                        color: Colors.black.withOpacity(0.04),
-                                        blurRadius: 4,
-                                        offset: const Offset(0, 1),
-                                      ),
-                                    ]
-                                  : null,
-                            ),
-                            child: Center(
-                              child: Text(
-                                tab.label,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                                  color: isSelected
-                                      ? (isDark ? AppColors.accentWarm : AppColors.primary)
-                                      : (isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      );
-                    }).toList(),
-                  ),
+                // Top Gliding Segmented Mode Switcher
+                SlidingSegmentedPill<StudioTab>(
+                  items: StudioTab.values,
+                  selectedItem: _activeTab,
+                  labelBuilder: (tab) => tab.label,
+                  onSelected: _switchTab,
                 ),
                 const SizedBox(height: AppSpacing.md),
 
                 // Description Banner
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                  decoration: BoxDecoration(
-                    color: isDark ? AppColors.surfaceCardDark : AppColors.surfaceCardLight,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: isDark ? AppColors.borderDark : AppColors.borderLight,
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.info_outline_rounded,
-                        size: 16,
-                        color: isDark ? AppColors.accentWarm : AppColors.primary,
+                AnimatedSwitcher(
+                  duration: AppDurations.fast,
+                  child: Container(
+                    key: ValueKey<StudioTab>(_activeTab),
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: isDark ? AppColors.surfaceCardDark : AppColors.surfaceCardLight,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: isDark ? AppColors.borderDark : AppColors.borderLight,
                       ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          _activeTab.description,
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.info_outline_rounded,
+                          size: 16,
+                          color: isDark ? AppColors.accentWarm : AppColors.primary,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            _activeTab.description,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                            ),
                           ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
                 const SizedBox(height: AppSpacing.md),
@@ -574,42 +546,45 @@ class _StudioScreenState extends ConsumerState<StudioScreen> {
                 // Quick Inspiration Chips
                 SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
+                  physics: const BouncingScrollPhysics(),
                   child: Row(
                     children: (_sampleChips[_activeTab] ?? []).map((sample) {
                       final isSelected = _textController.text.trim() == sample['text']!.trim();
                       return Padding(
                         padding: const EdgeInsets.only(right: 8),
-                        child: ActionChip(
-                          label: Text(
-                            sample['label']!,
-                            style: TextStyle(
-                              fontSize: 12.5,
-                              fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                              color: isSelected
-                                  ? (isDark ? AppColors.accentWarm : AppColors.primary)
-                                  : (isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight),
+                        child: TactileScale(
+                          child: ActionChip(
+                            label: Text(
+                              sample['label']!,
+                              style: TextStyle(
+                                fontSize: 12.5,
+                                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                                color: isSelected
+                                    ? (isDark ? AppColors.accentWarm : AppColors.primary)
+                                    : (isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight),
+                              ),
                             ),
-                          ),
-                          backgroundColor: isSelected
-                              ? (isDark
-                                  ? AppColors.primary.withValues(alpha: 0.25)
-                                  : AppColors.primary.withValues(alpha: 0.12))
-                              : (isDark ? AppColors.surfaceCardDark : AppColors.surfaceCardLight),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(20),
-                            side: BorderSide(
-                              color: isSelected
-                                  ? (isDark ? AppColors.accentWarm : AppColors.primary)
-                                  : (isDark ? AppColors.borderDark : AppColors.borderLight),
-                              width: isSelected ? 1.5 : 1.0,
+                            backgroundColor: isSelected
+                                ? (isDark
+                                    ? AppColors.primary.withValues(alpha: 0.25)
+                                    : AppColors.primary.withValues(alpha: 0.12))
+                                : (isDark ? AppColors.surfaceCardDark : AppColors.surfaceCardLight),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(20),
+                              side: BorderSide(
+                                color: isSelected
+                                    ? (isDark ? AppColors.accentWarm : AppColors.primary)
+                                    : (isDark ? AppColors.borderDark : AppColors.borderLight),
+                                width: isSelected ? 1.5 : 1.0,
+                              ),
                             ),
+                            onPressed: () {
+                              HapticFeedback.selectionClick();
+                              setState(() {
+                                _textController.text = sample['text']!;
+                              });
+                            },
                           ),
-                          onPressed: () {
-                            HapticFeedback.selectionClick();
-                            setState(() {
-                              _textController.text = sample['text']!;
-                            });
-                          },
                         ),
                       );
                     }).toList(),
@@ -669,6 +644,7 @@ class _StudioScreenState extends ConsumerState<StudioScreen> {
                           Text(
                             '${_textController.text.length}/$_maxChars',
                             style: theme.textTheme.labelSmall?.copyWith(
+                              fontFeatures: AppTypography.tabularFigures,
                               color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
                             ),
                           ),
@@ -683,9 +659,15 @@ class _StudioScreenState extends ConsumerState<StudioScreen> {
                 _buildModeOptions(isDark, theme),
                 const SizedBox(height: AppSpacing.md),
 
-                // Language Selector
+                // Language Selector Pill
                 Row(
                   children: [
+                    Icon(
+                      Icons.translate_rounded,
+                      size: 15,
+                      color: isDark ? AppColors.accentWarm : AppColors.primary,
+                    ),
+                    const SizedBox(width: 6),
                     Text(
                       'Language:',
                       style: theme.textTheme.labelMedium?.copyWith(
@@ -695,10 +677,10 @@ class _StudioScreenState extends ConsumerState<StudioScreen> {
                     ),
                     const SizedBox(width: 8),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 3),
                       decoration: BoxDecoration(
                         color: isDark ? AppColors.surfaceCardDark : AppColors.surfaceCardLight,
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(20),
                         border: Border.all(
                           color: isDark ? AppColors.borderDark : AppColors.borderLight,
                         ),
@@ -707,6 +689,7 @@ class _StudioScreenState extends ConsumerState<StudioScreen> {
                         child: DropdownButton<String>(
                           value: _selectedLanguage,
                           isDense: true,
+                          borderRadius: BorderRadius.circular(14),
                           dropdownColor: isDark ? AppColors.surfaceCardDark : AppColors.surfaceCardLight,
                           items: _languages.map((l) {
                             return DropdownMenuItem<String>(
@@ -715,6 +698,7 @@ class _StudioScreenState extends ConsumerState<StudioScreen> {
                                 l,
                                 style: TextStyle(
                                   fontSize: 13,
+                                  fontWeight: FontWeight.w600,
                                   color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                                 ),
                               ),
@@ -722,6 +706,7 @@ class _StudioScreenState extends ConsumerState<StudioScreen> {
                           }).toList(),
                           onChanged: (val) {
                             if (val != null) {
+                              HapticFeedback.selectionClick();
                               setState(() => _selectedLanguage = val);
                               ref.read(languageProvider.notifier).setLanguage(val);
                             }
@@ -751,20 +736,19 @@ class _StudioScreenState extends ConsumerState<StudioScreen> {
                   const SizedBox(height: AppSpacing.lg),
                 ],
 
-                // Output Rendering
-                if (isGenerating) ...[
-                  const Column(
-                    children: [
-                      LoadingShimmer(height: 100),
-                      SizedBox(height: 12),
-                      LoadingShimmer(height: 80),
-                      SizedBox(height: 12),
-                      LoadingShimmer(height: 80),
-                    ],
-                  ),
-                ] else ...[
-                  _buildResultsForActiveTab(isDark, theme),
-                ],
+                // Output Rendering (Result Skeleton Theater → Staggered Cards)
+                KeyedSubtree(
+                  key: _resultsAnchorKey,
+                  child: isGenerating
+                      ? const Column(
+                          children: [
+                            ResultCardSkeleton(),
+                            ResultCardSkeleton(),
+                            ResultCardSkeleton(),
+                          ],
+                        )
+                      : _buildResultsForActiveTab(isDark, theme),
+                ),
               ],
             ),
           ),
@@ -832,185 +816,109 @@ class _StudioScreenState extends ConsumerState<StudioScreen> {
   Widget _buildModeOptions(bool isDark, ThemeData theme) {
     switch (_activeTab) {
       case StudioTab.reply:
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Select Tone',
-              style: theme.textTheme.labelMedium?.copyWith(
-                fontWeight: FontWeight.w700,
-                color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: _replyTones.map((tone) {
-                final isSelected = _replyTone == tone;
-                return ChoiceChip(
-                  selected: isSelected,
-                  label: Text(tone),
-                  selectedColor: isDark ? AppColors.surfaceCardLight : AppColors.primary,
-                  backgroundColor: isDark ? AppColors.surfaceCardDark : AppColors.surfaceCardLight,
-                  labelStyle: TextStyle(
-                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                    color: isSelected
-                        ? (isDark ? AppColors.textPrimaryLight : Colors.white)
-                        : (isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight),
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(20),
-                    side: BorderSide(
-                      color: isSelected
-                          ? (isDark ? AppColors.surfaceCardLight : AppColors.primary)
-                          : (isDark ? AppColors.borderDark : AppColors.borderLight),
-                    ),
-                  ),
-                  onSelected: (val) {
-                    if (val) setState(() => _replyTone = tone);
-                  },
-                );
-              }).toList(),
-            ),
-          ],
+        return _buildChipSelector<String>(
+          title: 'Select Tone',
+          items: _replyTones,
+          isSelectedFn: (tone) => _replyTone == tone,
+          labelFn: (tone) => tone,
+          onSelectedFn: (tone) => setState(() => _replyTone = tone),
+          isDark: isDark,
+          theme: theme,
         );
 
       case StudioTab.vibeCheck:
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Vibe Check Mode',
-              style: theme.textTheme.labelMedium?.copyWith(
-                fontWeight: FontWeight.w700,
-                color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: _vibeModes.map((m) {
-                final isSelected = _vibeMode == m['id'];
-                return ChoiceChip(
-                  selected: isSelected,
-                  label: Text(m['label']!),
-                  selectedColor: isDark ? AppColors.surfaceCardLight : AppColors.primary,
-                  backgroundColor: isDark ? AppColors.surfaceCardDark : AppColors.surfaceCardLight,
-                  labelStyle: TextStyle(
-                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                    color: isSelected
-                        ? (isDark ? AppColors.textPrimaryLight : Colors.white)
-                        : (isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight),
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(20),
-                    side: BorderSide(
-                      color: isSelected
-                          ? (isDark ? AppColors.surfaceCardLight : AppColors.primary)
-                          : (isDark ? AppColors.borderDark : AppColors.borderLight),
-                    ),
-                  ),
-                  onSelected: (val) {
-                    if (val) setState(() => _vibeMode = m['id']!);
-                  },
-                );
-              }).toList(),
-            ),
-          ],
+        return _buildChipSelector<Map<String, String>>(
+          title: 'Vibe Check Mode',
+          items: _vibeModes,
+          isSelectedFn: (m) => _vibeMode == m['id'],
+          labelFn: (m) => m['label']!,
+          onSelectedFn: (m) => setState(() => _vibeMode = m['id']!),
+          isDark: isDark,
+          theme: theme,
         );
 
       case StudioTab.caption:
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Caption Vibe',
-              style: theme.textTheme.labelMedium?.copyWith(
-                fontWeight: FontWeight.w700,
-                color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: _captionVibes.map((vibe) {
-                final isSelected = _captionVibe == vibe;
-                return ChoiceChip(
-                  selected: isSelected,
-                  label: Text(vibe),
-                  selectedColor: isDark ? AppColors.surfaceCardLight : AppColors.primary,
-                  backgroundColor: isDark ? AppColors.surfaceCardDark : AppColors.surfaceCardLight,
-                  labelStyle: TextStyle(
-                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                    color: isSelected
-                        ? (isDark ? AppColors.textPrimaryLight : Colors.white)
-                        : (isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight),
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(20),
-                    side: BorderSide(
-                      color: isSelected
-                          ? (isDark ? AppColors.surfaceCardLight : AppColors.primary)
-                          : (isDark ? AppColors.borderDark : AppColors.borderLight),
-                    ),
-                  ),
-                  onSelected: (val) {
-                    if (val) setState(() => _captionVibe = vibe);
-                  },
-                );
-              }).toList(),
-            ),
-          ],
+        return _buildChipSelector<String>(
+          title: 'Caption Vibe',
+          items: _captionVibes,
+          isSelectedFn: (vibe) => _captionVibe == vibe,
+          labelFn: (vibe) => vibe,
+          onSelectedFn: (vibe) => setState(() => _captionVibe = vibe),
+          isDark: isDark,
+          theme: theme,
         );
 
       case StudioTab.bio:
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Bio Vibe',
-              style: theme.textTheme.labelMedium?.copyWith(
-                fontWeight: FontWeight.w700,
-                color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: _bioVibes.map((vibe) {
-                final isSelected = _bioVibe == vibe;
-                return ChoiceChip(
-                  selected: isSelected,
-                  label: Text(vibe),
-                  selectedColor: isDark ? AppColors.surfaceCardLight : AppColors.primary,
-                  backgroundColor: isDark ? AppColors.surfaceCardDark : AppColors.surfaceCardLight,
-                  labelStyle: TextStyle(
-                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                    color: isSelected
-                        ? (isDark ? AppColors.textPrimaryLight : Colors.white)
-                        : (isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight),
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(20),
-                    side: BorderSide(
-                      color: isSelected
-                          ? (isDark ? AppColors.surfaceCardLight : AppColors.primary)
-                          : (isDark ? AppColors.borderDark : AppColors.borderLight),
-                    ),
-                  ),
-                  onSelected: (val) {
-                    if (val) setState(() => _bioVibe = vibe);
-                  },
-                );
-              }).toList(),
-            ),
-          ],
+        return _buildChipSelector<String>(
+          title: 'Bio Vibe',
+          items: _bioVibes,
+          isSelectedFn: (vibe) => _bioVibe == vibe,
+          labelFn: (vibe) => vibe,
+          onSelectedFn: (vibe) => setState(() => _bioVibe = vibe),
+          isDark: isDark,
+          theme: theme,
         );
     }
+  }
+
+  Widget _buildChipSelector<T>({
+    required String title,
+    required List<T> items,
+    required bool Function(T item) isSelectedFn,
+    required String Function(T item) labelFn,
+    required ValueChanged<T> onSelectedFn,
+    required bool isDark,
+    required ThemeData theme,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: theme.textTheme.labelMedium?.copyWith(
+            fontWeight: FontWeight.w700,
+            color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: items.map((item) {
+            final isSelected = isSelectedFn(item);
+            return TactileScale(
+              pressedScale: 0.94,
+              child: ChoiceChip(
+                selected: isSelected,
+                label: Text(labelFn(item)),
+                selectedColor: isDark ? AppColors.surfaceCardLight : AppColors.primary,
+                backgroundColor: isDark ? AppColors.surfaceCardDark : AppColors.surfaceCardLight,
+                labelStyle: TextStyle(
+                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                  color: isSelected
+                      ? (isDark ? AppColors.textPrimaryLight : Colors.white)
+                      : (isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight),
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                  side: BorderSide(
+                    color: isSelected
+                        ? (isDark ? AppColors.surfaceCardLight : AppColors.primary)
+                        : (isDark ? AppColors.borderDark : AppColors.borderLight),
+                  ),
+                ),
+                onSelected: (val) {
+                  if (val) {
+                    HapticFeedback.selectionClick();
+                    onSelectedFn(item);
+                  }
+                },
+              ),
+            );
+          }).toList(),
+        ),
+      ],
+    );
   }
 
   Widget _buildResultsForActiveTab(bool isDark, ThemeData theme) {
@@ -1020,12 +928,16 @@ class _StudioScreenState extends ConsumerState<StudioScreen> {
         if (res == null) return const SizedBox.shrink();
         return Column(
           children: res.suggestions.asMap().entries.map((e) {
-            return _buildOutputCard(
-              context: context,
-              title: 'Option ${e.key + 1}',
-              content: e.value,
-              isDark: isDark,
-              theme: theme,
+            return StaggeredEntrance(
+              key: ValueKey('reply_${e.key}_${e.value.hashCode}'),
+              index: e.key,
+              child: _buildOutputCard(
+                context: context,
+                title: 'Option ${e.key + 1}',
+                content: e.value,
+                isDark: isDark,
+                theme: theme,
+              ),
             );
           }).toList(),
         );
@@ -1036,118 +948,135 @@ class _StudioScreenState extends ConsumerState<StudioScreen> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Score & Roast Summary
-            Container(
-              padding: const EdgeInsets.all(16),
-              margin: const EdgeInsets.only(bottom: 12),
-              decoration: BoxDecoration(
-                color: isDark ? AppColors.surfaceCardDark : AppColors.surfaceCardLight,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: isDark ? AppColors.borderDark : AppColors.borderLight,
-                ),
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    width: 60,
-                    height: 60,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: isDark ? AppColors.accentWarm : AppColors.primary,
-                        width: 3,
-                      ),
-                      color: (isDark ? AppColors.accentWarm : AppColors.primary).withOpacity(0.1),
-                    ),
-                    alignment: Alignment.center,
-                    child: Text(
-                      '${res.score}',
-                      style: TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w900,
-                        color: isDark ? AppColors.accentWarm : AppColors.primary,
-                      ),
-                    ),
+            // Score & Roast Summary with Animated Score Dial
+            StaggeredEntrance(
+              key: ValueKey('vc_summary_${res.title}_${res.score}'),
+              index: 0,
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                margin: const EdgeInsets.only(bottom: 12),
+                decoration: BoxDecoration(
+                  color: isDark ? AppColors.surfaceCardDark : AppColors.surfaceCardLight,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: isDark ? AppColors.borderDark : AppColors.borderLight,
                   ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          res.title,
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 60,
+                      height: 60,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: isDark ? AppColors.accentWarm : AppColors.primary,
+                          width: 3,
+                        ),
+                        color: (isDark ? AppColors.accentWarm : AppColors.primary).withOpacity(0.1),
+                      ),
+                      alignment: Alignment.center,
+                      child: TweenAnimationBuilder<int>(
+                        tween: IntTween(begin: 0, end: res.score),
+                        duration: AppDurations.chart,
+                        curve: AppCurves.espressoPour,
+                        builder: (context, val, _) => Text(
+                          '$val',
                           style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w800,
+                            fontSize: 22,
+                            fontWeight: FontWeight.w900,
+                            fontFeatures: AppTypography.tabularFigures,
                             color: isDark ? AppColors.accentWarm : AppColors.primary,
                           ),
                         ),
-                        const SizedBox(height: 4),
-                        Text(
-                          res.verdict,
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            fontStyle: FontStyle.italic,
+                      ),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            res.title,
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w800,
+                              color: isDark ? AppColors.accentWarm : AppColors.primary,
+                            ),
                           ),
-                        ),
-                      ],
+                          const SizedBox(height: 4),
+                          Text(
+                            res.verdict,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              fontStyle: FontStyle.italic,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                  IconButton(
-                    tooltip: _reportedContents.contains(_reportKey('studio_vibe_check_verdict', '${res.title}: ${res.verdict}'))
-                        ? 'Reported'
-                        : 'Report content',
-                    onPressed: _reportedContents.contains(_reportKey('studio_vibe_check_verdict', '${res.title}: ${res.verdict}'))
-                        ? null
-                        : () => _reportContent('${res.title}: ${res.verdict}', 'studio_vibe_check_verdict'),
-                    icon: Icon(
-                      _reportedContents.contains(_reportKey('studio_vibe_check_verdict', '${res.title}: ${res.verdict}'))
-                          ? Icons.flag_rounded
-                          : Icons.flag_outlined,
-                      size: 18,
-                      color: _reportedContents.contains(_reportKey('studio_vibe_check_verdict', '${res.title}: ${res.verdict}'))
-                          ? AppColors.accentPink
-                          : (isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight),
+                    IconButton(
+                      tooltip: _reportedContents.contains(_reportKey('studio_vibe_check_verdict', '${res.title}: ${res.verdict}'))
+                          ? 'Reported'
+                          : 'Report content',
+                      onPressed: _reportedContents.contains(_reportKey('studio_vibe_check_verdict', '${res.title}: ${res.verdict}'))
+                          ? null
+                          : () => _reportContent('${res.title}: ${res.verdict}', 'studio_vibe_check_verdict'),
+                      icon: Icon(
+                        _reportedContents.contains(_reportKey('studio_vibe_check_verdict', '${res.title}: ${res.verdict}'))
+                            ? Icons.flag_rounded
+                            : Icons.flag_outlined,
+                        size: 18,
+                        color: _reportedContents.contains(_reportKey('studio_vibe_check_verdict', '${res.title}: ${res.verdict}'))
+                            ? AppColors.accentPink
+                            : (isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight),
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
             if (res.tags.isNotEmpty) ...[
-              Wrap(
-                spacing: 6,
-                runSpacing: 6,
-                children: res.tags.map((tag) {
-                  final cleanTag = tag.startsWith('#') ? tag : '#$tag';
-                  return Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: isDark ? AppColors.surfaceElevatedDark : AppColors.surfaceCardLight,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: isDark ? AppColors.borderDark : AppColors.borderLight,
+              StaggeredEntrance(
+                index: 1,
+                child: Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: res.tags.map((tag) {
+                    final cleanTag = tag.startsWith('#') ? tag : '#$tag';
+                    return Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: isDark ? AppColors.surfaceElevatedDark : AppColors.surfaceCardLight,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                        ),
                       ),
-                    ),
-                    child: Text(
-                      cleanTag,
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: isDark ? AppColors.accentWarm : AppColors.primary,
+                      child: Text(
+                        cleanTag,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: isDark ? AppColors.accentWarm : AppColors.primary,
+                        ),
                       ),
-                    ),
-                  );
-                }).toList(),
+                    );
+                  }).toList(),
+                ),
               ),
               const SizedBox(height: 12),
             ],
             ...res.rewrites.asMap().entries.map((e) {
-              return _buildOutputCard(
-                context: context,
-                title: 'Rewrite ${e.key + 1}',
-                content: e.value,
-                isDark: isDark,
-                theme: theme,
+              return StaggeredEntrance(
+                key: ValueKey('vc_rewrite_${e.key}_${e.value.hashCode}'),
+                index: e.key + 2,
+                child: _buildOutputCard(
+                  context: context,
+                  title: 'Rewrite ${e.key + 1}',
+                  content: e.value,
+                  isDark: isDark,
+                  theme: theme,
+                ),
               );
             }),
           ],
@@ -1156,70 +1085,84 @@ class _StudioScreenState extends ConsumerState<StudioScreen> {
       case StudioTab.caption:
         final res = ref.watch(captionGenerationProvider).result;
         if (res == null) return const SizedBox.shrink();
+        final cards = <Widget>[
+          ...res.captions.asMap().entries.map(
+                (e) => _buildOutputCard(
+                  context: context,
+                  title: 'Caption ${e.key + 1}',
+                  content: e.value,
+                  isDark: isDark,
+                  theme: theme,
+                ),
+              ),
+          ...res.hooks.asMap().entries.map(
+                (e) => _buildOutputCard(
+                  context: context,
+                  title: 'Reel Hook ${e.key + 1}',
+                  content: e.value,
+                  isDark: isDark,
+                  theme: theme,
+                ),
+              ),
+          ...res.callToActions.asMap().entries.map(
+                (e) => _buildOutputCard(
+                  context: context,
+                  title: 'Call to Action ${e.key + 1}',
+                  content: e.value,
+                  isDark: isDark,
+                  theme: theme,
+                ),
+              ),
+          if (res.hashtags.isNotEmpty)
+            _buildOutputCard(
+              context: context,
+              title: 'Viral Hashtags',
+              content: res.hashtags.map((h) => h.startsWith('#') ? h : '#$h').join(' '),
+              isDark: isDark,
+              theme: theme,
+            ),
+        ];
         return Column(
           children: [
-            ...res.captions.asMap().entries.map((e) {
-              return _buildOutputCard(
-                context: context,
-                title: 'Caption ${e.key + 1}',
-                content: e.value,
-                isDark: isDark,
-                theme: theme,
-              );
-            }),
-            ...res.hooks.asMap().entries.map((e) {
-              return _buildOutputCard(
-                context: context,
-                title: 'Reel Hook ${e.key + 1}',
-                content: e.value,
-                isDark: isDark,
-                theme: theme,
-              );
-            }),
-            ...res.callToActions.asMap().entries.map((e) {
-              return _buildOutputCard(
-                context: context,
-                title: 'Call to Action ${e.key + 1}',
-                content: e.value,
-                isDark: isDark,
-                theme: theme,
-              );
-            }),
-            if (res.hashtags.isNotEmpty) ...[
-              _buildOutputCard(
-                context: context,
-                title: 'Viral Hashtags',
-                content: res.hashtags.map((h) => h.startsWith('#') ? h : '#$h').join(' '),
-                isDark: isDark,
-                theme: theme,
+            for (int i = 0; i < cards.length; i++)
+              StaggeredEntrance(
+                key: ValueKey('cap_${i}_${res.captions.hashCode}'),
+                index: i,
+                child: cards[i],
               ),
-            ],
           ],
         );
 
       case StudioTab.bio:
         final res = ref.watch(bioGenerationProvider).result;
         if (res == null) return const SizedBox.shrink();
+        final cards = <Widget>[
+          ...res.bios.asMap().entries.map(
+                (e) => _buildOutputCard(
+                  context: context,
+                  title: 'Bio ${e.key + 1}',
+                  content: e.value,
+                  isDark: isDark,
+                  theme: theme,
+                ),
+              ),
+          if (res.usernames.isNotEmpty)
+            _buildOutputCard(
+              context: context,
+              title: 'Suggested Handles',
+              content: res.usernames.join('   •   '),
+              isDark: isDark,
+              theme: theme,
+            ),
+        ];
         return Column(
           children: [
-            ...res.bios.asMap().entries.map((e) {
-              return _buildOutputCard(
-                context: context,
-                title: 'Bio ${e.key + 1}',
-                content: e.value,
-                isDark: isDark,
-                theme: theme,
-              );
-            }),
-            if (res.usernames.isNotEmpty) ...[
-              _buildOutputCard(
-                context: context,
-                title: 'Suggested Handles',
-                content: res.usernames.join('   •   '),
-                isDark: isDark,
-                theme: theme,
+            for (int i = 0; i < cards.length; i++)
+              StaggeredEntrance(
+                key: ValueKey('bio_${i}_${res.bios.hashCode}'),
+                index: i,
+                child: cards[i],
               ),
-            ],
           ],
         );
     }
@@ -1244,14 +1187,24 @@ class _StudioScreenState extends ConsumerState<StudioScreen> {
     required bool isDark,
     required ThemeData theme,
   }) {
-    return Container(
+    final isCopied = _copiedContents.contains(content);
+    final isFav = _favoritedTexts.contains(content);
+
+    return AnimatedContainer(
+      duration: AppDurations.fast,
+      curve: AppCurves.espressoPour,
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: isDark ? AppColors.surfaceCardDark : AppColors.surfaceCardLight,
+        color: isCopied
+            ? AppColors.success.withValues(alpha: isDark ? 0.10 : 0.05)
+            : (isDark ? AppColors.surfaceCardDark : AppColors.surfaceCardLight),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: isDark ? AppColors.borderDark : AppColors.borderLight,
+          color: isCopied
+              ? AppColors.success
+              : (isDark ? AppColors.borderDark : AppColors.borderLight),
+          width: isCopied ? 1.5 : 1.0,
         ),
       ),
       child: Column(
@@ -1292,89 +1245,132 @@ class _StudioScreenState extends ConsumerState<StudioScreen> {
               spacing: 4,
               runSpacing: 2,
               children: [
-                TextButton.icon(
-                  onPressed: () => _toggleFavorite(content),
-                  icon: Icon(
-                    _favoritedTexts.contains(content)
-                        ? Icons.favorite_rounded
-                        : Icons.favorite_border_rounded,
-                    size: 15,
-                    color: _favoritedTexts.contains(content) ? AppColors.accentPink : null,
-                  ),
-                  label: Text(
-                    _favoritedTexts.contains(content) ? 'Saved' : 'Save',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: _favoritedTexts.contains(content) ? AppColors.accentPink : null,
+                TactileScale(
+                  child: TextButton.icon(
+                    onPressed: () => _toggleFavorite(content),
+                    icon: AnimatedSwitcher(
+                      duration: AppDurations.normal,
+                      switchInCurve: AppCurves.cremaSpring,
+                      transitionBuilder: (child, animation) =>
+                          ScaleTransition(scale: animation, child: child),
+                      child: Icon(
+                        isFav ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                        key: ValueKey<bool>(isFav),
+                        size: 15,
+                        color: isFav ? AppColors.accentPink : null,
+                      ),
+                    ),
+                    label: Text(
+                      isFav ? 'Saved' : 'Save',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: isFav ? AppColors.accentPink : null,
+                      ),
+                    ),
+                    style: TextButton.styleFrom(
+                      foregroundColor: isDark ? AppColors.textPrimaryDark : AppColors.primary,
+                      visualDensity: VisualDensity.compact,
                     ),
                   ),
-                  style: TextButton.styleFrom(
-                    foregroundColor: isDark ? AppColors.textPrimaryDark : AppColors.primary,
-                    visualDensity: VisualDensity.compact,
-                  ),
                 ),
-                TextButton.icon(
-                  onPressed: () {
-                    Clipboard.setData(ClipboardData(text: content));
-                    HapticFeedback.lightImpact();
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Copied to clipboard!'),
-                        duration: Duration(seconds: 2),
-                        behavior: SnackBarBehavior.floating,
+                TactileScale(
+                  child: TextButton.icon(
+                    onPressed: () {
+                      Clipboard.setData(ClipboardData(text: content));
+                      HapticFeedback.lightImpact();
+                      setState(() => _copiedContents.add(content));
+                      Future.delayed(const Duration(seconds: 2), () {
+                        if (mounted) {
+                          setState(() => _copiedContents.remove(content));
+                        }
+                      });
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Copied to clipboard!'),
+                          duration: Duration(seconds: 2),
+                          behavior: SnackBarBehavior.floating,
+                        ),
+                      );
+                    },
+                    icon: AnimatedSwitcher(
+                      duration: AppDurations.fast,
+                      switchInCurve: AppCurves.cremaSpring,
+                      transitionBuilder: (child, animation) =>
+                          ScaleTransition(scale: animation, child: child),
+                      child: Icon(
+                        isCopied ? Icons.check_rounded : Icons.copy_rounded,
+                        key: ValueKey<bool>(isCopied),
+                        size: 15,
+                        color: isCopied ? AppColors.success : null,
                       ),
-                    );
-                  },
-                  icon: const Icon(Icons.copy_rounded, size: 15),
-                  label: const Text('Copy', style: TextStyle(fontSize: 12)),
-                  style: TextButton.styleFrom(
-                    foregroundColor: isDark ? AppColors.textPrimaryDark : AppColors.primary,
-                    visualDensity: VisualDensity.compact,
+                    ),
+                    label: Text(
+                      isCopied ? 'Copied' : 'Copy',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: isCopied ? AppColors.success : null,
+                      ),
+                    ),
+                    style: TextButton.styleFrom(
+                      foregroundColor: isDark ? AppColors.textPrimaryDark : AppColors.primary,
+                      visualDensity: VisualDensity.compact,
+                    ),
                   ),
                 ),
-                TextButton.icon(
-                  onPressed: () {
-                    context.push('/card-maker', extra: {'text': content});
-                  },
-                  icon: const Icon(Icons.style_outlined, size: 15),
-                  label: const Text('Card', style: TextStyle(fontSize: 12)),
-                  style: TextButton.styleFrom(
-                    foregroundColor: isDark ? AppColors.textPrimaryDark : AppColors.primary,
-                    visualDensity: VisualDensity.compact,
+                TactileScale(
+                  child: TextButton.icon(
+                    onPressed: () {
+                      context.push('/card-maker', extra: {'text': content});
+                    },
+                    icon: const Icon(Icons.style_outlined, size: 15),
+                    label: const Text('Card', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+                    style: TextButton.styleFrom(
+                      backgroundColor: (isDark ? AppColors.accent : AppColors.primary)
+                          .withValues(alpha: 0.12),
+                      foregroundColor: isDark ? AppColors.accentWarm : AppColors.primary,
+                      shape: const RoundedRectangleBorder(
+                        borderRadius: AppSpacing.roundedFull,
+                      ),
+                      visualDensity: VisualDensity.compact,
+                    ),
                   ),
                 ),
-                TextButton.icon(
-                  onPressed: () {
-                    Share.share(content);
-                  },
-                  icon: const Icon(Icons.share_outlined, size: 15),
-                  label: const Text('Share', style: TextStyle(fontSize: 12)),
-                  style: TextButton.styleFrom(
-                    foregroundColor: isDark ? AppColors.textPrimaryDark : AppColors.primary,
-                    visualDensity: VisualDensity.compact,
+                TactileScale(
+                  child: TextButton.icon(
+                    onPressed: () {
+                      Share.share(content);
+                    },
+                    icon: const Icon(Icons.share_outlined, size: 15),
+                    label: const Text('Share', style: TextStyle(fontSize: 12)),
+                    style: TextButton.styleFrom(
+                      foregroundColor: isDark ? AppColors.textPrimaryDark : AppColors.primary,
+                      visualDensity: VisualDensity.compact,
+                    ),
                   ),
                 ),
-                TextButton.icon(
-                  onPressed: _reportedContents.contains(_reportKey('studio_${_activeTab.id}', content))
-                      ? null
-                      : () => _reportContent(content, 'studio_${_activeTab.id}'),
-                  icon: Icon(
-                    _reportedContents.contains(_reportKey('studio_${_activeTab.id}', content))
-                        ? Icons.flag_rounded
-                        : Icons.flag_outlined,
-                    size: 15,
-                    color: _reportedContents.contains(_reportKey('studio_${_activeTab.id}', content)) ? AppColors.accentPink : null,
-                  ),
-                  label: Text(
-                    _reportedContents.contains(_reportKey('studio_${_activeTab.id}', content)) ? 'Reported' : 'Report',
-                    style: TextStyle(
-                      fontSize: 12,
+                TactileScale(
+                  child: TextButton.icon(
+                    onPressed: _reportedContents.contains(_reportKey('studio_${_activeTab.id}', content))
+                        ? null
+                        : () => _reportContent(content, 'studio_${_activeTab.id}'),
+                    icon: Icon(
+                      _reportedContents.contains(_reportKey('studio_${_activeTab.id}', content))
+                          ? Icons.flag_rounded
+                          : Icons.flag_outlined,
+                      size: 15,
                       color: _reportedContents.contains(_reportKey('studio_${_activeTab.id}', content)) ? AppColors.accentPink : null,
                     ),
-                  ),
-                  style: TextButton.styleFrom(
-                    foregroundColor: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
-                    visualDensity: VisualDensity.compact,
+                    label: Text(
+                      _reportedContents.contains(_reportKey('studio_${_activeTab.id}', content)) ? 'Reported' : 'Report',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: _reportedContents.contains(_reportKey('studio_${_activeTab.id}', content)) ? AppColors.accentPink : null,
+                      ),
+                    ),
+                    style: TextButton.styleFrom(
+                      foregroundColor: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                      visualDensity: VisualDensity.compact,
+                    ),
                   ),
                 ),
               ],

@@ -7,8 +7,11 @@ import 'package:in_app_purchase_android/in_app_purchase_android.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../core/config/app_config.dart';
 import '../../core/constants/app_colors.dart';
+import '../../core/constants/app_durations.dart';
+import '../../core/constants/app_typography.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/services/analytics_service.dart';
+import '../../core/widgets/motion_widgets.dart';
 
 class PaywallScreen extends ConsumerStatefulWidget {
   const PaywallScreen({super.key});
@@ -400,42 +403,6 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
 
               const SizedBox(height: 24),
 
-              // Purchase / Subscription Management Button
-              SizedBox(
-                width: double.infinity,
-                height: 52,
-                child: ElevatedButton(
-                  onPressed: _isPurchasing
-                      ? null
-                      : (quota.isPro && _selectedPlan != AppConfig.creditPack50Id
-                          ? _openPlaySubscriptions
-                          : _handlePurchase),
-                  child: _isPurchasing
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                              strokeWidth: 2, color: Colors.white),
-                        )
-                      : Text(
-                          quota.isPro && _selectedPlan != AppConfig.creditPack50Id
-                              ? 'Manage Active Subscription'
-                              : _selectedPlan == AppConfig.proLifetimeId
-                                  ? 'Get Lifetime VIP Access'
-                                  : _selectedPlan == AppConfig.creditPack50Id
-                                      ? 'Purchase 50 AI Credits'
-                                      : hasYearlyFreeTrial &&
-                                              _selectedPlan == AppConfig.proYearlyId
-                                          ? 'Start Free Trial'
-                                          : 'Subscribe Now',
-                          style: const TextStyle(
-                              fontSize: 16, fontWeight: FontWeight.bold),
-                        ),
-                ),
-              ),
-
-              const SizedBox(height: 28),
-
               // Plan Comparison Table
               Text('Tier Comparison Matrix',
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: textCol)),
@@ -566,6 +533,53 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
           ),
         ),
       ),
+      bottomNavigationBar: Container(
+        padding: const EdgeInsets.fromLTRB(20, 10, 20, 14),
+        decoration: BoxDecoration(
+          color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+          border: Border(
+            top: BorderSide(color: borderCol, width: 1),
+          ),
+        ),
+        child: SafeArea(
+          top: false,
+          child: TactileScale(
+            enabled: !_isPurchasing,
+            child: SizedBox(
+              width: double.infinity,
+              height: 52,
+              child: ElevatedButton(
+                onPressed: _isPurchasing
+                    ? null
+                    : (quota.isPro && _selectedPlan != AppConfig.creditPack50Id
+                        ? _openPlaySubscriptions
+                        : _handlePurchase),
+                child: _isPurchasing
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2, color: Colors.white),
+                      )
+                    : Text(
+                        quota.isPro && _selectedPlan != AppConfig.creditPack50Id
+                            ? 'Manage Active Subscription'
+                            : _selectedPlan == AppConfig.proLifetimeId
+                                ? 'Get Lifetime VIP Access'
+                                : _selectedPlan == AppConfig.creditPack50Id
+                                    ? 'Purchase 50 AI Credits'
+                                    : hasYearlyFreeTrial &&
+                                            _selectedPlan == AppConfig.proYearlyId
+                                        ? 'Start Free Trial'
+                                        : 'Subscribe Now',
+                        style: const TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.bold),
+                      ),
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 
@@ -591,96 +605,101 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
     final titleCol = isDark ? Colors.white : AppColors.textPrimaryLight;
     final subCol = isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight;
 
-    return InkWell(
-      onTap: () => setState(() => _selectedPlan = planId),
-      borderRadius: BorderRadius.circular(16),
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: planCardBg,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: planBorder,
-            width: isSelected ? 2 : 1,
-          ),
-          boxShadow: (isSelected && !kIsWeb)
-              ? [
-                  BoxShadow(
-                    color: AppColors.primary.withOpacity(0.18),
-                    blurRadius: 14,
-                    offset: const Offset(0, 4),
-                  ),
-                ]
-              : null,
-        ),
-        child: Row(
-          children: [
-            Icon(
-              isSelected
-                  ? Icons.radio_button_checked_rounded
-                  : Icons.radio_button_off_rounded,
-              color: radioCol,
+    return TactileScale(
+      child: InkWell(
+        onTap: () => setState(() => _selectedPlan = planId),
+        borderRadius: BorderRadius.circular(16),
+        child: AnimatedContainer(
+          duration: AppDurations.fast,
+          curve: AppCurves.espressoPour,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: planCardBg,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: planBorder,
+              width: isSelected ? 2 : 1,
             ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Wrap(
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    spacing: 8,
-                    runSpacing: 4,
-                    children: [
-                      Text(
-                        title,
-                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: titleCol),
-                      ),
-                      if (badgeText != null)
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            gradient: badgeGradient ?? AppColors.accentGradient,
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Text(
-                            badgeText,
-                            style: const TextStyle(
-                              fontSize: 9,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
+            boxShadow: (isSelected && !kIsWeb)
+                ? [
+                    BoxShadow(
+                      color: AppColors.primary.withOpacity(0.18),
+                      blurRadius: 14,
+                      offset: const Offset(0, 4),
+                    ),
+                  ]
+                : null,
+          ),
+          child: Row(
+            children: [
+              Icon(
+                isSelected
+                    ? Icons.radio_button_checked_rounded
+                    : Icons.radio_button_off_rounded,
+                color: radioCol,
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Wrap(
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      spacing: 8,
+                      runSpacing: 4,
+                      children: [
+                        Text(
+                          title,
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: titleCol),
+                        ),
+                        if (badgeText != null)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              gradient: badgeGradient ?? AppColors.accentGradient,
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              badgeText,
+                              style: const TextStyle(
+                                fontSize: 9,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
                             ),
                           ),
-                        ),
-                    ],
+                      ],
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        color: subCol,
+                        fontSize: 13,
+                        fontFeatures: AppTypography.tabularFigures,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (savings != null)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: AppColors.success.withValues(alpha: isDark ? 0.22 : 0.12),
+                    borderRadius: BorderRadius.circular(8),
                   ),
-                  const SizedBox(height: 3),
-                  Text(
-                    subtitle,
+                  child: Text(
+                    savings,
                     style: TextStyle(
-                      color: subCol,
-                      fontSize: 13,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                      color: isDark ? const Color(0xFF69F0AE) : AppColors.success,
                     ),
                   ),
-                ],
-              ),
-            ),
-            if (savings != null)
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: AppColors.success.withValues(alpha: isDark ? 0.22 : 0.12),
-                  borderRadius: BorderRadius.circular(8),
                 ),
-                child: Text(
-                  savings,
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
-                    color: isDark ? const Color(0xFF69F0AE) : AppColors.success,
-                  ),
-                ),
-              ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -706,7 +725,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
         : activeAccent;
     final vipCol = isHeader
         ? (isDark ? Colors.white70 : AppColors.textSecondaryLight)
-        : (isDark ? Colors.amberAccent : const Color(0xFFB45309));
+        : (isDark ? AppColors.amberGold : const Color(0xFFB45309));
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),

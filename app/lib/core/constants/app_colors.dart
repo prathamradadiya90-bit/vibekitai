@@ -56,6 +56,9 @@ class AppColors {
   static const Color warning = Color(0xFFD97706); // Warm Amber Honey
   static const Color error = Color(0xFFC2410C); // Roasted Rust / Clay Red
   static const Color info = Color(0xFF8C6239); // Warm Toffee Muted
+  static const Color sageGreen = Color(0xFF3F6B45); // Roasted Matcha Sage (Bio / Freeze accent)
+  static const Color emberOrange = Color(0xFFD9531E); // Warm Roasted Flame (Vibe Check accent)
+  static const Color amberGold = Color(0xFFE59A38); // Golden Crema Spark (Streaks & Achievements)
 
   // Text Colors - Dark Mode
   static const Color textPrimaryDark = Color(0xFFFFFBF7); // Warm Steamed Milk Cream

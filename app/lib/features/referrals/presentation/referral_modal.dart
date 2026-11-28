@@ -2,10 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/config/app_config.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/constants/app_typography.dart';
 import '../../../core/network/api_exception.dart';
 import '../../../core/providers/app_providers.dart';
 import '../../../core/services/share_service.dart';
 import '../../../core/services/analytics_service.dart';
+import '../../../core/widgets/loading_shimmer.dart';
+import '../../../core/widgets/motion_widgets.dart';
 
 class ReferralModal extends ConsumerStatefulWidget {
   const ReferralModal({super.key});
@@ -78,7 +81,7 @@ class _ReferralModalState extends ConsumerState<ReferralModal> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(res['message'] ?? 'Referral reward claimed! +2 credits.'),
-            backgroundColor: const Color(0xFF00B894),
+            backgroundColor: AppColors.success,
           ),
         );
         ref.invalidate(quotaProvider);
@@ -90,7 +93,7 @@ class _ReferralModalState extends ConsumerState<ReferralModal> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(msg),
-            backgroundColor: const Color(0xFFFF7675),
+            backgroundColor: AppColors.error,
           ),
         );
       }
@@ -165,7 +168,7 @@ class _ReferralModalState extends ConsumerState<ReferralModal> {
             ),
             const SizedBox(height: 24),
             if (_isLoading)
-              const Center(child: CircularProgressIndicator())
+              const ResultCardSkeleton()
             else ...[
               // Stats Card
               Container(
@@ -186,7 +189,10 @@ class _ReferralModalState extends ConsumerState<ReferralModal> {
                     Column(
                       children: [
                         Text('$_totalReferred / $_maxReferrals',
-                            style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold, color: activeAccent)),
+                            style: theme.textTheme.headlineSmall?.copyWith(
+                                fontWeight: FontWeight.bold,
+                                fontFeatures: AppTypography.tabularFigures,
+                                color: activeAccent)),
                         const Text('Friends Joined', style: TextStyle(fontSize: 12)),
                       ],
                     ),
@@ -194,7 +200,10 @@ class _ReferralModalState extends ConsumerState<ReferralModal> {
                     Column(
                       children: [
                         Text('+$_creditsEarned',
-                            style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold, color: successColor)),
+                            style: theme.textTheme.headlineSmall?.copyWith(
+                                fontWeight: FontWeight.bold,
+                                fontFeatures: AppTypography.tabularFigures,
+                                color: successColor)),
                         const Text('Credits Earned', style: TextStyle(fontSize: 12)),
                       ],
                     ),
@@ -220,37 +229,42 @@ class _ReferralModalState extends ConsumerState<ReferralModal> {
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                    IconButton(
-                      icon: const Icon(Icons.copy_rounded, size: 20),
-                      onPressed: _referralCode.isEmpty
-                          ? null
-                          : () => ShareService.copyToClipboard(
-                                context,
-                                _referralCode,
-                                message: 'Referral code copied!',
-                              ),
+                    TactileScale(
+                      child: IconButton(
+                        icon: const Icon(Icons.copy_rounded, size: 20),
+                        onPressed: _referralCode.isEmpty
+                            ? null
+                            : () => ShareService.copyToClipboard(
+                                  context,
+                                  _referralCode,
+                                  message: 'Referral code copied!',
+                                ),
+                      ),
                     ),
                   ],
                 ),
               ),
               const SizedBox(height: 12),
-              ElevatedButton.icon(
-                onPressed: _referralCode.isEmpty
-                    ? null
-                    : () {
-                        AnalyticsService.instance.logEvent('referral_shared');
-                        final link = ShareService.buildReferralLink(_referralCode);
-                        ShareService.shareText(
-                          'Hey! Try ${AppConfig.appName} to create awesome replies, captions, and profile bios. Use my referral code: $_referralCode for +2 bonus credits!\n\nDownload: $link',
-                        );
-                      },
-                icon: const Icon(Icons.share_rounded),
-                label: const Text('Share Invite Link'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              TactileScale(
+                enabled: _referralCode.isNotEmpty,
+                child: ElevatedButton.icon(
+                  onPressed: _referralCode.isEmpty
+                      ? null
+                      : () {
+                          AnalyticsService.instance.logEvent('referral_shared');
+                          final link = ShareService.buildReferralLink(_referralCode);
+                          ShareService.shareText(
+                            'Hey! Try ${AppConfig.appName} to create awesome replies, captions, and profile bios. Use my referral code: $_referralCode for +2 bonus credits!\n\nDownload: $link',
+                          );
+                        },
+                  icon: const Icon(Icons.share_rounded),
+                  label: const Text('Share Invite Link'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  ),
                 ),
               ),
               const SizedBox(height: 24),
@@ -277,17 +291,20 @@ class _ReferralModalState extends ConsumerState<ReferralModal> {
                     ),
                   ),
                   const SizedBox(width: 10),
-                  ElevatedButton(
-                    onPressed: _isClaiming ? null : _claimReferral,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.success,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  TactileScale(
+                    enabled: !_isClaiming,
+                    child: ElevatedButton(
+                      onPressed: _isClaiming ? null : _claimReferral,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.success,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      child: _isClaiming
+                          ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                          : const Text('Claim'),
                     ),
-                    child: _isClaiming
-                        ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                        : const Text('Claim'),
                   ),
                 ],
               ),
